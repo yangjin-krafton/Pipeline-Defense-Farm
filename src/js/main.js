@@ -142,22 +142,51 @@ function checkTowerSlotClick(virtualX, virtualY) {
 /**
  * Setup canvas click handler for tower slots
  */
-function setupTowerSlotClicks(canvas, uiController) {
-  canvas.addEventListener('click', (e) => {
-    const rect = canvas.getBoundingClientRect();
+function setupTowerSlotClicks(container, uiController, scaleManager) {
+  container.addEventListener('click', (e) => {
+    console.log('Container clicked');
 
-    // Get click position relative to canvas
-    const canvasX = e.clientX - rect.left;
-    const canvasY = e.clientY - rect.top;
+    // Get container rect
+    const rect = container.getBoundingClientRect();
+
+    // Get click position relative to container
+    const containerX = e.clientX - rect.left;
+    const containerY = e.clientY - rect.top;
+
+    console.log('Container relative:', containerX, containerY);
+
+    // Calculate canvas dimensions and offset (same logic as fitCanvas)
+    const gameAreaWidth = 640;
+    const gameAreaHeight = 1063;
+    const scale = Math.min(gameAreaWidth / VIRTUAL_W, gameAreaHeight / VIRTUAL_H);
+    const cssW = Math.round(VIRTUAL_W * scale);
+    const cssH = Math.round(VIRTUAL_H * scale);
+    const offsetX = (gameAreaWidth - cssW) / 2;
+    const offsetY = (gameAreaHeight - cssH) / 2;
+
+    // Adjust for canvas offset
+    const canvasX = containerX - offsetX;
+    const canvasY = containerY - offsetY;
+
+    console.log('Canvas offset:', offsetX, offsetY);
+    console.log('Canvas relative:', canvasX, canvasY);
+
+    // Check if click is within canvas bounds
+    if (canvasX < 0 || canvasX > cssW || canvasY < 0 || canvasY > cssH) {
+      console.log('Click outside canvas bounds');
+      return;
+    }
 
     // Convert to virtual coordinates (360x640)
-    const virtualX = (canvasX / rect.width) * VIRTUAL_W;
-    const virtualY = (canvasY / rect.height) * VIRTUAL_H;
+    const virtualX = (canvasX / cssW) * VIRTUAL_W;
+    const virtualY = (canvasY / cssH) * VIRTUAL_H;
+
+    console.log('Virtual coords:', virtualX, virtualY);
 
     // Check if click is on a tower slot
     const slot = checkTowerSlotClick(virtualX, virtualY);
     if (slot) {
-      console.log('Tower slot clicked:', slot);
+      console.log('Tower slot clicked!', slot);
       uiController.openSheet();
     }
   });
@@ -211,8 +240,9 @@ async function init() {
   // Initialize Scale Manager
   const scaleManager = new ScaleManager();
 
-  // Setup tower slot click detection
-  setupTowerSlotClicks(emojiCanvas, uiController);
+  // Setup tower slot click detection on container (canvas may not receive events properly)
+  const canvasContainer = document.querySelector('.canvas-container');
+  setupTowerSlotClicks(canvasContainer, uiController, scaleManager);
 
   // Expose for debugging
   window.gameLoop = gameLoop;
