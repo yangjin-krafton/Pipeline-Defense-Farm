@@ -1,252 +1,113 @@
-# 🧬 Pipeline Defense Farm
+﻿# Pipeline Defense Farm (소화기관 디펜스)
 
-> 2D Grid 기반
-> 타워디펜스 + 방치형 농장 + 파이프라인 최적화 전략
-
----
-
-## 🎮 Game Concept
-
-**Pipeline Defense Farm**은
-전통적인 타워 디펜스를 변형한 구조에
-방치형 농장 시스템을 결합한 전략 게임입니다.
-
-기존 TD와의 차이점:
-
-* Enemy는 단순히 지나가는 존재가 아님
-* 길이 막히면 정체되고 “쌓임”
-* 유저는 **킬 효율 파이프라인을 설계**
-* 오프라인 동안 일부 시스템은 자동 성장
+> 식도 → 위 → 소장 → 대장으로 이어지는 “소화 파이프라인” 맵에서  
+> 다양한 음식(Enemy)이 통과하기 전에, 소화를 돕는 컨셉의 타워를 세워 **분해/중화/흡수**를 최적화하는 타워 디펜스.
 
 ---
 
-## 🧩 Core Gameplay Loop
+## 게임 컨셉
 
-1. 2D Grid 맵 생성
-2. Enemy 웨이브 생성 → 길 따라 이동
-3. 유저는 길 외 영역에 타워 설치
-4. Enemy는 도발(trigger) 전까지 대기 가능
-5. 길이 막히면 적이 쌓이고 병목 발생
-6. 유저는 효율적인 “처리 파이프라인” 설계
-7. 농장 시스템으로 자원 생산
-8. 오프라인 시간 보상 획득
-9. 확장 / 업그레이드
+이 게임의 맵은 **소화 기관 자체**입니다.  
+음식이 통과하는 경로(식도→위→소장→대장)는 고정된 “파이프라인”이고, 플레이어는 중간중간 **소화에 도움을 주는 장치(타워)**를 배치해 음식이 문제를 일으키기 전에 처리합니다.
 
----
+기본 TD와의 차이:
 
-## 🗺 Map Structure
-
-* 2D Grid 기반
-* Tile 종류:
-
-  * Path Tile
-  * Buildable Tile
-  * Farm Tile
-  * Special Tile (확장 예정)
-
-맵은 정적 or Seed 기반 생성 가능.
+- “끝까지 못 가게 막는 것”보다 **원활히 통과시키는 것(소화 효율)**이 목표
+- 음식이 쌓이면(정체/가스/염증 등) **구간별 트러블**이 발생
+- 기관(구간)마다 규칙이 달라서 **타워 조합/배치가 핵심 퍼즐**
 
 ---
 
-## 👾 Enemy System
+## 핵심 게임 루프
 
-### 기본 특징
-
-* Path 기반 이동
-* 막히면 대기 (stack)
-* 도발 조건 충족 시 이동 재개
-* 밀집도 → 전략적 변수
-
-### 전략 요소
-
-* 병목 유도
-* 광역 타워 효율 극대화
-* 흐름 설계 = 핵심 플레이
+1. 소화기관 2D 그리드 맵 생성(식도/위/소장/대장 구간 포함)
+2. 음식(Enemy)이 입구에서 생성되어 기관 경로를 따라 이동
+3. 빌드 타일에 소화 보조 타워(효소/산/담즙/프로바이오틱스 등) 배치
+4. 타워가 음식에 “소화 피해” 또는 상태이상(분해/중화/유화/흡수 촉진)을 부여
+5. 음식이 쌓이거나 특정 음식 조합이 누적되면 구간 트러블(역류/과산/염증/변비 등) 발생
+6. 라운드 종료 후 영양(자원) 획득 → 타워 강화/신규 타워 해금/기관 업그레이드
+7. 오프라인 동안에도 “흡수/대사”가 진행되어 보상 수령(Idle 요소)
 
 ---
 
-## 🏗 Tower System
+## 맵 구조 (소화기관)
 
-* Path 외 영역에 설치
-* 단일 / 광역 / 지속 피해 등 타입 존재
-* 공격 대상 우선순위 설정 가능
+- **식도(Esophagus)**: 직선/좁은 통로, “역류” 이벤트(뒤로 밀림) 가능
+- **위(Stomach)**: 느린 구간, 산도(pH) 시스템, “과산/저산” 상태가 음식 처리에 영향
+- **소장(Small Intestine)**: 분기/곡선이 많고 길며, 흡수/지원 타워의 가치가 큼
+- **대장(Large Intestine)**: 수분/섬유질/발효 중심, 정체가 길어지면 “변비” 트러블 발생
 
-예:
+타일 예시:
 
-* First
-* Last
-* Highest HP
-* Most Clustered
-
----
-
-## 🌾 Idle Farm System
-
-### 목적
-
-* 실시간 접속 중 자원 생산
-* 오프라인 시간 보상 계산
-
-### 구조
-
-* 농장 건물 배치
-* 생산량 = 시간 기반 계산
-* 재접속 시:
-
-  * (현재 시간 - 종료 시간) 계산
-  * 생산 공식 적용
-  * 보상 지급
-
-게임 자체 시뮬레이션은 중지되며
-일부 건물만 오프라인 계산 대상.
+- Path Tile: 음식 이동 경로
+- Buildable Tile: 타워 설치 가능
+- Organ Tile: 구간 고유 규칙/버프/디버프 적용
+- Special Tile: 체크포인트(괄약근), 보스 이벤트, 상점 등
 
 ---
 
-## 🧠 Design Philosophy
+## 음식(Enemy) 시스템
 
-### 1. Pipeline Optimization > Reflex
+음식은 단순한 HP 덩어리가 아니라 “소화 난이도”를 가진 개체입니다.
 
-이 게임은 반응 속도 게임이 아님.
-**흐름 설계 게임**이다.
+- **탄수화물**: 분해는 쉽지만 대량 유입 시 급격히 쌓임
+- **지방식**: 이동/분해가 느리고 유화(담즙) 없으면 강함
+- **단백질**: 위 구간(산/효소)에서 잘 처리되며, 처리 실패 시 잔여물이 트러블 유발
+- **유제품/매운 음식/탄산**: 특정 트러블(염증/가스/과산 등)을 빠르게 누적
+- **보스 음식**: “특대 피자”, “치즈버거 세트” 같은 복합 속성 + 저항
 
-### 2. Stack Pressure Mechanics
+핵심 메커니즘:
 
-Enemy가 쌓이면서
-
-* 압력 증가
-* 타워 효율 변화
-* 보너스 / 페널티 발생 가능
-
-### 3. LLM-Friendly Expandable Architecture
-
-콘텐츠 확장이 매우 쉬운 구조를 목표로 한다.
+- 음식이 **쌓이면(Stack)** 구간 압력이 올라가고, 트러블 발생 확률이 증가
+- 구간별로 “잘 맞는 처리법”이 달라서, 타워 선택이 중요
 
 ---
 
-# 🏗 Technical Architecture
+## 소화 보조 타워(디펜스) 컨셉
 
-## 📦 Engine
+타워는 “무기”가 아니라 **소화 과정의 역할**을 수행합니다.
 
-* WebGL2 기반
-* 2D Grid Simulation
-* Local-first 구조
-* 서버 없이 실행 가능
+- **효소 분사기(Enzyme)**: 특정 음식 타입(탄수/단백/지방) 분해 보너스
+- **위산 분무(Acid)**: 위 구간에서 강력, 대신 과산 누적 리스크
+- **담즙 제트(Bile)**: 지방 유화/약화, 범위 디버프
+- **프로바이오틱스 구름(Probiotic)**: 대장 구간 버프, 발효/부패 트러블 완화
+- **연동 운동 펄스(Peristalsis)**: 음식 밀어내기/정체 해소(지원형)
+- **흡수 필터(Absorption)**: 소장에서 자원(영양) 획득량 증가(딜+경제 하이브리드)
 
----
+타겟팅(예):
 
-## 🗃 Save System
-
-* localStorage / IndexedDB
-* Save Snapshot 구조
-* 저장 항목:
-
-  * Grid 상태
-  * Enemy 상태
-  * Building 상태
-  * Resource
-  * Timestamp
+- First / Last
+- 가장 많이 쌓인 군집(Cluster)
+- 특정 속성 우선(지방/유제품 등)
 
 ---
 
-## 🧱 Core Code Structure
+## 자원/성장(Idle 포함)
 
-### Base Class Philosophy
-
-모든 콘텐츠는 Base Class 기반.
-
-```text
-BaseEntity
- ├── BaseEnemy
- ├── BaseTower
- ├── BaseBuilding
-```
-
-### Example
-
-#### BaseEnemy
-
-```js
-class BaseEnemy {
-    constructor(config) {}
-    update(deltaTime) {}
-    takeDamage(amount) {}
-    onDeath() {}
-}
-```
-
-#### Custom Enemy
-
-```js
-class HeavyEnemy extends BaseEnemy {
-    update(deltaTime) {
-        super.update(deltaTime)
-        // override logic
-    }
-}
-```
+- 전투 보상: 영양(Nutrients), 에너지(Energy), 장내균 배양치(Microbiome) 등
+- 기관 업그레이드: 구간별 기본 능력(산도 안정, 흡수 효율, 수분 조절 등) 강화
+- 오프라인 보상: 누적된 “흡수/대사” 결과를 로그인 시 정산
 
 ---
 
-## 🧩 Content Extension Strategy
+## 기술(프로젝트) 방향
 
-* 모든 Enemy/Tower/Building은 데이터 기반 정의
-* JSON + Class Override 혼합 방식
-* LLM이 신규 콘텐츠 자동 생성 가능
-* 핵심 엔진 수정 없이 확장 가능
-
----
-
-# 📊 Core Systems Overview
-
-| System                  | Real-time | Offline |
-| ----------------------- | --------- | ------- |
-| Enemy Movement          | ✅         | ❌       |
-| Tower Attack            | ✅         | ❌       |
-| Farm Production         | ✅         | ✅       |
-| Passive Income Building | ❌         | ✅       |
+- WebGL2 기반 2D 그리드 시뮬레이션
+- Local-first(서버 없이 실행 가능)
+- 저장: localStorage / IndexedDB 스냅샷(맵/음식/타워/자원/타임스탬프)
 
 ---
 
-# 🔥 Unique Selling Points
+## 콘텐츠 확장 전략(데이터 중심)
 
-1. 적이 “흐르는” 것이 아니라 “쌓인다”
-2. 병목 설계 중심 전략
-3. 타워디펜스 + 방치형 농장 결합
-4. 로컬 기반 오프라인 친화 구조
-5. 확장성 높은 LLM 기반 콘텐츠 설계
+- 음식/타워/기관 이벤트를 **데이터 기반으로 정의**(JSON 등)
+- 공통 베이스 클래스로 확장 가능하게 설계
+- 신규 콘텐츠를 추가해도 기존 시스템 수정이 최소화되도록 구성
 
 ---
 
-# 🛣 Roadmap (Early)
+## 로드맵 (초기)
 
-### Phase 1
-
-* Grid 시스템
-* Pathfinding
-* Enemy Stack Logic
-* Basic Tower
-
-### Phase 2
-
-* Farm 시스템
-* 오프라인 계산 로직
-* Resource 시스템
-
-### Phase 3
-
-* 다양한 Enemy 타입
-* 다양한 Tower 타입
-* 압력 시스템
-* UI 개선
-
----
-
-# 🚀 Long-Term Vision
-
-* Procedural Map
-* Mutation Enemy
-* Seasonal Event
-* Meta Progression Tree
-* Community Modding (JSON 기반)
-
----
+- Phase 1: 소화기관 맵(4구간) + 기본 음식 + 기본 타워 + 정체(Stack) 로직
+- Phase 2: 산도/담즙/장내균 등 구간 시스템 + 업그레이드 + 오프라인 정산
+- Phase 3: 보스 음식/기관 이벤트/메타 진행(UI, 해금 트리, 난이도 모드)
