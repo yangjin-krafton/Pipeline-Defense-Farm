@@ -1,22 +1,28 @@
 /**
  * Status Bar Component - Splatoon Style
- * 상단 상태바: 리소스, 소화기관 건강 상태
+ * 상단 상태바: 리소스, 음악 컨트롤
  */
 
 #status-bar {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
+  width: 640px;
   height: 75px;
   background: var(--bg-stripe-pink);
   border-bottom: 6px solid white;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 15px;
+  gap: 10px;
   z-index: 100;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* 2분할 레이아웃: 리소스 | 음악 */
+#status-bar > * {
+  flex-shrink: 0;
 }
 
 .resources {
@@ -48,97 +54,4 @@
               0 8px 25px rgba(255, 215, 0, 0.6);
 }
 
-/* 소화기관 건강 상태 */
-.organ-health {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.organ-status {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  background: white;
-  border: 3px solid var(--splat-dark);
-  border-radius: 20px;
-  padding: 6px 12px;
-  box-shadow: 0 3px 0 var(--splat-dark);
-  transition: all 0.2s;
-}
-
-.organ-status:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 0 var(--splat-dark);
-}
-
-.organ-icon {
-  font-size: 20px;
-  filter: drop-shadow(0 0 5px currentColor);
-  animation: splat-bounce 3s infinite;
-}
-
-.health-emoji {
-  font-size: 14px;
-  line-height: 1;
-  letter-spacing: -2px;
-}
-
-/* 반응형 */
-@media (max-width: 768px) {
-  #status-bar {
-    height: 65px;
-    padding: 0 15px;
-  }
-
-  .resource {
-    font-size: 14px;
-    padding: 6px 12px;
-  }
-
-  .organ-status {
-    padding: 5px 10px;
-  }
-
-  .organ-icon {
-    font-size: 18px;
-  }
-
-  .health-emoji {
-    font-size: 12px;
-  }
-}
-
-@media (max-width: 480px) {
-  #status-bar {
-    height: 60px;
-    padding: 0 10px;
-    flex-direction: column;
-    justify-content: center;
-    gap: 5px;
-  }
-
-  .resources,
-  .organ-health {
-    gap: 6px;
-  }
-
-  .resource {
-    font-size: 12px;
-    padding: 5px 10px;
-    border: 3px solid var(--splat-dark);
-  }
-
-  .organ-status {
-    padding: 4px 8px;
-    border: 2px solid var(--splat-dark);
-  }
-
-  .organ-icon {
-    font-size: 16px;
-  }
-
-  .health-emoji {
-    font-size: 11px;
-  }
-}
+/* 고정 레이아웃 - 반응형 불필요 (스케일링으로 처리) */

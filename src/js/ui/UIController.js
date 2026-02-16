@@ -24,8 +24,7 @@ export class UIController {
     }
 
     this.setupBottomSheet();
-    this.setupTowerInteractions();
-    this.setupEmptyTiles();
+    // Note: Tower interactions will be handled via WebGL2 rendering, not DOM events
   }
 
   /**
@@ -113,49 +112,30 @@ export class UIController {
   }
 
   /**
-   * 타워 클릭 인터랙션
+   * Open bottom sheet (can be called from external tower system)
    */
-  setupTowerInteractions() {
-    const towers = document.querySelectorAll('.tower-on-map');
-
-    towers.forEach(tower => {
-      tower.addEventListener('click', (e) => {
-        // 잉크 스플래시 효과
-        this.createInkSplash(e, this.getRandomColor());
-
-        // 하단 시트 열기
-        if (!this.isExpanded) {
-          this.isExpanded = true;
-          this.bottomSheet.classList.add('expanded');
-        }
-
-        // 타워 정보 업데이트 (추후 구현)
-        console.log('Tower clicked:', tower.dataset.towerId);
-      });
-    });
+  openSheet() {
+    if (!this.isExpanded) {
+      this.isExpanded = true;
+      this.bottomSheet.classList.add('expanded');
+    }
   }
 
   /**
-   * 빈 타일 클릭 (타워 설치)
+   * Close bottom sheet
    */
-  setupEmptyTiles() {
-    const emptyTiles = document.querySelectorAll('.empty-tile');
-
-    emptyTiles.forEach(tile => {
-      tile.addEventListener('click', (e) => {
-        // 잉크 스플래시 효과
-        this.createInkSplash(e, '#00d9ff');
-
-        // 타워 설치 메뉴 열기
-        if (!this.isExpanded) {
-          this.isExpanded = true;
-          this.bottomSheet.classList.add('expanded');
-        }
-
-        console.log('Empty tile clicked - show tower build menu');
-      });
-    });
+  closeSheet() {
+    if (this.isExpanded) {
+      this.isExpanded = false;
+      this.bottomSheet.classList.remove('expanded');
+    }
   }
+
+  /* REMOVED: Tower interactions moved to WebGL2 rendering
+   * When implementing WebGL2 tower clicks, use:
+   * - uiController.openSheet() to show tower menu
+   * - uiController.updateTowerInfo(data) to display tower details
+   */
 
   /**
    * 잉크 스플래시 효과 생성
@@ -199,21 +179,9 @@ export class UIController {
     });
   }
 
-  /**
-   * 소화기관 건강 업데이트
+  /* REMOVED: Organ health UI has been removed from status bar
+   * If health tracking is needed later, implement it differently
    */
-  updateOrganHealth(organIndex, health) {
-    const organs = document.querySelectorAll('.organ-status');
-    if (organs[organIndex]) {
-      const healthEmoji = organs[organIndex].querySelector('.health-emoji');
-      const maxHealth = 5;
-      const filled = Math.round(health * maxHealth);
-      const empty = maxHealth - filled;
-
-      const hearts = '❤️'.repeat(filled) + '🖤'.repeat(empty);
-      healthEmoji.textContent = hearts;
-    }
-  }
 
   /**
    * 타워 정보 업데이트

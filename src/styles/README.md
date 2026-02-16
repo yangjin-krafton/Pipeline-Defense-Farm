@@ -11,10 +11,10 @@ src/styles/
 │   └── splatoon.css           # Splatoon 테마 (변수, 유틸리티)
 └── components/
     ├── badge.css              # 배지 & FPS 카운터
-    ├── music-controls.css     # 음악 컨트롤
+    ├── music-controls.css     # 음악 컨트롤 (상단 바 통합)
     ├── start-overlay.css      # 시작 화면 오버레이
     ├── canvas-container.css   # 게임 캔버스 컨테이너
-    ├── status-bar.css         # 상단 상태바 (리소스, 건강)
+    ├── status-bar.css         # 상단 상태바 (리소스, 건강, 음악)
     ├── tower-system.css       # 타워 시스템 (타워, 빈 타일)
     └── bottom-sheet.css       # 하단 슬라이드업 메뉴
 ```
@@ -40,7 +40,9 @@ src/styles/
 - **위치**: 화면 상단 고정
 - **기능**: 리소스 표시 (🍎 에너지, ⚡ 전력, 🦠 유산균)
 - **건강 상태**: 소화기관 3개 (🟡 위, 🟢 장, 🔴 간)
+- **음악 컨트롤**: BGM 재생/일시정지, 볼륨 조절
 - **스타일**: 스트라이프 배경, 스큐 효과
+- **레이아웃**: 3분할 (리소스 | 건강 | 음악)
 
 ### Tower System (타워 시스템)
 - **타워**: 클릭 가능, 호버 시 공격 범위 표시
@@ -184,6 +186,32 @@ src/styles/
 - 기본: `0 6px 0 #1a1a2e`
 - 글로우: `0 0 30px rgba(color, 0.6)`
 - 깊은: `0 20px 60px rgba(0, 0, 0, 0.5)`
+
+## 📐 HTML 구조
+
+### 상단 바 구조
+```html
+<header id="status-bar">
+  <!-- 리소스 -->
+  <div class="resources">
+    <span class="resource">🍎 1250</span>
+    <span class="resource">⚡ 85</span>
+    <span class="resource">🦠 42</span>
+  </div>
+
+  <!-- 건강 상태 -->
+  <div class="organ-health">
+    <div class="organ-status">...</div>
+  </div>
+
+  <!-- 음악 컨트롤 -->
+  <div class="music-controls">
+    <button class="music-btn">⏸️</button>
+    <span class="music-label">BGM</span>
+    <input type="range" class="volume-slider">
+  </div>
+</header>
+```
 
 ## 💻 JavaScript API
 

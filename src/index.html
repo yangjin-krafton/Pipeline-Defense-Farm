@@ -17,76 +17,33 @@
     </div>
   </div>
 
-  <div class="badge">Digestive Run • WebGL2 Optimized</div>
-  <div class="fps">FPS: --</div>
+  <!-- 스케일 컨테이너 -->
+  <div id="scale-container">
+    <div id="game-screen">
 
-  <!-- 상단 상태바 -->
-  <header id="status-bar">
-    <div class="resources">
-      <span class="resource">🍎 1250</span>
-      <span class="resource">⚡ 85</span>
-      <span class="resource">🦠 42</span>
-    </div>
-    <div class="organ-health">
-      <div class="organ-status">
-        <div class="organ-icon">🟡</div>
-        <div class="health-emoji">💛💛💛🖤🖤</div>
-      </div>
-      <div class="organ-status">
-        <div class="organ-icon">🟢</div>
-        <div class="health-emoji">💚💚💚💚🖤</div>
-      </div>
-      <div class="organ-status">
-        <div class="organ-icon">🔴</div>
-        <div class="health-emoji">❤️🖤🖤🖤🖤</div>
-      </div>
-    </div>
-  </header>
+      <!-- 상단 상태바 -->
+      <header id="status-bar">
+        <div class="resources">
+          <span class="resource">🍎 1250</span>
+          <span class="resource">⚡ 85</span>
+          <span class="resource">🦠 42</span>
+        </div>
+        <div class="music-controls">
+          <button class="music-btn" id="musicToggle" title="Play/Pause Music">⏸️</button>
+        </div>
+      </header>
 
-  <div class="music-controls">
-    <button class="music-btn" id="musicToggle" title="Play/Pause Music">⏸️</button>
-    <span class="music-label">BGM</span>
-    <input type="range" class="volume-slider" id="volumeSlider"
-           min="0" max="100" value="40" title="Volume">
-  </div>
+      <!-- 게임 영역 -->
+      <main id="game-area">
+        <div class="canvas-container">
+          <canvas id="pathCanvas"></canvas>
+          <canvas id="emojiCanvas"></canvas>
+          <!-- Towers will be rendered via WebGL2 on the canvas -->
+        </div>
+      </main>
 
-  <div class="wrap">
-    <div class="canvas-container">
-      <canvas id="pathCanvas"></canvas>
-      <canvas id="emojiCanvas"></canvas>
-
-      <!-- 게임 내 타워 예시 -->
-      <div class="tower-on-map" style="top: 150px; left: 100px;" data-tower-id="tower1">
-        <div class="range-indicator"></div>
-        <div class="tower-emoji">🧪</div>
-        <div class="tower-level">3</div>
-      </div>
-
-      <div class="tower-on-map" style="top: 300px; left: 250px;" data-tower-id="tower2">
-        <div class="range-indicator"></div>
-        <div class="tower-emoji">💧</div>
-        <div class="tower-level">2</div>
-      </div>
-
-      <div class="tower-on-map" style="top: 450px; left: 150px;" data-tower-id="tower3">
-        <div class="range-indicator"></div>
-        <div class="tower-emoji">💛</div>
-        <div class="tower-level">1</div>
-      </div>
-
-      <!-- 빈 타일 (설치 가능) -->
-      <div class="empty-tile" style="top: 200px; left: 350px;">
-        <div class="plus-icon">+</div>
-      </div>
-
-      <div class="empty-tile" style="top: 400px; left: 320px;">
-        <div class="plus-icon">+</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 하단 슬라이드업 메뉴 -->
-  <aside id="bottom-sheet">
+      <!-- 하단 슬라이드업 메뉴 -->
+      <aside id="bottom-sheet">
     <div class="sheet-handle" id="sheetHandle"></div>
 
     <div class="sheet-header" id="sheetHeader">
@@ -182,6 +139,9 @@
       </div>
     </div>
   </aside>
+
+    </div>
+  </div>
 
   <script type="module" src="./js/main.js"></script>
 </body>

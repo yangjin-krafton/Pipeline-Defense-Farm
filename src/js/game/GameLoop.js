@@ -50,7 +50,7 @@ export class GameLoop {
       this.fps = Math.round(this.frameCount / this.fpsTime);
       this.frameCount = 0;
       this.fpsTime = 0;
-      this._updateFPSDisplay();
+      // FPS display removed from UI
     }
   }
 
@@ -69,6 +69,10 @@ export class GameLoop {
     gl.drawMesh(this.staticMeshes.trackShadow, [0.25, 0.09, 0.14, 0.25]);
     gl.drawMesh(this.staticMeshes.trackMain, [0.96, 0.66, 0.74, 0.95]);
     gl.drawMesh(this.staticMeshes.trackEdge, [0.42, 0.18, 0.27, 0.9]);
+
+    // Draw tower slots (test)
+    gl.drawMesh(this.staticMeshes.towerSlotOuter, [0.0, 0.85, 1.0, 0.4]); // Cyan
+    gl.drawMesh(this.staticMeshes.towerSlotInner, [1.0, 0.89, 0.80, 0.95]); // Background color (creates ring effect)
 
     // Draw flow animation
     gl.drawTriangles(this.flowSystem.getMesh(), [1.0, 0.96, 0.83, 0.86]);
@@ -93,8 +97,8 @@ export class GameLoop {
       renderer.drawEmoji(f.emoji, p.x, p.y, size, scale);
     }
 
+    // Badge removed from UI, score tracking still active
     if (this.scoreDirty) {
-      this._updateScoreDisplay();
       this.scoreDirty = false;
     }
   }
@@ -138,27 +142,11 @@ export class GameLoop {
     this.isRunning = false;
   }
 
-  /**
-   * Update score display
-   * @private
+  /* Badge and FPS display methods removed - UI elements no longer exist
+   * Score and FPS are still tracked internally for debugging via:
+   * - gameLoop.getScore()
+   * - gameLoop.getFPS()
    */
-  _updateScoreDisplay() {
-    const badge = document.querySelector(".badge");
-    if (badge) {
-      badge.textContent = `Digestive Run • SCORE ${String(this.score).padStart(4, "0")}`;
-    }
-  }
-
-  /**
-   * Update FPS display
-   * @private
-   */
-  _updateFPSDisplay() {
-    const fpsDisplay = document.querySelector(".fps");
-    if (fpsDisplay) {
-      fpsDisplay.textContent = `FPS: ${this.fps}`;
-    }
-  }
 
   /**
    * Get current score

@@ -9,6 +9,7 @@ import { FlowSystem } from './systems/FlowSystem.js';
 import { AudioSystem } from './systems/AudioSystem.js';
 import { GameLoop } from './game/GameLoop.js';
 import { UIController } from './ui/UIController.js';
+import { ScaleManager } from './ui/ScaleManager.js';
 import { appendCircle, buildPolylineMesh } from './utils/geometry.js';
 
 /**
@@ -39,26 +40,35 @@ function initCanvas() {
 }
 
 /**
- * Fit canvas to window size
+ * Fit canvas to game area (fixed 640x1063 space)
+ * Game uses 360x640 virtual coordinates
  */
 function fitCanvas(pathCanvas, emojiCanvas, container, gl) {
-  const ww = window.innerWidth - 20;
-  const wh = window.innerHeight - 20;
-  const scale = Math.min(ww / VIRTUAL_W, wh / VIRTUAL_H);
+  // Fixed game area dimensions (set in CSS)
+  const gameAreaWidth = 640;
+  const gameAreaHeight = 1063;
+
+  // Calculate scale to fit virtual dimensions in game area
+  const scale = Math.min(gameAreaWidth / VIRTUAL_W, gameAreaHeight / VIRTUAL_H);
   const cssW = Math.max(1, Math.round(VIRTUAL_W * scale));
   const cssH = Math.max(1, Math.round(VIRTUAL_H * scale));
   const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
 
-  container.style.width = `${cssW}px`;
-  container.style.height = `${cssH}px`;
+  // Center canvas in game area
+  const offsetX = (gameAreaWidth - cssW) / 2;
+  const offsetY = (gameAreaHeight - cssH) / 2;
 
   pathCanvas.style.width = `${cssW}px`;
   pathCanvas.style.height = `${cssH}px`;
+  pathCanvas.style.left = `${offsetX}px`;
+  pathCanvas.style.top = `${offsetY}px`;
   pathCanvas.width = Math.max(1, Math.round(cssW * dpr));
   pathCanvas.height = Math.max(1, Math.round(cssH * dpr));
 
   emojiCanvas.style.width = `${cssW}px`;
   emojiCanvas.style.height = `${cssH}px`;
+  emojiCanvas.style.left = `${offsetX}px`;
+  emojiCanvas.style.top = `${offsetY}px`;
   emojiCanvas.width = cssW;
   emojiCanvas.height = cssH;
 
@@ -84,13 +94,73 @@ function createStaticMeshes(renderer) {
     }
   }
 
+  // Create tower slot (test position)
+  const towerSlot = [];
+  const slotX = 100;
+  const slotY = 200;
+
+  // Outer ring
+  appendCircle(towerSlot, slotX, slotY, 30, 24);
+
+  // Inner circle (will be drawn in different color for ring effect)
+  const innerSlot = [];
+  appendCircle(innerSlot, slotX, slotY, 25, 24);
+
   return {
     bgWarm: renderer.createMesh(bgWarm),
     bgCool: renderer.createMesh(bgCool),
     trackShadow: renderer.createMesh(buildPolylineMesh(PATH_POINTS, 42, 2, 3)),
     trackMain: renderer.createMesh(buildPolylineMesh(PATH_POINTS, 34, 0, 0)),
-    trackEdge: renderer.createMesh(buildPolylineMesh(PATH_POINTS, 5, 0, 0))
+    trackEdge: renderer.createMesh(buildPolylineMesh(PATH_POINTS, 5, 0, 0)),
+    towerSlotOuter: renderer.createMesh(towerSlot),
+    towerSlotInner: renderer.createMesh(innerSlot)
   };
+}
+
+/**
+ * Tower slot positions (for click detection)
+ */
+const TOWER_SLOTS = [
+  { x: 100, y: 200, radius: 30 }
+];
+
+/**
+ * Check if click is on a tower slot
+ */
+function checkTowerSlotClick(virtualX, virtualY) {
+  for (const slot of TOWER_SLOTS) {
+    const dx = virtualX - slot.x;
+    const dy = virtualY - slot.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance <= slot.radius) {
+      return slot;
+    }
+  }
+  return null;
+}
+
+/**
+ * Setup canvas click handler for tower slots
+ */
+function setupTowerSlotClicks(canvas, uiController) {
+  canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+
+    // Get click position relative to canvas
+    const canvasX = e.clientX - rect.left;
+    const canvasY = e.clientY - rect.top;
+
+    // Convert to virtual coordinates (360x640)
+    const virtualX = (canvasX / rect.width) * VIRTUAL_W;
+    const virtualY = (canvasY / rect.height) * VIRTUAL_H;
+
+    // Check if click is on a tower slot
+    const slot = checkTowerSlotClick(virtualX, virtualY);
+    if (slot) {
+      console.log('Tower slot clicked:', slot);
+      uiController.openSheet();
+    }
+  });
 }
 
 /**
@@ -100,11 +170,8 @@ async function init() {
   // Initialize canvas
   const { pathCanvas, emojiCanvas, container, gl } = initCanvas();
 
-  // Fit canvas
+  // Fit canvas to fixed game area (only needs to run once)
   fitCanvas(pathCanvas, emojiCanvas, container, gl);
-  window.addEventListener("resize", () => {
-    fitCanvas(pathCanvas, emojiCanvas, container, gl);
-  });
 
   // Initialize systems
   const pathSystem = new PathFollowerSystem(PATH_POINTS);
@@ -141,10 +208,17 @@ async function init() {
   // Initialize UI Controller
   const uiController = new UIController();
 
+  // Initialize Scale Manager
+  const scaleManager = new ScaleManager();
+
+  // Setup tower slot click detection
+  setupTowerSlotClicks(emojiCanvas, uiController);
+
   // Expose for debugging
   window.gameLoop = gameLoop;
   window.audioSystem = audioSystem;
   window.uiController = uiController;
+  window.scaleManager = scaleManager;
 }
 
 /**
@@ -179,19 +253,11 @@ function setupStartOverlay(audioSystem, gameLoop) {
  */
 function setupMusicControls(audioSystem) {
   const toggleBtn = document.getElementById('musicToggle');
-  const volumeSlider = document.getElementById('volumeSlider');
 
   if (toggleBtn) {
     toggleBtn.addEventListener('click', () => {
       audioSystem.toggle();
       updateMusicButton(audioSystem.isPlaying);
-    });
-  }
-
-  if (volumeSlider) {
-    volumeSlider.addEventListener('input', (e) => {
-      const volume = parseInt(e.target.value) / 100;
-      audioSystem.setVolume(volume);
     });
   }
 }
