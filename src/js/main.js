@@ -6,6 +6,7 @@ import { PathFollowerSystem } from './utils/PathFollowerSystem.js';
 import { WebGLRenderer } from './renderer/WebGLRenderer.js';
 import { EmojiRenderer } from './renderer/EmojiRenderer.js';
 import { FlowSystem } from './systems/FlowSystem.js';
+import { AudioSystem } from './systems/AudioSystem.js';
 import { GameLoop } from './game/GameLoop.js';
 import { appendCircle, buildPolylineMesh } from './utils/geometry.js';
 
@@ -94,7 +95,7 @@ function createStaticMeshes(renderer) {
 /**
  * Main initialization function
  */
-function init() {
+async function init() {
   // Initialize canvas
   const { pathCanvas, emojiCanvas, container, gl } = initCanvas();
 
@@ -111,20 +112,98 @@ function init() {
   const staticMeshes = createStaticMeshes(webglRenderer);
   const flowSystem = new FlowSystem(pathSystem);
 
+  // Initialize audio system
+  const audioSystem = new AudioSystem();
+  await audioSystem.init();
+  await audioSystem.loadBGM('./assets/bgm/game_theme.wav');
+  audioSystem.setVolume(0.4); // 40% volume
+  audioSystem.setLoop(true);
+
   // Create and start game loop
   const gameLoop = new GameLoop(
     pathSystem,
     webglRenderer,
     emojiRenderer,
     staticMeshes,
-    flowSystem
+    flowSystem,
+    audioSystem
   );
 
   gameLoop.start();
 
+  // Setup music controls
+  setupMusicControls(audioSystem);
+
+  // Setup start overlay
+  setupStartOverlay(audioSystem, gameLoop);
+
   // Expose gameLoop for debugging
   window.gameLoop = gameLoop;
+  window.audioSystem = audioSystem;
 }
+
+/**
+ * Setup start overlay
+ */
+function setupStartOverlay(audioSystem, gameLoop) {
+  const overlay = document.getElementById('startOverlay');
+  const startBtn = document.getElementById('startBtn');
+
+  if (startBtn && overlay) {
+    startBtn.addEventListener('click', () => {
+      // Hide overlay
+      overlay.classList.add('hidden');
+
+      // Start music after a short delay
+      setTimeout(() => {
+        audioSystem.play();
+        audioSystem.fadeIn(1.5);
+        updateMusicButton(true);
+      }, 300);
+
+      // Remove overlay from DOM after animation
+      setTimeout(() => {
+        overlay.remove();
+      }, 800);
+    });
+  }
+}
+
+/**
+ * Setup music control UI
+ */
+function setupMusicControls(audioSystem) {
+  const toggleBtn = document.getElementById('musicToggle');
+  const volumeSlider = document.getElementById('volumeSlider');
+
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+      audioSystem.toggle();
+      updateMusicButton(audioSystem.isPlaying);
+    });
+  }
+
+  if (volumeSlider) {
+    volumeSlider.addEventListener('input', (e) => {
+      const volume = parseInt(e.target.value) / 100;
+      audioSystem.setVolume(volume);
+    });
+  }
+}
+
+/**
+ * Update music button icon
+ */
+function updateMusicButton(isPlaying) {
+  const toggleBtn = document.getElementById('musicToggle');
+  if (toggleBtn) {
+    toggleBtn.textContent = isPlaying ? '⏸️' : '▶️';
+    toggleBtn.title = isPlaying ? 'Pause Music' : 'Play Music';
+  }
+}
+
+// Store as global for other modules
+window.updateMusicButton = updateMusicButton;
 
 // Start the game when DOM is loaded
 if (document.readyState === 'loading') {

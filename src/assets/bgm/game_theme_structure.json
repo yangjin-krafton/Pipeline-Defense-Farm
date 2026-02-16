@@ -1,0 +1,625 @@
+{
+  "bpm": 150,
+  "seed": 1234,
+  "beats_per_bar": 8,
+  "total_bars": 20,
+  "duration": 64.0,
+  "sections": [
+    {
+      "name": "intro",
+      "bars": 2,
+      "active": [
+        "drums",
+        "bass"
+      ],
+      "gain": 0.6
+    },
+    {
+      "name": "build",
+      "bars": 2,
+      "active": [
+        "drums",
+        "bass",
+        "pad",
+        "arpeggio"
+      ],
+      "gain": 0.75
+    },
+    {
+      "name": "verse",
+      "bars": 4,
+      "active": [
+        "melody",
+        "harmony",
+        "bass",
+        "drums",
+        "pad"
+      ],
+      "gain": 0.85
+    },
+    {
+      "name": "chorus",
+      "bars": 4,
+      "active": [
+        "melody",
+        "harmony",
+        "bass",
+        "drums",
+        "pad",
+        "arpeggio"
+      ],
+      "gain": 1.0
+    },
+    {
+      "name": "bridge",
+      "bars": 2,
+      "active": [
+        "pad",
+        "arpeggio",
+        "bass"
+      ],
+      "gain": 0.5
+    },
+    {
+      "name": "chorus2",
+      "bars": 4,
+      "active": [
+        "melody",
+        "harmony",
+        "bass",
+        "drums",
+        "pad",
+        "arpeggio"
+      ],
+      "gain": 1.0
+    },
+    {
+      "name": "outro",
+      "bars": 2,
+      "active": [
+        "melody",
+        "pad",
+        "arpeggio"
+      ],
+      "gain": 0.55
+    }
+  ],
+  "bars": [
+    {
+      "section": "intro",
+      "bar": 0,
+      "gain": 0.6,
+      "instruments": {
+        "melody": null,
+        "harmony": null,
+        "bass": {
+          "variant": "A",
+          "gain": 0.45
+        },
+        "pad": null,
+        "drums": {
+          "variant": "B",
+          "gain": 0.45
+        },
+        "arpeggio": null
+      }
+    },
+    {
+      "section": "intro",
+      "bar": 1,
+      "gain": 0.6,
+      "instruments": {
+        "melody": null,
+        "harmony": null,
+        "bass": {
+          "variant": "C",
+          "gain": 0.6
+        },
+        "pad": null,
+        "drums": {
+          "variant": "C",
+          "gain": 0.6
+        },
+        "arpeggio": null
+      }
+    },
+    {
+      "section": "build",
+      "bar": 2,
+      "gain": 0.75,
+      "instruments": {
+        "melody": null,
+        "harmony": null,
+        "bass": {
+          "variant": "B",
+          "gain": 0.75
+        },
+        "pad": {
+          "variant": "A",
+          "gain": 0.75
+        },
+        "drums": {
+          "variant": "A",
+          "gain": 0.75
+        },
+        "arpeggio": {
+          "variant": "B",
+          "gain": 0.75
+        }
+      }
+    },
+    {
+      "section": "build",
+      "bar": 3,
+      "gain": 0.75,
+      "instruments": {
+        "melody": null,
+        "harmony": null,
+        "bass": {
+          "variant": "A",
+          "gain": 0.75
+        },
+        "pad": {
+          "variant": "A",
+          "gain": 0.75
+        },
+        "drums": {
+          "variant": "A",
+          "gain": 0.75
+        },
+        "arpeggio": {
+          "variant": "B",
+          "gain": 0.75
+        }
+      }
+    },
+    {
+      "section": "verse",
+      "bar": 4,
+      "gain": 0.85,
+      "instruments": {
+        "melody": {
+          "variant": "A",
+          "gain": 0.75
+        },
+        "harmony": {
+          "variant": "A",
+          "gain": 0.75
+        },
+        "bass": {
+          "variant": "A",
+          "gain": 0.75
+        },
+        "pad": {
+          "variant": "A",
+          "gain": 0.75
+        },
+        "drums": {
+          "variant": "A",
+          "gain": 0.75
+        },
+        "arpeggio": null
+      }
+    },
+    {
+      "section": "verse",
+      "bar": 5,
+      "gain": 0.85,
+      "instruments": {
+        "melody": {
+          "variant": "A",
+          "gain": 0.79
+        },
+        "harmony": {
+          "variant": "C",
+          "gain": 0.79
+        },
+        "bass": {
+          "variant": "C",
+          "gain": 0.79
+        },
+        "pad": {
+          "variant": "C",
+          "gain": 0.79
+        },
+        "drums": {
+          "variant": "B",
+          "gain": 0.79
+        },
+        "arpeggio": null
+      }
+    },
+    {
+      "section": "verse",
+      "bar": 6,
+      "gain": 0.85,
+      "instruments": {
+        "melody": {
+          "variant": "A",
+          "gain": 0.82
+        },
+        "harmony": {
+          "variant": "A",
+          "gain": 0.82
+        },
+        "bass": {
+          "variant": "A",
+          "gain": 0.82
+        },
+        "pad": {
+          "variant": "A",
+          "gain": 0.82
+        },
+        "drums": {
+          "variant": "A",
+          "gain": 0.82
+        },
+        "arpeggio": null
+      }
+    },
+    {
+      "section": "verse",
+      "bar": 7,
+      "gain": 0.85,
+      "instruments": {
+        "melody": {
+          "variant": "A",
+          "gain": 0.85
+        },
+        "harmony": {
+          "variant": "C",
+          "gain": 0.85
+        },
+        "bass": {
+          "variant": "B",
+          "gain": 0.85
+        },
+        "pad": {
+          "variant": "B",
+          "gain": 0.85
+        },
+        "drums": {
+          "variant": "A",
+          "gain": 0.85
+        },
+        "arpeggio": null
+      }
+    },
+    {
+      "section": "chorus",
+      "bar": 8,
+      "gain": 1.0,
+      "instruments": {
+        "melody": {
+          "variant": "A",
+          "gain": 0.89
+        },
+        "harmony": {
+          "variant": "C",
+          "gain": 0.89
+        },
+        "bass": {
+          "variant": "C",
+          "gain": 0.89
+        },
+        "pad": {
+          "variant": "B",
+          "gain": 0.89
+        },
+        "drums": {
+          "variant": "B",
+          "gain": 0.89
+        },
+        "arpeggio": {
+          "variant": "A",
+          "gain": 0.89
+        }
+      }
+    },
+    {
+      "section": "chorus",
+      "bar": 9,
+      "gain": 1.0,
+      "instruments": {
+        "melody": {
+          "variant": "B",
+          "gain": 0.92
+        },
+        "harmony": {
+          "variant": "B",
+          "gain": 0.92
+        },
+        "bass": {
+          "variant": "B",
+          "gain": 0.92
+        },
+        "pad": {
+          "variant": "B",
+          "gain": 0.92
+        },
+        "drums": {
+          "variant": "A",
+          "gain": 0.92
+        },
+        "arpeggio": {
+          "variant": "B",
+          "gain": 0.92
+        }
+      }
+    },
+    {
+      "section": "chorus",
+      "bar": 10,
+      "gain": 1.0,
+      "instruments": {
+        "melody": {
+          "variant": "A",
+          "gain": 0.96
+        },
+        "harmony": {
+          "variant": "C",
+          "gain": 0.96
+        },
+        "bass": {
+          "variant": "B",
+          "gain": 0.96
+        },
+        "pad": {
+          "variant": "B",
+          "gain": 0.96
+        },
+        "drums": {
+          "variant": "A",
+          "gain": 0.96
+        },
+        "arpeggio": {
+          "variant": "A",
+          "gain": 0.96
+        }
+      }
+    },
+    {
+      "section": "chorus",
+      "bar": 11,
+      "gain": 1.0,
+      "instruments": {
+        "melody": {
+          "variant": "B",
+          "gain": 1.0
+        },
+        "harmony": {
+          "variant": "C",
+          "gain": 1.0
+        },
+        "bass": {
+          "variant": "B",
+          "gain": 1.0
+        },
+        "pad": {
+          "variant": "B",
+          "gain": 1.0
+        },
+        "drums": {
+          "variant": "A",
+          "gain": 1.0
+        },
+        "arpeggio": {
+          "variant": "C",
+          "gain": 1.0
+        }
+      }
+    },
+    {
+      "section": "bridge",
+      "bar": 12,
+      "gain": 0.5,
+      "instruments": {
+        "melody": null,
+        "harmony": null,
+        "bass": {
+          "variant": "C",
+          "gain": 0.5
+        },
+        "pad": {
+          "variant": "C",
+          "gain": 0.5
+        },
+        "drums": null,
+        "arpeggio": {
+          "variant": "B",
+          "gain": 0.5
+        }
+      }
+    },
+    {
+      "section": "bridge",
+      "bar": 13,
+      "gain": 0.5,
+      "instruments": {
+        "melody": null,
+        "harmony": null,
+        "bass": {
+          "variant": "A",
+          "gain": 0.5
+        },
+        "pad": {
+          "variant": "C",
+          "gain": 0.5
+        },
+        "drums": null,
+        "arpeggio": {
+          "variant": "B",
+          "gain": 0.5
+        }
+      }
+    },
+    {
+      "section": "chorus2",
+      "bar": 14,
+      "gain": 1.0,
+      "instruments": {
+        "melody": {
+          "variant": "C",
+          "gain": 0.89
+        },
+        "harmony": {
+          "variant": "B",
+          "gain": 0.89
+        },
+        "bass": {
+          "variant": "C",
+          "gain": 0.89
+        },
+        "pad": {
+          "variant": "B",
+          "gain": 0.89
+        },
+        "drums": {
+          "variant": "C",
+          "gain": 0.89
+        },
+        "arpeggio": {
+          "variant": "A",
+          "gain": 0.89
+        }
+      }
+    },
+    {
+      "section": "chorus2",
+      "bar": 15,
+      "gain": 1.0,
+      "instruments": {
+        "melody": {
+          "variant": "C",
+          "gain": 0.92
+        },
+        "harmony": {
+          "variant": "C",
+          "gain": 0.92
+        },
+        "bass": {
+          "variant": "B",
+          "gain": 0.92
+        },
+        "pad": {
+          "variant": "B",
+          "gain": 0.92
+        },
+        "drums": {
+          "variant": "C",
+          "gain": 0.92
+        },
+        "arpeggio": {
+          "variant": "C",
+          "gain": 0.92
+        }
+      }
+    },
+    {
+      "section": "chorus2",
+      "bar": 16,
+      "gain": 1.0,
+      "instruments": {
+        "melody": {
+          "variant": "C",
+          "gain": 0.96
+        },
+        "harmony": {
+          "variant": "C",
+          "gain": 0.96
+        },
+        "bass": {
+          "variant": "C",
+          "gain": 0.96
+        },
+        "pad": {
+          "variant": "A",
+          "gain": 0.96
+        },
+        "drums": {
+          "variant": "B",
+          "gain": 0.96
+        },
+        "arpeggio": {
+          "variant": "C",
+          "gain": 0.96
+        }
+      }
+    },
+    {
+      "section": "chorus2",
+      "bar": 17,
+      "gain": 1.0,
+      "instruments": {
+        "melody": {
+          "variant": "C",
+          "gain": 1.0
+        },
+        "harmony": {
+          "variant": "C",
+          "gain": 1.0
+        },
+        "bass": {
+          "variant": "C",
+          "gain": 1.0
+        },
+        "pad": {
+          "variant": "B",
+          "gain": 1.0
+        },
+        "drums": {
+          "variant": "C",
+          "gain": 1.0
+        },
+        "arpeggio": {
+          "variant": "C",
+          "gain": 1.0
+        }
+      }
+    },
+    {
+      "section": "outro",
+      "bar": 18,
+      "gain": 0.55,
+      "instruments": {
+        "melody": {
+          "variant": "A",
+          "gain": 0.55
+        },
+        "harmony": null,
+        "bass": null,
+        "pad": {
+          "variant": "C",
+          "gain": 0.55
+        },
+        "drums": null,
+        "arpeggio": {
+          "variant": "B",
+          "gain": 0.55
+        }
+      }
+    },
+    {
+      "section": "outro",
+      "bar": 19,
+      "gain": 0.55,
+      "instruments": {
+        "melody": {
+          "variant": "A",
+          "gain": 0.28
+        },
+        "harmony": null,
+        "bass": null,
+        "pad": {
+          "variant": "C",
+          "gain": 0.28
+        },
+        "drums": null,
+        "arpeggio": {
+          "variant": "A",
+          "gain": 0.28
+        }
+      }
+    }
+  ]
+}

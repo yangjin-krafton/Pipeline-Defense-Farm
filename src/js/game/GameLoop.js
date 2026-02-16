@@ -5,12 +5,13 @@ import { FOOD_SPAWN_MS, BASE_SPEED } from '../config.js';
 import { FoodSpawner } from './FoodSpawner.js';
 
 export class GameLoop {
-  constructor(pathSystem, webglRenderer, emojiRenderer, staticMeshes, flowSystem) {
+  constructor(pathSystem, webglRenderer, emojiRenderer, staticMeshes, flowSystem, audioSystem) {
     this.pathSystem = pathSystem;
     this.webglRenderer = webglRenderer;
     this.emojiRenderer = emojiRenderer;
     this.staticMeshes = staticMeshes;
     this.flowSystem = flowSystem;
+    this.audioSystem = audioSystem;
     this.foodSpawner = new FoodSpawner(pathSystem);
 
     this.time = 0;
