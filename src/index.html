@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pipeline Defense Farm</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0b0e17;
+    color: #c8d0e0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ── 상단 HUD ── */
+  .hud {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    background: #111520;
+    border-bottom: 1px solid #1e2433;
+    height: 44px;
+    flex-shrink: 0;
+  }
+  .hud-left, .hud-right { display: flex; gap: 16px; align-items: center; }
+  .hud-stat {
+    font-size: 12px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .hud-stat .icon { font-size: 14px; }
+  .hud-stat .val { color: #7fea8a; font-weight: 600; }
+  .hud-title {
+    font-size: 13px; font-weight: 700;
+    color: #7fea8a;
+    letter-spacing: 1px;
+  }
+
+  /* ── 메인 영역 ── */
+  .main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── 캔버스 (게임 맵) ── */
+  .game-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  #gameCanvas {
+    background: #0d1117;
+    border: 1px solid #1e2433;
+    image-rendering: pixelated;
+  }
+
+  /* ── 우측 패널 ── */
+  .side-panel {
+    width: 200px;
+    background: #111520;
+    border-left: 1px solid #1e2433;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+  .panel-section h3 {
+    font-size: 10px;
+    color: #556;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #1e2433;
+    padding-bottom: 4px;
+  }
+
+  /* ── 타워 선택 ── */
+  .tower-list { display: flex; flex-direction: column; gap: 4px; }
+  .tower-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px;
+    background: #161b28;
+    border: 1px solid #1e2433;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.15s;
+  }
+  .tower-item:hover { border-color: #3a4a6a; background: #1a2030; }
+  .tower-item.selected { border-color: #7fea8a; background: #1a2a20; }
+  .tower-item .t-icon { font-size: 18px; }
+  .tower-item .t-info { flex: 1; }
+  .tower-item .t-name { display: block; font-weight: 600; font-size: 11px; }
+  .tower-item .t-cost { display: block; font-size: 9px; color: #ffcc44; }
+
+  /* ── 웨이브 정보 ── */
+  .wave-info {
+    font-size: 11px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .wave-row { display: flex; justify-content: space-between; }
+  .wave-row .label { color: #556; }
+
+  /* ── BGM 컨트롤 ── */
+  .bgm-control {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .bgm-row {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .bgm-btn {
+    font-size: 14px;
+    width: 28px; height: 28px;
+    border: 1px solid #2a3344;
+    background: #161b28;
+    color: #8090a0;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .bgm-btn:hover { border-color: #7fea8a; color: #7fea8a; }
+  .bgm-btn.playing { border-color: #7fea8a; color: #7fea8a; background: #1a2a20; }
+  .bgm-label {
+    font-size: 9px;
+    color: #556;
+    flex: 1;
+  }
+  .bgm-section-name {
+    font-size: 9px;
+    color: #7fea8a;
+    min-height: 14px;
+  }
+  .bgm-vol {
+    width: 100%;
+    accent-color: #7fea8a;
+    height: 4px;
+  }
+
+  /* ── 하단 바 ── */
+  .bottom-bar {
+    height: 36px;
+    background: #111520;
+    border-top: 1px solid #1e2433;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .action-btn {
+    font-size: 11px; font-weight: 600;
+    padding: 4px 14px;
+    border: 1px solid;
+    background: transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .action-btn.start {
+    color: #7fea8a; border-color: #7fea8a;
+  }
+  .action-btn.start:hover { background: #7fea8a22; }
+  .bottom-msg {
+    font-size: 10px; color: #445;
+    flex: 1; text-align: right;
+  }
+
+  /* ── 오버레이 (시작 화면) ── */
+  .overlay {
+    position: absolute; inset: 0;
+    background: rgba(11,14,23,0.92);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 10;
+    transition: opacity 0.4s;
+  }
+  .overlay.hidden { opacity: 0; pointer-events: none; }
+  .overlay h1 {
+    font-size: 28px; color: #7fea8a;
+    margin-bottom: 8px; letter-spacing: 2px;
+  }
+  .overlay p {
+    font-size: 12px; color: #556;
+    margin-bottom: 24px;
+  }
+  .overlay .start-btn {
+    font-size: 14px; font-weight: 700;
+    padding: 12px 36px;
+    border: 2px solid #7fea8a;
+    background: transparent;
+    color: #7fea8a;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+  }
+  .overlay .start-btn:hover {
+    background: #7fea8a22;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px #7fea8a33;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── 시작 오버레이 ── -->
+<div class="overlay" id="overlay">
+  <h1>PIPELINE DEFENSE FARM</h1>
+  <p>Tower Defense + Idle Farm + Pipeline Optimization</p>
+  <button class="start-btn" onclick="startGame()">START GAME</button>
+</div>
+
+<!-- ── HUD ── -->
+<div class="hud">
+  <div class="hud-left">
+    <span class="hud-title">PIPELINE DEFENSE FARM</span>
+  </div>
+  <div class="hud-right">
+    <div class="hud-stat"><span class="icon">&#x1FA99;</span> <span class="val" id="hudGold">100</span></div>
+    <div class="hud-stat"><span class="icon">&#x2764;</span> <span class="val" id="hudLives">20</span></div>
+    <div class="hud-stat"><span class="icon">&#x1F30A;</span> Wave <span class="val" id="hudWave">0</span></div>
+  </div>
+</div>
+
+<!-- ── 메인 ── -->
+<div class="main">
+  <div class="game-area">
+    <canvas id="gameCanvas" width="640" height="480"></canvas>
+  </div>
+
+  <!-- 우측 패널 -->
+  <div class="side-panel">
+    <!-- 타워 선택 -->
+    <div class="panel-section">
+      <h3>Towers</h3>
+      <div class="tower-list" id="towerList"></div>
+    </div>
+
+    <!-- 웨이브 정보 -->
+    <div class="panel-section">
+      <h3>Wave Info</h3>
+      <div class="wave-info" id="waveInfo">
+        <div class="wave-row"><span class="label">Status</span><span>Ready</span></div>
+      </div>
+    </div>
+
+    <!-- BGM 컨트롤 -->
+    <div class="panel-section">
+      <h3>BGM</h3>
+      <div class="bgm-control">
+        <div class="bgm-row">
+          <button class="bgm-btn" id="bgmToggle" onclick="toggleBGM()">&#9654;</button>
+          <span class="bgm-label" id="bgmStatus">Stopped</span>
+        </div>
+        <div class="bgm-section-name" id="bgmSection"></div>
+        <input type="range" class="bgm-vol" id="bgmVol" min="0" max="100" value="50"
+               oninput="setBGMVolume(this.value)">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 하단 바 ── -->
+<div class="bottom-bar">
+  <button class="action-btn start" id="btnWave" onclick="sendWave()">SEND WAVE</button>
+  <span class="bottom-msg" id="bottomMsg">Place towers, then send a wave.</span>
+</div>
+
+<script>
+// ============================================================
+//  GAME STATE
+// ============================================================
+const GRID_COLS = 20;
+const GRID_ROWS = 15;
+const TILE_SIZE = 32;
+
+const TILE = { EMPTY: 0, PATH: 1, BUILDABLE: 2, TOWER: 3, FARM: 4, SPAWN: 5, EXIT: 6 };
+
+let gameState = {
+  gold: 100,
+  lives: 20,
+  wave: 0,
+  running: false,
+  selectedTower: null,
+  grid: [],
+  path: [],
+  towers: [],
+  enemies: [],
+  projectiles: [],
+};
+
+const TOWER_DEFS = [
+  { id: "basic",  name: "Arrow",  icon: "\u{1F3F9}", cost: 20, range: 3, damage: 10, rate: 1.0, color: "#7fea8a" },
+  { id: "splash", name: "Bomb",   icon: "\u{1F4A3}", cost: 40, range: 2, damage: 25, rate: 0.5, color: "#ff8844" },
+  { id: "sniper", name: "Sniper", icon: "\u{1F3AF}", cost: 35, range: 5, damage: 40, rate: 0.3, color: "#44aaff" },
+  { id: "farm",   name: "Farm",   icon: "\u{1F33E}", cost: 50, range: 0, damage: 0,  rate: 0,   color: "#ffcc44" },
+];
+
+// ============================================================
+//  MAP GENERATION
+// ============================================================
+function generateMap() {
+  const g = [];
+  for (let r = 0; r < GRID_ROWS; r++) {
+    g[r] = [];
+    for (let c = 0; c < GRID_COLS; c++) {
+      g[r][c] = TILE.BUILDABLE;
+    }
+  }
+
+  // Simple path: left to right with turns
+  const path = [];
+  let r = 2, c = 0;
+  g[r][c] = TILE.SPAWN;
+  path.push({r, c});
+
+  // Segment 1: right
+  for (let i = 1; i <= 6; i++) { c = i; g[r][c] = TILE.PATH; path.push({r,c}); }
+  // Down
+  for (let i = 1; i <= 5; i++) { r = 2+i; g[r][c] = TILE.PATH; path.push({r,c}); }
+  // Right
+  for (let i = 1; i <= 6; i++) { c = 6+i; g[r][c] = TILE.PATH; path.push({r,c}); }
+  // Up
+  for (let i = 1; i <= 5; i++) { r = 7-i; g[r][c] = TILE.PATH; path.push({r,c}); }
+  // Right
+  for (let i = 1; i <= 6; i++) { c = 12+i; g[r][c] = TILE.PATH; path.push({r,c}); }
+  // Down
+  for (let i = 1; i <= 5; i++) { r = 2+i; g[r][c] = TILE.PATH; path.push({r,c}); }
+  // Right to exit
+  c++; g[r][c] = TILE.PATH; path.push({r,c});
+  c++; if (c < GRID_COLS) { g[r][c] = TILE.EXIT; path.push({r,c}); }
+
+  gameState.grid = g;
+  gameState.path = path;
+}
+
+// ============================================================
+//  RENDERING
+// ============================================================
+const canvas = document.getElementById("gameCanvas");
+canvas.width = GRID_COLS * TILE_SIZE;
+canvas.height = GRID_ROWS * TILE_SIZE;
+const ctx = canvas.getContext("2d");
+
+const COLORS = {
+  [TILE.EMPTY]:     "#0d1117",
+  [TILE.PATH]:      "#1a1f2e",
+  [TILE.BUILDABLE]: "#121822",
+  [TILE.TOWER]:     "#1a2a20",
+  [TILE.FARM]:      "#2a2a15",
+  [TILE.SPAWN]:     "#2a1520",
+  [TILE.EXIT]:      "#15202a",
+};
+
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Grid
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      const tile = gameState.grid[r][c];
+      ctx.fillStyle = COLORS[tile] || "#0d1117";
+      ctx.fillRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+      ctx.strokeStyle = "#1a1f2e";
+      ctx.strokeRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    }
+  }
+
+  // Path highlight
+  gameState.path.forEach(({r, c}) => {
+    ctx.fillStyle = "#1e2940";
+    ctx.fillRect(c * TILE_SIZE + 2, r * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+  });
+
+  // Spawn / Exit markers
+  if (gameState.path.length > 0) {
+    const sp = gameState.path[0];
+    ctx.fillStyle = "#ff445566";
+    ctx.fillRect(sp.c * TILE_SIZE, sp.r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    ctx.fillStyle = "#ff4455";
+    ctx.font = "10px sans-serif";
+    ctx.fillText("IN", sp.c * TILE_SIZE + 8, sp.r * TILE_SIZE + 20);
+
+    const ex = gameState.path[gameState.path.length - 1];
+    ctx.fillStyle = "#44aaff44";
+    ctx.fillRect(ex.c * TILE_SIZE, ex.r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    ctx.fillStyle = "#44aaff";
+    ctx.fillText("OUT", ex.c * TILE_SIZE + 5, ex.r * TILE_SIZE + 20);
+  }
+
+  // Towers
+  gameState.towers.forEach(t => {
+    const def = TOWER_DEFS.find(d => d.id === t.type);
+    ctx.fillStyle = def.color + "33";
+    ctx.fillRect(t.c * TILE_SIZE, t.r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    ctx.font = "20px sans-serif";
+    ctx.fillText(def.icon, t.c * TILE_SIZE + 6, t.r * TILE_SIZE + 24);
+  });
+
+  // Enemies
+  gameState.enemies.forEach(e => {
+    if (e.dead) return;
+    const px = e.x * TILE_SIZE + TILE_SIZE / 2;
+    const py = e.y * TILE_SIZE + TILE_SIZE / 2;
+    // Body
+    ctx.fillStyle = e.color;
+    ctx.beginPath();
+    ctx.arc(px, py, 8, 0, Math.PI * 2);
+    ctx.fill();
+    // HP bar
+    const hpRatio = e.hp / e.maxHp;
+    ctx.fillStyle = "#333";
+    ctx.fillRect(px - 10, py - 14, 20, 3);
+    ctx.fillStyle = hpRatio > 0.5 ? "#7fea8a" : hpRatio > 0.25 ? "#ffcc44" : "#ff4455";
+    ctx.fillRect(px - 10, py - 14, 20 * hpRatio, 3);
+  });
+
+  // Projectiles
+  gameState.projectiles.forEach(p => {
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x * TILE_SIZE + TILE_SIZE/2, p.y * TILE_SIZE + TILE_SIZE/2, 3, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  // Hover (selected tower placement)
+  if (gameState.selectedTower && hoverCell) {
+    const def = TOWER_DEFS.find(d => d.id === gameState.selectedTower);
+    const canPlace = canPlaceAt(hoverCell.r, hoverCell.c);
+    ctx.fillStyle = canPlace ? "#7fea8a22" : "#ff445522";
+    ctx.fillRect(hoverCell.c * TILE_SIZE, hoverCell.r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    ctx.strokeStyle = canPlace ? "#7fea8a" : "#ff4455";
+    ctx.strokeRect(hoverCell.c * TILE_SIZE, hoverCell.r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    if (def.range > 0) {
+      ctx.strokeStyle = canPlace ? "#7fea8a33" : "#ff445533";
+      ctx.beginPath();
+      ctx.arc(
+        hoverCell.c * TILE_SIZE + TILE_SIZE/2,
+        hoverCell.r * TILE_SIZE + TILE_SIZE/2,
+        def.range * TILE_SIZE, 0, Math.PI * 2
+      );
+      ctx.stroke();
+    }
+  }
+}
+
+// ============================================================
+//  GAME LOGIC
+// ============================================================
+let hoverCell = null;
+
+function canPlaceAt(r, c) {
+  return r >= 0 && r < GRID_ROWS && c >= 0 && c < GRID_COLS
+    && gameState.grid[r][c] === TILE.BUILDABLE;
+}
+
+function placeTower(r, c) {
+  const def = TOWER_DEFS.find(d => d.id === gameState.selectedTower);
+  if (!def || gameState.gold < def.cost || !canPlaceAt(r, c)) return;
+  gameState.gold -= def.cost;
+  gameState.grid[r][c] = def.id === "farm" ? TILE.FARM : TILE.TOWER;
+  gameState.towers.push({
+    type: def.id, r, c,
+    cooldown: 0,
+  });
+  updateHUD();
+}
+
+function spawnEnemy() {
+  const sp = gameState.path[0];
+  const hp = 30 + gameState.wave * 15;
+  gameState.enemies.push({
+    x: sp.c, y: sp.r,
+    pathIdx: 0,
+    speed: 1.5 + Math.random() * 0.5,
+    hp, maxHp: hp,
+    color: `hsl(${Math.random()*40 + 340}, 60%, 55%)`,
+    dead: false,
+    reward: 5 + gameState.wave * 2,
+  });
+}
+
+function sendWave() {
+  if (gameState.enemies.some(e => !e.dead)) return;
+  gameState.wave++;
+  updateHUD();
+  const count = 4 + gameState.wave * 2;
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => spawnEnemy(), i * 400);
+  }
+  document.getElementById("bottomMsg").textContent = `Wave ${gameState.wave} incoming!`;
+}
+
+function updateEnemies(dt) {
+  gameState.enemies.forEach(e => {
+    if (e.dead) return;
+    const target = gameState.path[e.pathIdx + 1];
+    if (!target) {
+      // Reached exit
+      e.dead = true;
+      gameState.lives--;
+      updateHUD();
+      if (gameState.lives <= 0) {
+        document.getElementById("bottomMsg").textContent = "GAME OVER";
+        gameState.running = false;
+      }
+      return;
+    }
+    const dx = target.c - e.x;
+    const dy = target.r - e.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < 0.1) {
+      e.pathIdx++;
+    } else {
+      e.x += (dx / dist) * e.speed * dt;
+      e.y += (dy / dist) * e.speed * dt;
+    }
+  });
+}
+
+function updateTowers(dt) {
+  gameState.towers.forEach(t => {
+    const def = TOWER_DEFS.find(d => d.id === t.type);
+    if (!def || def.damage === 0) {
+      // Farm: generate gold
+      if (t.type === "farm") {
+        t.cooldown -= dt;
+        if (t.cooldown <= 0) {
+          gameState.gold += 2;
+          t.cooldown = 3;
+          updateHUD();
+        }
+      }
+      return;
+    }
+    t.cooldown -= dt;
+    if (t.cooldown > 0) return;
+
+    // Find target
+    const rangePx = def.range;
+    let closest = null, closestDist = Infinity;
+    gameState.enemies.forEach(e => {
+      if (e.dead) return;
+      const d = Math.sqrt((e.x - t.c)**2 + (e.y - t.r)**2);
+      if (d <= rangePx && d < closestDist) {
+        closest = e; closestDist = d;
+      }
+    });
+
+    if (closest) {
+      t.cooldown = 1.0 / def.rate;
+      if (def.id === "splash") {
+        // AOE damage
+        gameState.enemies.forEach(e => {
+          if (e.dead) return;
+          const d = Math.sqrt((e.x - closest.x)**2 + (e.y - closest.y)**2);
+          if (d <= 1.5) {
+            e.hp -= def.damage;
+            if (e.hp <= 0) { e.dead = true; gameState.gold += e.reward; updateHUD(); }
+          }
+        });
+      } else {
+        closest.hp -= def.damage;
+        if (closest.hp <= 0) { closest.dead = true; gameState.gold += closest.reward; updateHUD(); }
+      }
+      // Projectile visual
+      gameState.projectiles.push({
+        x: t.c, y: t.r,
+        tx: closest.x, ty: closest.y,
+        color: def.color, life: 0.15,
+      });
+    }
+  });
+}
+
+function updateProjectiles(dt) {
+  gameState.projectiles.forEach(p => {
+    p.x += (p.tx - p.x) * 0.3;
+    p.y += (p.ty - p.y) * 0.3;
+    p.life -= dt;
+  });
+  gameState.projectiles = gameState.projectiles.filter(p => p.life > 0);
+}
+
+function cleanup() {
+  gameState.enemies = gameState.enemies.filter(e => !e.dead);
+  if (gameState.enemies.length === 0 && gameState.wave > 0) {
+    document.getElementById("bottomMsg").textContent =
+      `Wave ${gameState.wave} cleared! Place towers and send next wave.`;
+  }
+}
+
+function updateHUD() {
+  document.getElementById("hudGold").textContent = gameState.gold;
+  document.getElementById("hudLives").textContent = gameState.lives;
+  document.getElementById("hudWave").textContent = gameState.wave;
+}
+
+// ============================================================
+//  GAME LOOP
+// ============================================================
+let lastTime = 0;
+function gameLoop(ts) {
+  const dt = Math.min((ts - lastTime) / 1000, 0.1);
+  lastTime = ts;
+
+  if (gameState.running) {
+    updateEnemies(dt);
+    updateTowers(dt);
+    updateProjectiles(dt);
+    cleanup();
+  }
+  render();
+  requestAnimationFrame(gameLoop);
+}
+
+// ============================================================
+//  INPUT
+// ============================================================
+canvas.addEventListener("mousemove", e => {
+  const rect = canvas.getBoundingClientRect();
+  const c = Math.floor((e.clientX - rect.left) / TILE_SIZE);
+  const r = Math.floor((e.clientY - rect.top) / TILE_SIZE);
+  hoverCell = { r, c };
+});
+canvas.addEventListener("mouseleave", () => { hoverCell = null; });
+canvas.addEventListener("click", e => {
+  if (!hoverCell || !gameState.selectedTower) return;
+  placeTower(hoverCell.r, hoverCell.c);
+});
+
+// ============================================================
+//  UI: TOWER LIST
+// ============================================================
+function renderTowerList() {
+  const el = document.getElementById("towerList");
+  el.innerHTML = "";
+  TOWER_DEFS.forEach(def => {
+    const div = document.createElement("div");
+    div.className = `tower-item ${gameState.selectedTower === def.id ? "selected" : ""}`;
+    div.onclick = () => {
+      gameState.selectedTower = gameState.selectedTower === def.id ? null : def.id;
+      renderTowerList();
+    };
+    div.innerHTML = `
+      <span class="t-icon">${def.icon}</span>
+      <span class="t-info">
+        <span class="t-name">${def.name}</span>
+        <span class="t-cost">${def.cost}g${def.damage ? " | DMG:" + def.damage : " | +2g/3s"}</span>
+      </span>`;
+    el.appendChild(div);
+  });
+}
+
+// ============================================================
+//  BGM SYSTEM
+// ============================================================
+let audioCtx = null, analyser = null;
+let bgmBuffers = {};
+let bgmPlaying = false;
+let bgmCurrentBar = -1;
+let bgmTimer = null;
+let bgmSources = [];
+let bgmGainNode = null;
+let bgmSongData = null;
+
+const BGM_INSTRUMENTS = ["melody","harmony","bass","pad","drums","arpeggio"];
+const BGM_VARIANTS = ["A","B","C"];
+
+function initBGM() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 128;
+    bgmGainNode = audioCtx.createGain();
+    bgmGainNode.gain.value = 0.5;
+    bgmGainNode.connect(analyser);
+    analyser.connect(audioCtx.destination);
+  }
+  if (audioCtx.state === "suspended") audioCtx.resume();
+}
+
+async function loadBGMBuffer(name) {
+  const base = "assets/bgm/instruments/";
+  try {
+    const resp = await fetch(base + name + ".wav");
+    if (!resp.ok) return;
+    bgmBuffers[name] = await audioCtx.decodeAudioData(await resp.arrayBuffer());
+  } catch(e) { console.warn("BGM load fail:", name, e); }
+}
+
+async function loadBGM() {
+  initBGM();
+  const tasks = [];
+  BGM_INSTRUMENTS.forEach(inst => {
+    BGM_VARIANTS.forEach(v => {
+      const k = `${inst}_${v}`;
+      if (!bgmBuffers[k]) tasks.push(loadBGMBuffer(k));
+    });
+  });
+  if (tasks.length) await Promise.all(tasks);
+
+  // Load song structure
+  try {
+    const resp = await fetch("assets/bgm/game_theme_structure.json");
+    if (resp.ok) bgmSongData = await resp.json();
+  } catch(e) {}
+
+  // Fallback structure if JSON missing
+  if (!bgmSongData) bgmSongData = generateDefaultStructure();
+}
+
+function generateDefaultStructure() {
+  const sections = [
+    { name:"intro",   bars:2, active:["drums","bass"], gain:0.6 },
+    { name:"build",   bars:2, active:["drums","bass","pad","arpeggio"], gain:0.75 },
+    { name:"verse",   bars:4, active:["melody","harmony","bass","drums","pad"], gain:0.85 },
+    { name:"chorus",  bars:4, active:["melody","harmony","bass","drums","pad","arpeggio"], gain:1.0 },
+    { name:"bridge",  bars:2, active:["pad","arpeggio","bass"], gain:0.5 },
+    { name:"chorus2", bars:4, active:["melody","harmony","bass","drums","pad","arpeggio"], gain:1.0 },
+    { name:"outro",   bars:2, active:["melody","pad","arpeggio"], gain:0.55 },
+  ];
+  const bars = [];
+  let total = 0;
+  sections.forEach(sec => {
+    const activeSet = new Set(sec.active);
+    for (let i = 0; i < sec.bars; i++) {
+      const insts = {};
+      BGM_INSTRUMENTS.forEach(id => {
+        if (activeSet.has(id)) {
+          let g = sec.gain;
+          if (sec.name==="intro") g *= (0.5+0.5*((i+1)/sec.bars));
+          else if (sec.name==="outro") g *= (1-0.5*(i/Math.max(1,sec.bars-1)));
+          insts[id] = { variant: BGM_VARIANTS[Math.floor(Math.random()*3)], gain: Math.round(g*100)/100 };
+        } else { insts[id] = null; }
+      });
+      bars.push({ section:sec.name, bar:total, instruments:insts });
+      total++;
+    }
+  });
+  return { bpm:130, beats_per_bar:8, total_bars:total, sections, bars };
+}
+
+async function toggleBGM() {
+  if (bgmPlaying) {
+    stopBGM();
+  } else {
+    await loadBGM();
+    startBGM();
+  }
+}
+
+function startBGM() {
+  bgmPlaying = true;
+  bgmCurrentBar = 0;
+  document.getElementById("bgmToggle").textContent = "\u{23F8}";
+  document.getElementById("bgmToggle").classList.add("playing");
+  document.getElementById("bgmStatus").textContent = "Playing";
+  tickBGM();
+}
+
+function stopBGM() {
+  bgmPlaying = false;
+  bgmCurrentBar = -1;
+  clearTimeout(bgmTimer);
+  bgmSources.forEach(s => { try{s.stop();}catch(e){} });
+  bgmSources = [];
+  document.getElementById("bgmToggle").textContent = "\u25B6";
+  document.getElementById("bgmToggle").classList.remove("playing");
+  document.getElementById("bgmStatus").textContent = "Stopped";
+  document.getElementById("bgmSection").textContent = "";
+}
+
+function tickBGM() {
+  if (!bgmPlaying || !bgmSongData) return;
+  if (bgmCurrentBar >= bgmSongData.total_bars) {
+    bgmCurrentBar = 0; // loop
+  }
+
+  const bar = bgmSongData.bars[bgmCurrentBar];
+  const vol = bgmGainNode.gain.value;
+
+  document.getElementById("bgmSection").textContent =
+    `${bar.section.toUpperCase()} [${bgmCurrentBar+1}/${bgmSongData.total_bars}]`;
+
+  BGM_INSTRUMENTS.forEach(inst => {
+    const info = bar.instruments[inst];
+    if (!info) return;
+    const key = `${inst}_${info.variant}`;
+    if (!bgmBuffers[key]) return;
+
+    const src = audioCtx.createBufferSource();
+    src.buffer = bgmBuffers[key];
+    const g = audioCtx.createGain();
+    g.gain.value = info.gain;
+    src.connect(g);
+    g.connect(bgmGainNode);
+    src.start();
+    bgmSources.push(src);
+  });
+
+  bgmCurrentBar++;
+  const barMs = (60000 / bgmSongData.bpm) * bgmSongData.beats_per_bar;
+  bgmTimer = setTimeout(tickBGM, barMs);
+}
+
+function setBGMVolume(val) {
+  if (bgmGainNode) bgmGainNode.gain.value = val / 100;
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+function startGame() {
+  document.getElementById("overlay").classList.add("hidden");
+  gameState.running = true;
+  // Auto-start BGM
+  toggleBGM();
+}
+
+generateMap();
+renderTowerList();
+updateHUD();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
