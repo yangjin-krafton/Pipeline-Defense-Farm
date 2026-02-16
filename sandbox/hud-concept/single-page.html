@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Pipeline Defense - HUD Concept</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #000;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 스케일 컨테이너 */
+        #scale-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 메인 게임 화면: 640x1138 고정 */
+        #game-screen {
+            position: relative;
+            width: 640px;
+            height: 1138px;
+            background: #1a1a2e;
+            overflow: hidden;
+            transform-origin: center center;
+        }
+
+        /* ===== 상단 상태바 ===== */
+        #status-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background: linear-gradient(180deg, rgba(26, 26, 46, 0.95), rgba(26, 26, 46, 0.85));
+            backdrop-filter: blur(10px);
+            border-bottom: 2px solid rgba(255, 182, 193, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+            z-index: 100;
+        }
+
+        .resources {
+            display: flex;
+            gap: 10px;
+        }
+
+        .resource {
+            background: rgba(45, 27, 78, 0.6);
+            border: 2px solid rgba(255, 182, 193, 0.3);
+            border-radius: 15px;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        /* 소화기관 건강 상태 */
+        .organ-health {
+            display: flex;
+            gap: 12px;
+        }
+
+        .organ-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(45, 27, 78, 0.4);
+            border: 2px solid rgba(255, 182, 193, 0.2);
+            border-radius: 12px;
+            padding: 4px 8px;
+        }
+
+        .organ-icon {
+            font-size: 18px;
+            filter: drop-shadow(0 0 5px currentColor);
+        }
+
+        .health-emoji {
+            font-size: 12px;
+            line-height: 1;
+            letter-spacing: -1px;
+            filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.3));
+        }
+
+        /* ===== 메인 게임 화면 ===== */
+        #game-area {
+            position: absolute;
+            top: 60px;
+            left: 0;
+            width: 640px;
+            height: 1078px;
+            background: linear-gradient(135deg, #2d1b4e 0%, #1a1a2e 50%, #2d1b4e 100%);
+        }
+
+        .game-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #666;
+        }
+
+        .tap-hint {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #ff69b4;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* ===== 게임 내 타워 (클릭 가능) ===== */
+        .tower-on-map {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        /* 타워 본체 */
+        .tower-emoji {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 60px;
+            height: 60px;
+            background: rgba(45, 27, 78, 0.8);
+            border: 3px solid rgba(255, 182, 193, 0.5);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            transition: all 0.2s;
+            box-shadow: 0 0 20px rgba(255, 105, 180, 0.4);
+            z-index: 2;
+        }
+
+        .tower-on-map:hover .tower-emoji {
+            transform: scale(1.1);
+            border-color: #ff69b4;
+            box-shadow: 0 0 30px rgba(255, 105, 180, 0.8);
+        }
+
+        .tower-on-map:active .tower-emoji {
+            transform: scale(0.95);
+        }
+
+        /* 공격 범위 인디케이터 */
+        .range-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 180px;
+            height: 180px;
+            transform: translate(-50%, -50%);
+            border: 2px dashed rgba(255, 182, 193, 0.4);
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 105, 180, 0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            z-index: 1;
+            animation: range-pulse 2s infinite ease-in-out;
+        }
+
+        .tower-on-map:hover .range-indicator {
+            opacity: 1;
+        }
+
+        @keyframes range-pulse {
+            0%, 100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.6;
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.05);
+                opacity: 0.8;
+            }
+        }
+
+        .tower-on-map:hover .range-indicator {
+            animation: none;
+            opacity: 1;
+        }
+
+        /* 빈 타일 (설치 가능) */
+        .empty-tile {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: rgba(45, 27, 78, 0.4);
+            border: 3px dashed rgba(144, 238, 144, 0.5);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 10;
+        }
+
+        .empty-tile:hover {
+            background: rgba(144, 238, 144, 0.2);
+            border-color: #90ee90;
+        }
+
+        .plus-icon {
+            font-size: 32px;
+            color: #90ee90;
+            font-weight: bold;
+        }
+
+        /* ===== 하단 슬라이드업 메뉴 (Bottom Sheet) ===== */
+        #bottom-sheet {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 640px;
+            height: 570px;
+            background: rgba(26, 26, 46, 0.98);
+            backdrop-filter: blur(20px);
+            border-top-left-radius: 30px;
+            border-top-right-radius: 30px;
+            border: 3px solid rgba(255, 182, 193, 0.4);
+            border-bottom: none;
+            z-index: 90;
+            transform: translateY(0);
+            transition: transform 0.3s ease;
+            box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        /* 드래그 핸들 */
+        .sheet-handle {
+            width: 60px;
+            height: 5px;
+            background: rgba(255, 182, 193, 0.5);
+            border-radius: 3px;
+            margin: 12px auto;
+        }
+
+        /* 시트 컨텐츠 */
+        .sheet-content {
+            padding: 0 20px 20px 20px;
+            height: calc(100% - 30px);
+            overflow-y: auto;
+        }
+
+        .sheet-content.hidden {
+            display: none;
+        }
+
+        /* ===== 타워 상세 정보 ===== */
+        .detail-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(255, 182, 193, 0.3);
+        }
+
+        .tower-icon-large {
+            font-size: 60px;
+            min-width: 80px;
+            text-align: center;
+            filter: drop-shadow(0 0 15px currentColor);
+        }
+
+        .tower-title h2 {
+            font-size: 22px;
+            color: #ffb6c1;
+            margin-bottom: 5px;
+        }
+
+        .tower-subtitle {
+            font-size: 13px;
+            color: #aaa;
+        }
+
+        /* 스탯 리스트 */
+        .stats-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: rgba(45, 27, 78, 0.3);
+            border: 2px solid rgba(255, 182, 193, 0.2);
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .stat-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stat-icon {
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .stat-name {
+            font-size: 13px;
+            color: #ffb6c1;
+            min-width: 70px;
+        }
+
+        .stat-bar {
+            flex: 1;
+            height: 12px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff69b4, #ff8e53);
+            border-radius: 6px;
+            transition: width 0.3s ease;
+        }
+
+        .stat-bar.special .stat-fill {
+            background: linear-gradient(90deg, #ffd700, #ffa500);
+        }
+
+        .stat-number {
+            font-size: 13px;
+            font-weight: bold;
+            color: #fff;
+            min-width: 50px;
+            text-align: right;
+        }
+
+        /* 업그레이드 스킬 트리 */
+        .action-section {
+            margin-bottom: 20px;
+        }
+
+        .action-section h3 {
+            font-size: 16px;
+            color: #ffb6c1;
+            margin-bottom: 12px;
+        }
+
+        .skill-tree-scroll {
+            overflow-x: auto;
+            overflow-y: hidden;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 182, 193, 0.2);
+            border-radius: 12px;
+            padding: 10px;
+        }
+
+        .skill-tree-scroll::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .skill-tree-scroll::-webkit-scrollbar-track {
+            background: rgba(45, 27, 78, 0.3);
+            border-radius: 3px;
+        }
+
+        .skill-tree-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 182, 193, 0.4);
+            border-radius: 3px;
+        }
+
+        .skill-tree {
+            position: relative;
+            width: 600px;
+            height: 150px;
+            min-width: 600px;
+        }
+
+        /* 연결선 */
+        .skill-connections {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .connection {
+            stroke-width: 3;
+            stroke-linecap: round;
+        }
+
+        .connection.unlocked {
+            stroke: rgba(144, 238, 144, 0.6);
+        }
+
+        .connection.available {
+            stroke: rgba(255, 215, 0, 0.6);
+            stroke-dasharray: 5, 5;
+        }
+
+        .connection.locked {
+            stroke: rgba(100, 100, 100, 0.4);
+            stroke-dasharray: 3, 3;
+        }
+
+        /* 스킬 노드 */
+        .skill-node {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .skill-node::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            border: 3px solid;
+            background: rgba(45, 27, 78, 0.8);
+            transition: all 0.2s;
+        }
+
+        /* 잠금 해제됨 */
+        .skill-node.unlocked::before {
+            border-color: #90ee90;
+            background: rgba(144, 238, 144, 0.2);
+        }
+
+        /* 현재 레벨 */
+        .skill-node.current::before {
+            border-color: #ffd700;
+            background: rgba(255, 215, 0, 0.3);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+            animation: currentGlow 2s infinite;
+        }
+
+        @keyframes currentGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.4); }
+            50% { box-shadow: 0 0 25px rgba(255, 215, 0, 0.8); }
+        }
+
+        /* 연구 가능 */
+        .skill-node.available::before {
+            border-color: #ff69b4;
+            background: rgba(255, 105, 180, 0.2);
+        }
+
+        .skill-node.available:hover::before {
+            transform: translate(-50%, -50%) scale(1.1);
+            box-shadow: 0 0 20px rgba(255, 105, 180, 0.6);
+        }
+
+        /* 잠김 */
+        .skill-node.locked::before {
+            border-color: #666;
+            background: rgba(50, 50, 50, 0.5);
+            opacity: 0.5;
+        }
+
+        .node-icon {
+            position: relative;
+            font-size: 28px;
+            text-align: center;
+            line-height: 40px;
+            z-index: 1;
+        }
+
+        .node-name {
+            position: relative;
+            font-size: 10px;
+            font-weight: bold;
+            color: #fff;
+            text-align: center;
+            margin-top: -5px;
+            z-index: 1;
+        }
+
+        .node-cost {
+            position: relative;
+            font-size: 9px;
+            font-weight: bold;
+            color: #ffd700;
+            text-align: center;
+            margin-top: 2px;
+            z-index: 1;
+        }
+
+        .node-status {
+            position: relative;
+            font-size: 16px;
+            text-align: center;
+            margin-top: -5px;
+            z-index: 1;
+        }
+
+        .skill-node.locked {
+            cursor: not-allowed;
+        }
+
+        /* 액션 버튼 */
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-btn {
+            flex: 1;
+            height: 50px;
+            border: 2px solid rgba(255, 182, 193, 0.3);
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn.sell {
+            background: rgba(255, 107, 107, 0.2);
+            border-color: rgba(255, 107, 107, 0.5);
+            color: #ff6b6b;
+        }
+
+        .action-btn.close {
+            background: rgba(45, 27, 78, 0.6);
+            color: #fff;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        /* ===== 타워 설치 그리드 ===== */
+        .tower-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .tower-card {
+            position: relative;
+            background: rgba(45, 27, 78, 0.6);
+            border: 2px solid rgba(255, 182, 193, 0.3);
+            border-radius: 15px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tower-card:hover {
+            border-color: #ff69b4;
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(255, 105, 180, 0.4);
+        }
+
+        .tower-card.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .tower-card.locked:hover {
+            transform: none;
+        }
+
+        .tower-icon-medium {
+            font-size: 40px;
+            filter: drop-shadow(0 0 10px currentColor);
+        }
+
+        .tower-card-name {
+            font-size: 13px;
+            font-weight: bold;
+            color: #ffb6c1;
+        }
+
+        .tower-card-cost {
+            font-size: 12px;
+            font-weight: bold;
+            color: #ffd700;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 4px 10px;
+            border-radius: 10px;
+        }
+
+        .lock-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 18px;
+        }
+
+
+        /* ===== 스크롤바 ===== */
+        .sheet-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sheet-content::-webkit-scrollbar-track {
+            background: rgba(45, 27, 78, 0.3);
+        }
+
+        .sheet-content::-webkit-scrollbar-thumb {
+            background: rgba(255, 182, 193, 0.4);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div id="scale-container">
+        <div id="game-screen">
+
+            <!-- 상단 상태바 -->
+            <header id="status-bar">
+                <div class="resources">
+                    <span class="resource">🍎 1250</span>
+                    <span class="resource">⚡ 85</span>
+                    <span class="resource">🦠 42</span>
+                </div>
+                <div class="organ-health">
+                    <div class="organ-status">
+                        <div class="organ-icon">🟡</div>
+                        <div class="health-emoji">💛💛💛🖤🖤</div>
+                    </div>
+                    <div class="organ-status">
+                        <div class="organ-icon">🟢</div>
+                        <div class="health-emoji">💚💚💚💚🖤</div>
+                    </div>
+                    <div class="organ-status">
+                        <div class="organ-icon">🔴</div>
+                        <div class="health-emoji">❤️🖤🖤🖤🖤</div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- 메인 게임 화면 -->
+            <main id="game-area">
+                <div class="game-placeholder">
+                    게임 화면 (640x1138)
+                    <div class="tap-hint">타워를 탭하세요 👇</div>
+                </div>
+
+                <!-- 게임 내 타워 예시 -->
+                <div class="tower-on-map" style="top: 200px; left: 150px;">
+                    <div class="range-indicator"></div>
+                    <div class="tower-emoji">🧪</div>
+                </div>
+                <div class="tower-on-map" style="top: 350px; left: 400px;">
+                    <div class="range-indicator"></div>
+                    <div class="tower-emoji">💧</div>
+                </div>
+                <div class="tower-on-map" style="top: 500px; left: 250px;">
+                    <div class="range-indicator"></div>
+                    <div class="tower-emoji">💛</div>
+                </div>
+
+                <!-- 빈 타일 -->
+                <div class="empty-tile" style="top: 300px; left: 500px;">
+                    <div class="plus-icon">+</div>
+                </div>
+            </main>
+
+            <!-- 하단 슬라이드업 메뉴 -->
+            <aside id="bottom-sheet">
+                <div class="sheet-handle"></div>
+
+                <!-- 타워 상세 정보 -->
+                <div class="sheet-content" id="tower-detail">
+                    <div class="detail-header">
+                        <div class="tower-icon-large">🧪</div>
+                        <div class="tower-title">
+                            <h2>효소 분사기</h2>
+                            <p class="tower-subtitle">Lv 3 • 탄수화물 분해 특화</p>
+                        </div>
+                    </div>
+
+                    <div class="stats-list">
+                        <div class="stat-row">
+                            <span class="stat-icon">⚔️</span>
+                            <span class="stat-name">공격력</span>
+                            <span class="stat-bar">
+                                <span class="stat-fill" style="width: 60%"></span>
+                            </span>
+                            <span class="stat-number">45</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-icon">⚡</span>
+                            <span class="stat-name">공격속도</span>
+                            <span class="stat-bar">
+                                <span class="stat-fill" style="width: 80%"></span>
+                            </span>
+                            <span class="stat-number">1.2s</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-icon">📍</span>
+                            <span class="stat-name">범위</span>
+                            <span class="stat-bar">
+                                <span class="stat-fill" style="width: 40%"></span>
+                            </span>
+                            <span class="stat-number">2타일</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-icon">✨</span>
+                            <span class="stat-name">분해효과</span>
+                            <span class="stat-bar special">
+                                <span class="stat-fill" style="width: 75%"></span>
+                            </span>
+                            <span class="stat-number">+15%</span>
+                        </div>
+                    </div>
+
+                    <div class="action-section">
+                        <h3>🔬 업그레이드 트리</h3>
+                        <div class="skill-tree-scroll">
+                            <div class="skill-tree">
+                                <!-- 레벨 1 -->
+                                <div class="skill-node unlocked" style="left: 50px; top: 50px;">
+                                    <div class="node-icon">🧪</div>
+                                    <div class="node-name">Lv 1</div>
+                                    <div class="node-status">✓</div>
+                                </div>
+
+                                <!-- 레벨 2 -->
+                                <div class="skill-node unlocked" style="left: 150px; top: 50px;">
+                                    <div class="node-icon">💪</div>
+                                    <div class="node-name">Lv 2</div>
+                                    <div class="node-status">✓</div>
+                                </div>
+
+                                <!-- 레벨 3 (현재) -->
+                                <div class="skill-node current" style="left: 250px; top: 50px;">
+                                    <div class="node-icon">⚡</div>
+                                    <div class="node-name">Lv 3</div>
+                                    <div class="node-status">★</div>
+                                </div>
+
+                                <!-- 레벨 4 (가능) -->
+                                <div class="skill-node available" style="left: 350px; top: 50px;">
+                                    <div class="node-icon">🔥</div>
+                                    <div class="node-name">Lv 4</div>
+                                    <div class="node-cost">🍎 300</div>
+                                </div>
+
+                                <!-- 분기: 속도 강화 -->
+                                <div class="skill-node available" style="left: 420px; top: 10px;">
+                                    <div class="node-icon">⏱️</div>
+                                    <div class="node-name">속도↑</div>
+                                    <div class="node-cost">⚡ 40</div>
+                                </div>
+
+                                <!-- 분기: 범위 강화 -->
+                                <div class="skill-node locked" style="left: 420px; top: 90px;">
+                                    <div class="node-icon">📍</div>
+                                    <div class="node-name">범위↑</div>
+                                    <div class="node-cost">🍎 400</div>
+                                </div>
+
+                                <!-- 레벨 5 (잠김) -->
+                                <div class="skill-node locked" style="left: 520px; top: 50px;">
+                                    <div class="node-icon">💎</div>
+                                    <div class="node-name">Lv 5</div>
+                                    <div class="node-cost">🦠 50</div>
+                                </div>
+
+                                <!-- 연결선들 -->
+                                <svg class="skill-connections" width="600" height="150">
+                                    <!-- Lv1 → Lv2 -->
+                                    <line x1="90" y1="70" x2="150" y2="70" class="connection unlocked" />
+                                    <!-- Lv2 → Lv3 -->
+                                    <line x1="190" y1="70" x2="250" y2="70" class="connection unlocked" />
+                                    <!-- Lv3 → Lv4 -->
+                                    <line x1="290" y1="70" x2="350" y2="70" class="connection available" />
+                                    <!-- Lv4 → 속도 -->
+                                    <line x1="390" y1="60" x2="420" y2="40" class="connection available" />
+                                    <!-- Lv4 → 범위 -->
+                                    <line x1="390" y1="80" x2="420" y2="110" class="connection locked" />
+                                    <!-- Lv4 → Lv5 -->
+                                    <line x1="390" y1="70" x2="520" y2="70" class="connection locked" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="action-btn sell">🗑️ 판매 (50% 환불)</button>
+                        <button class="action-btn close">✕ 닫기</button>
+                    </div>
+                </div>
+
+                <!-- 타워 설치 메뉴 -->
+                <div class="sheet-content hidden" id="tower-build">
+                    <div class="detail-header">
+                        <h2>🏗️ 타워 설치</h2>
+                    </div>
+
+                    <div class="tower-grid">
+                        <div class="tower-card">
+                            <div class="tower-icon-medium">🧪</div>
+                            <div class="tower-card-name">효소</div>
+                            <div class="tower-card-cost">🍎 100</div>
+                        </div>
+                        <div class="tower-card">
+                            <div class="tower-icon-medium">💧</div>
+                            <div class="tower-card-name">위산</div>
+                            <div class="tower-card-cost">🍎 150</div>
+                        </div>
+                        <div class="tower-card">
+                            <div class="tower-icon-medium">💛</div>
+                            <div class="tower-card-name">담즙</div>
+                            <div class="tower-card-cost">🍎 200</div>
+                        </div>
+                        <div class="tower-card locked">
+                            <div class="tower-icon-medium">🦠</div>
+                            <div class="tower-card-name">유산균</div>
+                            <div class="tower-card-cost">🦠 25</div>
+                            <div class="lock-badge">🔒</div>
+                        </div>
+                        <div class="tower-card">
+                            <div class="tower-icon-medium">🌀</div>
+                            <div class="tower-card-name">연동</div>
+                            <div class="tower-card-cost">⚡ 30</div>
+                        </div>
+                        <div class="tower-card">
+                            <div class="tower-icon-medium">✨</div>
+                            <div class="tower-card-name">흡수</div>
+                            <div class="tower-card-cost">🍎 120</div>
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="action-btn close">✕ 닫기</button>
+                    </div>
+                </div>
+            </aside>
+
+
+        </div>
+    </div>
+
+    <script>
+        // 화면 크기에 맞춰 스케일 조정
+        function adjustScale() {
+            const gameScreen = document.getElementById('game-screen');
+            const container = document.getElementById('scale-container');
+
+            const designWidth = 640;
+            const designHeight = 1138;
+
+            const scaleX = container.clientWidth / designWidth;
+            const scaleY = container.clientHeight / designHeight;
+
+            // 비율 유지하면서 화면에 맞추기 (작은 쪽 기준)
+            const scale = Math.min(scaleX, scaleY);
+
+            gameScreen.style.transform = `scale(${scale})`;
+        }
+
+        // 초기 실행
+        adjustScale();
+
+        // 창 크기 변경 시 재조정
+        window.addEventListener('resize', adjustScale);
+    </script>
+</body>
+</html>
