@@ -1,0 +1,441 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PathPoints Editor</title>
+  <style>
+    :root {
+      --bg: #0f1520;
+      --panel: #1b2432;
+      --ink: #dbe7ff;
+      --muted: #8ea0c2;
+      --line: #79a7ff;
+      --point: #ffd166;
+      --active: #ff6b6b;
+      --start: #66e28f;
+      --end: #ff9f40;
+      --grid: #2a364a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      background: radial-gradient(circle at 20% 10%, #1f2b3f 0%, var(--bg) 60%);
+      color: var(--ink);
+      font-family: Consolas, "Courier New", monospace;
+    }
+    .panel {
+      padding: 14px;
+      border-right: 1px solid #2b374d;
+      background: rgba(20, 28, 40, 0.92);
+      overflow: auto;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+    p {
+      margin: 6px 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+      margin: 8px 0;
+      flex-wrap: wrap;
+    }
+    button {
+      border: 1px solid #41506d;
+      background: #26344d;
+      color: var(--ink);
+      padding: 7px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    button:hover { filter: brightness(1.08); }
+    textarea {
+      width: 100%;
+      min-height: 320px;
+      margin-top: 8px;
+      border-radius: 8px;
+      border: 1px solid #334159;
+      background: #101722;
+      color: #cfe1ff;
+      padding: 10px;
+      font: 12px/1.4 Consolas, "Courier New", monospace;
+      resize: vertical;
+    }
+    .stage-wrap {
+      display: grid;
+      place-items: center;
+      padding: 16px;
+    }
+    canvas {
+      border: 2px solid #3d4f6f;
+      border-radius: 14px;
+      background: linear-gradient(180deg, #1a2332 0%, #121925 100%);
+      box-shadow: 0 24px 44px rgba(0, 0, 0, 0.45);
+      touch-action: none;
+      cursor: crosshair;
+    }
+    .stats {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    @media (max-width: 960px) {
+      body { grid-template-columns: 1fr; }
+      .panel { border-right: 0; border-bottom: 1px solid #2b374d; }
+    }
+  </style>
+</head>
+<body>
+  <section class="panel">
+    <h1>pathPoints Editor</h1>
+    <p>클릭: 포인트 추가</p>
+    <p>포인트 드래그: 위치 이동</p>
+    <p>Shift + 클릭: 선택 포인트 삭제</p>
+    <p>선분 클릭: 중간에 포인트 삽입</p>
+
+    <div class="row">
+      <button id="btnReset">Digestive 기본값</button>
+      <button id="btnClear">모두 지우기</button>
+      <button id="btnCopy">JSON 복사</button>
+      <button id="btnApply">텍스트 적용</button>
+    </div>
+
+    <textarea id="jsonOut"></textarea>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <main class="stage-wrap">
+    <canvas id="editor"></canvas>
+  </main>
+
+  <script>
+    (() => {
+      const VIRTUAL_W = 360;
+      const VIRTUAL_H = 640;
+      const HIT_RADIUS = 18;
+
+      const defaultPoints = [
+        { x: 180, y: 85 },
+        { x: 180, y: 108 },
+        { x: 181, y: 130 },
+        { x: 182, y: 156 },
+        { x: 183, y: 183 },
+        { x: 196, y: 202 },
+        { x: 224, y: 218 },
+        { x: 250, y: 242 },
+        { x: 244, y: 274 },
+        { x: 218, y: 294 },
+        { x: 232, y: 314 },
+        { x: 254, y: 336 },
+        { x: 246, y: 364 },
+        { x: 220, y: 382 },
+        { x: 180, y: 390 },
+        { x: 140, y: 404 },
+        { x: 120, y: 430 },
+        { x: 146, y: 448 },
+        { x: 188, y: 448 },
+        { x: 228, y: 462 },
+        { x: 238, y: 486 },
+        { x: 206, y: 508 },
+        { x: 166, y: 514 },
+        { x: 132, y: 530 },
+        { x: 148, y: 552 },
+        { x: 188, y: 560 },
+        { x: 170, y: 570 },
+        { x: 130, y: 570 },
+        { x: 112, y: 550 },
+        { x: 104, y: 520 },
+        { x: 98, y: 480 },
+        { x: 98, y: 430 },
+        { x: 130, y: 410 },
+        { x: 180, y: 404 },
+        { x: 230, y: 404 },
+        { x: 266, y: 412 },
+        { x: 272, y: 450 },
+        { x: 270, y: 500 },
+        { x: 260, y: 548 },
+        { x: 240, y: 572 },
+        { x: 210, y: 590 },
+        { x: 184, y: 604 }
+      ];
+
+      let points = defaultPoints.map((p) => ({ ...p }));
+      let selected = -1;
+      let hover = -1;
+      let dragging = false;
+
+      const canvas = document.getElementById("editor");
+      const ctx = canvas.getContext("2d");
+      const jsonOut = document.getElementById("jsonOut");
+      const stats = document.getElementById("stats");
+
+      function fitCanvas() {
+        const maxW = window.innerWidth < 960 ? window.innerWidth - 30 : window.innerWidth - 420;
+        const maxH = window.innerHeight - 40;
+        const scale = Math.max(0.4, Math.min(maxW / VIRTUAL_W, maxH / VIRTUAL_H));
+        canvas.width = Math.round(VIRTUAL_W * scale);
+        canvas.height = Math.round(VIRTUAL_H * scale);
+        draw();
+      }
+
+      function screenToVirtual(e) {
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left) * (VIRTUAL_W / rect.width);
+        const y = (e.clientY - rect.top) * (VIRTUAL_H / rect.height);
+        return {
+          x: Math.max(0, Math.min(VIRTUAL_W, x)),
+          y: Math.max(0, Math.min(VIRTUAL_H, y))
+        };
+      }
+
+      function hitPoint(pos) {
+        for (let i = points.length - 1; i >= 0; i -= 1) {
+          const p = points[i];
+          if (Math.hypot(pos.x - p.x, pos.y - p.y) <= HIT_RADIUS) return i;
+        }
+        return -1;
+      }
+
+      function pointToSegmentDist(p, a, b) {
+        const vx = b.x - a.x;
+        const vy = b.y - a.y;
+        const wx = p.x - a.x;
+        const wy = p.y - a.y;
+        const c1 = vx * wx + vy * wy;
+        const c2 = vx * vx + vy * vy;
+        const t = c2 === 0 ? 0 : Math.max(0, Math.min(1, c1 / c2));
+        const px = a.x + t * vx;
+        const py = a.y + t * vy;
+        return { d: Math.hypot(p.x - px, p.y - py), t };
+      }
+
+      function findInsertSegment(pos) {
+        let best = { i: -1, d: Infinity };
+        for (let i = 0; i < points.length - 1; i += 1) {
+          const result = pointToSegmentDist(pos, points[i], points[i + 1]);
+          if (result.d < best.d) best = { i, d: result.d };
+        }
+        return best.d <= 12 ? best.i : -1;
+      }
+
+      function syncText() {
+        const arr = points.map((p) => ({ x: Math.round(p.x), y: Math.round(p.y) }));
+        jsonOut.value = JSON.stringify(arr, null, 2);
+        if (selected >= 0 && points[selected]) {
+          const p = points[selected];
+          stats.textContent = `points: ${points.length} | selected: ${selected} | x:${Math.round(p.x)} y:${Math.round(p.y)}`;
+          return;
+        }
+        stats.textContent = `points: ${points.length} | selected: none`;
+      }
+
+      function drawGrid() {
+        ctx.save();
+        ctx.strokeStyle = "var(--grid)";
+        ctx.lineWidth = 1;
+        for (let x = 0; x <= VIRTUAL_W; x += 30) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, VIRTUAL_H);
+          ctx.stroke();
+        }
+        for (let y = 0; y <= VIRTUAL_H; y += 40) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(VIRTUAL_W, y);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawPath() {
+        if (points.length < 2) return;
+        ctx.save();
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+
+        ctx.strokeStyle = "rgba(0,0,0,0.35)";
+        ctx.lineWidth = 24;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x + 1.5, points[0].y + 1.5);
+        for (let i = 1; i < points.length; i += 1) ctx.lineTo(points[i].x + 1.5, points[i].y + 1.5);
+        ctx.stroke();
+
+        ctx.strokeStyle = "var(--line)";
+        ctx.lineWidth = 18;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i += 1) ctx.lineTo(points[i].x, points[i].y);
+        ctx.stroke();
+
+        ctx.setLineDash([7, 8]);
+        ctx.strokeStyle = "#d7e7ff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i += 1) ctx.lineTo(points[i].x, points[i].y);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawPoints() {
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "11px Consolas";
+
+        for (let i = 0; i < points.length; i += 1) {
+          const p = points[i];
+          const isSel = i === selected;
+          const isHover = i === hover;
+          const isStart = i === 0;
+          const isEnd = i === points.length - 1;
+          const radius = isSel ? 8.6 : isHover ? 7.6 : 6.6;
+
+          ctx.strokeStyle = "rgba(10, 15, 25, 0.9)";
+          ctx.lineWidth = 2;
+          ctx.fillStyle = isSel
+            ? "var(--active)"
+            : isStart
+              ? "var(--start)"
+              : isEnd
+                ? "var(--end)"
+                : "var(--point)";
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
+          ctx.lineWidth = 3;
+          ctx.strokeText(String(i), p.x, p.y - 13);
+          ctx.fillStyle = "#f3f7ff";
+          ctx.fillText(String(i), p.x, p.y - 13);
+        }
+
+        ctx.restore();
+      }
+
+      function draw() {
+        const sx = canvas.width / VIRTUAL_W;
+        const sy = canvas.height / VIRTUAL_H;
+        ctx.setTransform(sx, 0, 0, sy, 0, 0);
+        ctx.clearRect(0, 0, VIRTUAL_W, VIRTUAL_H);
+        drawGrid();
+        drawPath();
+        drawPoints();
+      }
+
+      function onPointerDown(e) {
+        const pos = screenToVirtual(e);
+        const hit = hitPoint(pos);
+
+        if (hit >= 0) {
+          if (e.shiftKey) {
+            points.splice(hit, 1);
+            selected = -1;
+            dragging = false;
+            syncText();
+            draw();
+            return;
+          }
+          selected = hit;
+          dragging = true;
+          draw();
+          return;
+        }
+
+        const insertIndex = findInsertSegment(pos);
+        if (insertIndex >= 0) {
+          points.splice(insertIndex + 1, 0, pos);
+          selected = insertIndex + 1;
+          dragging = true;
+          syncText();
+          draw();
+          return;
+        }
+
+        points.push(pos);
+        selected = points.length - 1;
+        dragging = true;
+        syncText();
+        draw();
+      }
+
+      function onPointerMove(e) {
+        const pos = screenToVirtual(e);
+        hover = hitPoint(pos);
+        if (dragging && selected >= 0) {
+          points[selected] = pos;
+          syncText();
+        }
+        draw();
+      }
+
+      function onPointerUp() {
+        dragging = false;
+      }
+
+      function resetDefault() {
+        points = defaultPoints.map((p) => ({ ...p }));
+        selected = -1;
+        syncText();
+        draw();
+      }
+
+      function clearAll() {
+        points = [];
+        selected = -1;
+        syncText();
+        draw();
+      }
+
+      function copyJson() {
+        navigator.clipboard.writeText(jsonOut.value).catch(() => {});
+      }
+
+      function applyFromText() {
+        try {
+          const parsed = JSON.parse(jsonOut.value);
+          if (!Array.isArray(parsed)) throw new Error("not array");
+          const next = parsed.map((p) => ({
+            x: Math.max(0, Math.min(VIRTUAL_W, Number(p.x))),
+            y: Math.max(0, Math.min(VIRTUAL_H, Number(p.y)))
+          }));
+          if (next.some((p) => Number.isNaN(p.x) || Number.isNaN(p.y))) throw new Error("bad point");
+          points = next;
+          selected = -1;
+          syncText();
+          draw();
+        } catch {
+          alert("JSON 형식이 올바르지 않습니다. [{\"x\":180,\"y\":85}, ...] 형태로 입력하세요.");
+        }
+      }
+
+      canvas.addEventListener("pointerdown", onPointerDown);
+      window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointerup", onPointerUp);
+      canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+      document.getElementById("btnReset").addEventListener("click", resetDefault);
+      document.getElementById("btnClear").addEventListener("click", clearAll);
+      document.getElementById("btnCopy").addEventListener("click", copyJson);
+      document.getElementById("btnApply").addEventListener("click", applyFromText);
+
+      window.addEventListener("resize", fitCanvas);
+      syncText();
+      fitCanvas();
+    })();
+  </script>
+</body>
+</html>
