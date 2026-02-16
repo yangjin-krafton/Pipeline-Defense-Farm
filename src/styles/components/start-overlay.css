@@ -1,0 +1,155 @@
+/**
+ * Start Overlay Component - Splatoon Style
+ */
+
+.start-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-gradient-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.start-overlay.hidden {
+  animation: fadeOut 0.5s ease-out forwards;
+  pointer-events: none;
+}
+
+.start-content {
+  text-align: center;
+  padding: 50px 40px;
+  background: radial-gradient(circle at top left, rgba(233, 69, 96, 0.3), transparent),
+              radial-gradient(circle at bottom right, rgba(0, 217, 255, 0.3), transparent),
+              white;
+  border: 8px solid white;
+  border-radius: 30px;
+  box-shadow: 0 0 0 4px var(--splat-pink),
+              0 0 0 8px var(--splat-cyan),
+              0 20px 60px rgba(0, 0, 0, 0.5);
+  max-width: 450px;
+  position: relative;
+  animation: splat-intro 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes splat-intro {
+  0% {
+    transform: scale(0) rotate(-180deg);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.start-content h1 {
+  font-size: 42px;
+  color: var(--splat-dark);
+  margin: 0 0 20px 0;
+  font-weight: 900;
+  letter-spacing: -1px;
+  text-shadow: 3px 3px 0 var(--splat-pink),
+               -2px -2px 0 var(--splat-cyan);
+  animation: splat-bounce 2s infinite;
+}
+
+.start-content p {
+  font-size: 18px;
+  color: var(--splat-dark-deep);
+  margin: 0 0 30px 0;
+  line-height: 1.6;
+  font-weight: 700;
+}
+
+.start-btn {
+  padding: 18px 48px;
+  font-size: 20px;
+  font-weight: 900;
+  color: white;
+  background: linear-gradient(135deg, var(--splat-cyan), var(--splat-cyan-dark));
+  border: 5px solid var(--splat-dark);
+  border-radius: 50px;
+  cursor: pointer;
+  box-shadow: 0 0 0 3px white,
+              0 8px 0 var(--splat-dark),
+              0 12px 30px rgba(0, 217, 255, 0.5);
+  transition: all 0.2s ease;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  position: relative;
+  top: 0;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+.start-btn:hover {
+  transform: scale(1.08) rotate(-2deg);
+  box-shadow: 0 0 0 3px white,
+              0 12px 0 var(--splat-dark),
+              0 16px 40px rgba(0, 217, 255, 0.7);
+  background: linear-gradient(135deg, var(--splat-yellow), var(--splat-pink));
+}
+
+.start-btn:active {
+  top: 4px;
+  transform: scale(1) rotate(0deg);
+  box-shadow: 0 0 0 3px white,
+              0 4px 0 var(--splat-dark),
+              0 8px 20px rgba(0, 217, 255, 0.4);
+}
+
+.start-hint {
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--splat-dark);
+  font-weight: 700;
+  opacity: 0.6;
+  letter-spacing: 0.5px;
+  animation: splat-bounce 2s infinite;
+  animation-delay: 0.3s;
+}
+
+/* Decorative elements */
+.start-content::before,
+.start-content::after {
+  content: '💥';
+  position: absolute;
+  font-size: 40px;
+  animation: splat-bounce 1.5s infinite;
+  filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.8));
+}
+
+.start-content::before {
+  top: -20px;
+  left: -20px;
+  animation-delay: 0s;
+}
+
+.start-content::after {
+  bottom: -20px;
+  right: -20px;
+  animation-delay: 0.5s;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}

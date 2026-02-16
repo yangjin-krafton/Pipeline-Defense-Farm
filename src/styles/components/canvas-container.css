@@ -1,0 +1,71 @@
+/**
+ * Canvas Container Component - Splatoon Style
+ */
+
+.canvas-container {
+  position: relative;
+  border: 8px solid white;
+  border-radius: 0;
+  box-shadow: 0 0 0 4px var(--splat-pink),
+              0 0 0 8px var(--splat-cyan),
+              0 0 60px rgba(0, 217, 255, 0.6);
+  transition: all 0.3s ease;
+}
+
+.canvas-container:hover {
+  box-shadow: 0 0 0 4px var(--splat-yellow),
+              0 0 0 8px var(--splat-pink),
+              0 0 80px rgba(255, 215, 0, 0.8);
+}
+
+canvas {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  touch-action: none;
+}
+
+#pathCanvas {
+  background: var(--bg-radial-game);
+  border-radius: 0;
+}
+
+#emojiCanvas {
+  pointer-events: none;
+}
+
+/* Add ink splash effect on canvas interaction */
+.canvas-container::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  bottom: -10px;
+  background: radial-gradient(
+    circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(0, 217, 255, 0.3) 0%,
+    transparent 50%
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+  z-index: -1;
+}
+
+.canvas-container:active::before {
+  opacity: 1;
+}
+
+/* Decorative corner elements */
+.canvas-container::after {
+  content: '⚡';
+  position: absolute;
+  top: -30px;
+  right: -30px;
+  font-size: 40px;
+  animation: splat-bounce 2s infinite;
+  filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.8));
+  pointer-events: none;
+}

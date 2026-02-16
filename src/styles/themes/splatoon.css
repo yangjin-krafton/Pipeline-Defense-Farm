@@ -1,0 +1,228 @@
+/**
+ * Splatoon Theme - Nintendo Style
+ *
+ * 네온 컬러와 스트리트 아트 느낌의 Splatoon 스타일 테마
+ */
+
+:root {
+  /* Splatoon Primary Colors */
+  --splat-pink: #e94560;
+  --splat-pink-light: #ff6b9d;
+  --splat-cyan: #00d9ff;
+  --splat-cyan-dark: #00b4d8;
+  --splat-yellow: #ffd700;
+  --splat-dark: #1a1a2e;
+  --splat-dark-alt: #16213e;
+  --splat-dark-deep: #0f3460;
+
+  /* UI Colors */
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --text-primary: #ffffff;
+  --text-shadow-cyan: #00d9ff;
+  --text-shadow-pink: #e94560;
+
+  /* Border & Shadow */
+  --border-main: 5px solid #ffffff;
+  --border-dark: 5px solid var(--splat-dark);
+  --shadow-glow-cyan: 0 0 30px rgba(0, 217, 255, 0.6);
+  --shadow-glow-pink: 0 0 30px rgba(233, 69, 96, 0.4);
+  --shadow-glow-yellow: 0 0 30px rgba(255, 215, 0, 0.5);
+
+  /* Gradient Backgrounds */
+  --bg-gradient-main: linear-gradient(135deg, #e94560 0%, transparent 100%),
+                      linear-gradient(225deg, #0f3460 0%, transparent 100%),
+                      linear-gradient(315deg, #00d9ff 0%, transparent 100%),
+                      #1a1a2e;
+
+  --bg-stripe-pink: repeating-linear-gradient(
+    -45deg,
+    rgba(233, 69, 96, 0.9),
+    rgba(233, 69, 96, 0.9) 10px,
+    rgba(255, 51, 102, 0.9) 10px,
+    rgba(255, 51, 102, 0.9) 20px
+  );
+
+  --bg-stripe-dark: repeating-linear-gradient(
+    135deg,
+    rgba(26, 26, 46, 0.98),
+    rgba(26, 26, 46, 0.98) 10px,
+    rgba(22, 33, 62, 0.98) 10px,
+    rgba(22, 33, 62, 0.98) 20px
+  );
+
+  /* Radial Gradients */
+  --bg-radial-game: radial-gradient(circle at 20% 30%, rgba(0, 217, 255, 0.2) 0%, transparent 40%),
+                    radial-gradient(circle at 80% 70%, rgba(233, 69, 96, 0.2) 0%, transparent 40%),
+                    radial-gradient(circle at 50% 50%, rgba(255, 215, 0, 0.15) 0%, transparent 50%),
+                    linear-gradient(180deg, #0f3460 0%, #1a1a2e 100%);
+}
+
+/* Global Splatoon Styles */
+html,
+body {
+  font-family: 'Arial Black', 'Arial Rounded MT Bold', Arial, sans-serif;
+  font-weight: 900;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--bg-primary),
+    var(--bg-primary) 10px,
+    var(--bg-secondary) 10px,
+    var(--bg-secondary) 20px
+  );
+  color: var(--text-primary);
+}
+
+/* Text Effects */
+.splat-text-effect {
+  text-shadow: 3px 3px 0 var(--splat-pink),
+               -2px -2px 0 var(--splat-cyan);
+}
+
+.splat-text-glow {
+  text-shadow: 2px 2px 0 var(--splat-pink),
+               -1px -1px 0 var(--splat-cyan),
+               0 0 20px var(--splat-yellow);
+}
+
+/* Button Styles */
+.splat-btn {
+  border: var(--border-dark);
+  border-radius: 15px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 6px 0 var(--splat-dark);
+  position: relative;
+  top: 0;
+}
+
+.splat-btn:hover {
+  transform: scale(1.05);
+}
+
+.splat-btn:active {
+  top: 3px;
+  box-shadow: 0 3px 0 var(--splat-dark);
+}
+
+.splat-btn-primary {
+  background: linear-gradient(135deg, var(--splat-cyan), var(--splat-cyan-dark));
+  color: white;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 2px white,
+              0 6px 0 var(--splat-dark);
+}
+
+.splat-btn-danger {
+  background: linear-gradient(135deg, var(--splat-pink), var(--splat-pink-light));
+  color: white;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 2px white,
+              0 6px 0 var(--splat-dark);
+}
+
+/* Card/Panel Styles */
+.splat-card {
+  background: radial-gradient(circle at top left, rgba(233, 69, 96, 0.2), transparent),
+              radial-gradient(circle at bottom right, rgba(0, 217, 255, 0.2), transparent),
+              white;
+  border: var(--border-dark);
+  border-radius: 18px;
+  box-shadow: 0 0 0 2px var(--splat-cyan),
+              0 6px 0 var(--splat-dark);
+}
+
+/* Gradient Animation */
+@keyframes gradient-slide {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+.splat-gradient-animated {
+  background: linear-gradient(90deg, var(--splat-pink), var(--splat-cyan), var(--splat-yellow), var(--splat-pink));
+  background-size: 200% 100%;
+  animation: gradient-slide 3s linear infinite;
+}
+
+/* Bounce Animation */
+@keyframes splat-bounce {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-12px) scale(1.05);
+  }
+}
+
+/* Pulse Animation */
+@keyframes splat-pulse {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.1) rotate(180deg);
+  }
+}
+
+/* Glow Animation */
+@keyframes splat-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 3px var(--splat-dark),
+                0 6px 0 var(--splat-dark),
+                0 0 25px rgba(255, 215, 0, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 3px var(--splat-dark),
+                0 6px 0 var(--splat-dark),
+                0 0 40px rgba(255, 215, 0, 0.9);
+  }
+}
+
+/* Dash Animation */
+@keyframes splat-dash {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+/* Shine Effect */
+@keyframes shine {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 200%;
+  }
+}
+
+.splat-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  animation: shine 2s infinite;
+}
+
+/* Skew Effects */
+.splat-skew-left {
+  transform: skewX(-5deg);
+}
+
+.splat-skew-right {
+  transform: skewX(5deg);
+}
+
+/* Multi-border Effect */
+.splat-multi-border {
+  border: 5px solid white;
+  box-shadow: 0 0 0 4px var(--splat-pink),
+              0 0 0 8px var(--splat-cyan);
+}
