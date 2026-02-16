@@ -20,6 +20,29 @@
   <div class="badge">Digestive Run • WebGL2 Optimized</div>
   <div class="fps">FPS: --</div>
 
+  <!-- 상단 상태바 -->
+  <header id="status-bar">
+    <div class="resources">
+      <span class="resource">🍎 1250</span>
+      <span class="resource">⚡ 85</span>
+      <span class="resource">🦠 42</span>
+    </div>
+    <div class="organ-health">
+      <div class="organ-status">
+        <div class="organ-icon">🟡</div>
+        <div class="health-emoji">💛💛💛🖤🖤</div>
+      </div>
+      <div class="organ-status">
+        <div class="organ-icon">🟢</div>
+        <div class="health-emoji">💚💚💚💚🖤</div>
+      </div>
+      <div class="organ-status">
+        <div class="organ-icon">🔴</div>
+        <div class="health-emoji">❤️🖤🖤🖤🖤</div>
+      </div>
+    </div>
+  </header>
+
   <div class="music-controls">
     <button class="music-btn" id="musicToggle" title="Play/Pause Music">⏸️</button>
     <span class="music-label">BGM</span>
@@ -31,8 +54,134 @@
     <div class="canvas-container">
       <canvas id="pathCanvas"></canvas>
       <canvas id="emojiCanvas"></canvas>
+
+      <!-- 게임 내 타워 예시 -->
+      <div class="tower-on-map" style="top: 150px; left: 100px;" data-tower-id="tower1">
+        <div class="range-indicator"></div>
+        <div class="tower-emoji">🧪</div>
+        <div class="tower-level">3</div>
+      </div>
+
+      <div class="tower-on-map" style="top: 300px; left: 250px;" data-tower-id="tower2">
+        <div class="range-indicator"></div>
+        <div class="tower-emoji">💧</div>
+        <div class="tower-level">2</div>
+      </div>
+
+      <div class="tower-on-map" style="top: 450px; left: 150px;" data-tower-id="tower3">
+        <div class="range-indicator"></div>
+        <div class="tower-emoji">💛</div>
+        <div class="tower-level">1</div>
+      </div>
+
+      <!-- 빈 타일 (설치 가능) -->
+      <div class="empty-tile" style="top: 200px; left: 350px;">
+        <div class="plus-icon">+</div>
+      </div>
+
+      <div class="empty-tile" style="top: 400px; left: 320px;">
+        <div class="plus-icon">+</div>
+      </div>
     </div>
   </div>
+
+  <!-- 하단 슬라이드업 메뉴 -->
+  <aside id="bottom-sheet">
+    <div class="sheet-handle" id="sheetHandle"></div>
+
+    <div class="sheet-header" id="sheetHeader">
+      <h3 class="sheet-title">💥 TOWER MENU</h3>
+      <p class="sheet-subtitle">Tap to expand</p>
+    </div>
+
+    <div class="sheet-content">
+      <!-- 타워 상세 정보 -->
+      <div class="detail-header">
+        <div class="tower-icon-large">🧪</div>
+        <div class="tower-title">
+          <h2>효소 분사기</h2>
+          <p class="tower-subtitle">Lv 3 • 탄수화물 분해 특화</p>
+        </div>
+      </div>
+
+      <div class="stats-list">
+        <div class="stat-row">
+          <span class="stat-icon">⚔️</span>
+          <span class="stat-name">공격력</span>
+          <span class="stat-bar">
+            <span class="stat-fill" style="width: 60%"></span>
+          </span>
+          <span class="stat-number">45</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-icon">⚡</span>
+          <span class="stat-name">공격속도</span>
+          <span class="stat-bar">
+            <span class="stat-fill" style="width: 80%"></span>
+          </span>
+          <span class="stat-number">1.2초</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-icon">📍</span>
+          <span class="stat-name">범위</span>
+          <span class="stat-bar">
+            <span class="stat-fill" style="width: 40%"></span>
+          </span>
+          <span class="stat-number">2타일</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-icon">✨</span>
+          <span class="stat-name">분해효과</span>
+          <span class="stat-bar special">
+            <span class="stat-fill" style="width: 75%"></span>
+          </span>
+          <span class="stat-number">+15%</span>
+        </div>
+      </div>
+
+      <div class="action-section">
+        <h3>🏗️ 타워 설치</h3>
+        <div class="tower-grid">
+          <div class="tower-card">
+            <div class="tower-icon-medium">🧪</div>
+            <div class="tower-card-name">효소</div>
+            <div class="tower-card-cost">🍎 100</div>
+          </div>
+          <div class="tower-card">
+            <div class="tower-icon-medium">💧</div>
+            <div class="tower-card-name">위산</div>
+            <div class="tower-card-cost">🍎 150</div>
+          </div>
+          <div class="tower-card">
+            <div class="tower-icon-medium">💛</div>
+            <div class="tower-card-name">담즙</div>
+            <div class="tower-card-cost">🍎 200</div>
+          </div>
+          <div class="tower-card locked">
+            <div class="tower-icon-medium">🦠</div>
+            <div class="tower-card-name">유산균</div>
+            <div class="tower-card-cost">🦠 25</div>
+            <div class="lock-badge">🔒</div>
+          </div>
+          <div class="tower-card">
+            <div class="tower-icon-medium">🌀</div>
+            <div class="tower-card-name">연동</div>
+            <div class="tower-card-cost">⚡ 30</div>
+          </div>
+          <div class="tower-card">
+            <div class="tower-icon-medium">✨</div>
+            <div class="tower-card-name">흡수</div>
+            <div class="tower-card-cost">🍎 120</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="action-buttons">
+        <button class="action-btn danger">🗑️ 판매</button>
+        <button class="action-btn primary">✕ 닫기</button>
+      </div>
+    </div>
+  </aside>
 
   <script type="module" src="./js/main.js"></script>
 </body>

@@ -12,6 +12,9 @@
 @import './components/music-controls.css';
 @import './components/start-overlay.css';
 @import './components/canvas-container.css';
+@import './components/status-bar.css';
+@import './components/tower-system.css';
+@import './components/bottom-sheet.css';
 
 /* Global Reset & Base Layout */
 * {
@@ -34,6 +37,8 @@ body {
   display: grid;
   place-items: center;
   padding: 20px;
+  padding-top: 95px; /* 상단 바 + 여백 */
+  padding-bottom: 120px; /* 하단 시트 공간 */
   position: relative;
 }
 

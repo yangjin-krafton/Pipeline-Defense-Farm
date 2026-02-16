@@ -8,6 +8,7 @@ import { EmojiRenderer } from './renderer/EmojiRenderer.js';
 import { FlowSystem } from './systems/FlowSystem.js';
 import { AudioSystem } from './systems/AudioSystem.js';
 import { GameLoop } from './game/GameLoop.js';
+import { UIController } from './ui/UIController.js';
 import { appendCircle, buildPolylineMesh } from './utils/geometry.js';
 
 /**
@@ -137,9 +138,13 @@ async function init() {
   // Setup start overlay
   setupStartOverlay(audioSystem, gameLoop);
 
-  // Expose gameLoop for debugging
+  // Initialize UI Controller
+  const uiController = new UIController();
+
+  // Expose for debugging
   window.gameLoop = gameLoop;
   window.audioSystem = audioSystem;
+  window.uiController = uiController;
 }
 
 /**

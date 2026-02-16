@@ -10,6 +10,7 @@
               0 0 0 8px var(--splat-cyan),
               0 0 60px rgba(0, 217, 255, 0.6);
   transition: all 0.3s ease;
+  margin-top: 75px; /* 상단 바 공간 확보 */
 }
 
 .canvas-container:hover {

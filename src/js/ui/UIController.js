@@ -1,0 +1,251 @@
+/**
+ * UIController.js
+ * UI 인터랙션 관리 (Splatoon Style)
+ */
+
+export class UIController {
+  constructor() {
+    this.bottomSheet = null;
+    this.sheetHandle = null;
+    this.sheetHeader = null;
+    this.isExpanded = false;
+
+    this.init();
+  }
+
+  init() {
+    this.bottomSheet = document.getElementById('bottom-sheet');
+    this.sheetHandle = document.getElementById('sheetHandle');
+    this.sheetHeader = document.getElementById('sheetHeader');
+
+    if (!this.bottomSheet || !this.sheetHandle) {
+      console.warn('Bottom sheet elements not found');
+      return;
+    }
+
+    this.setupBottomSheet();
+    this.setupTowerInteractions();
+    this.setupEmptyTiles();
+  }
+
+  /**
+   * 하단 시트 접기/펼치기
+   */
+  setupBottomSheet() {
+    const toggleSheet = () => {
+      this.isExpanded = !this.isExpanded;
+
+      if (this.isExpanded) {
+        this.bottomSheet.classList.add('expanded');
+      } else {
+        this.bottomSheet.classList.remove('expanded');
+      }
+    };
+
+    // 핸들 클릭
+    this.sheetHandle.addEventListener('click', toggleSheet);
+
+    // 헤더 클릭
+    if (this.sheetHeader) {
+      this.sheetHeader.addEventListener('click', toggleSheet);
+    }
+
+    // 닫기 버튼
+    const closeButtons = document.querySelectorAll('.action-btn.primary');
+    closeButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.isExpanded = false;
+        this.bottomSheet.classList.remove('expanded');
+      });
+    });
+
+    // 드래그로 열고 닫기
+    this.setupDrag();
+  }
+
+  /**
+   * 드래그로 시트 열고 닫기
+   */
+  setupDrag() {
+    let startY = 0;
+    let currentY = 0;
+    let isDragging = false;
+
+    const handleStart = (e) => {
+      isDragging = true;
+      startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+    };
+
+    const handleMove = (e) => {
+      if (!isDragging) return;
+
+      currentY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+      const deltaY = currentY - startY;
+
+      // 드래그 방향에 따라 열기/닫기
+      if (Math.abs(deltaY) > 50) {
+        if (deltaY > 0 && this.isExpanded) {
+          // 아래로 드래그 -> 닫기
+          this.isExpanded = false;
+          this.bottomSheet.classList.remove('expanded');
+        } else if (deltaY < 0 && !this.isExpanded) {
+          // 위로 드래그 -> 열기
+          this.isExpanded = true;
+          this.bottomSheet.classList.add('expanded');
+        }
+        isDragging = false;
+      }
+    };
+
+    const handleEnd = () => {
+      isDragging = false;
+    };
+
+    this.sheetHandle.addEventListener('mousedown', handleStart);
+    this.sheetHandle.addEventListener('touchstart', handleStart, { passive: true });
+
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('touchmove', handleMove, { passive: true });
+
+    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchend', handleEnd);
+  }
+
+  /**
+   * 타워 클릭 인터랙션
+   */
+  setupTowerInteractions() {
+    const towers = document.querySelectorAll('.tower-on-map');
+
+    towers.forEach(tower => {
+      tower.addEventListener('click', (e) => {
+        // 잉크 스플래시 효과
+        this.createInkSplash(e, this.getRandomColor());
+
+        // 하단 시트 열기
+        if (!this.isExpanded) {
+          this.isExpanded = true;
+          this.bottomSheet.classList.add('expanded');
+        }
+
+        // 타워 정보 업데이트 (추후 구현)
+        console.log('Tower clicked:', tower.dataset.towerId);
+      });
+    });
+  }
+
+  /**
+   * 빈 타일 클릭 (타워 설치)
+   */
+  setupEmptyTiles() {
+    const emptyTiles = document.querySelectorAll('.empty-tile');
+
+    emptyTiles.forEach(tile => {
+      tile.addEventListener('click', (e) => {
+        // 잉크 스플래시 효과
+        this.createInkSplash(e, '#00d9ff');
+
+        // 타워 설치 메뉴 열기
+        if (!this.isExpanded) {
+          this.isExpanded = true;
+          this.bottomSheet.classList.add('expanded');
+        }
+
+        console.log('Empty tile clicked - show tower build menu');
+      });
+    });
+  }
+
+  /**
+   * 잉크 스플래시 효과 생성
+   */
+  createInkSplash(event, color) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+
+    for (let i = 0; i < 3; i++) {
+      const splash = document.createElement('div');
+      splash.className = 'ink-splash';
+      splash.style.background = `radial-gradient(circle, ${color}, transparent)`;
+      splash.style.left = x + (Math.random() - 0.5) * 60 + 'px';
+      splash.style.top = y + (Math.random() - 0.5) * 60 + 'px';
+      document.body.appendChild(splash);
+
+      setTimeout(() => splash.remove(), 1000);
+    }
+  }
+
+  /**
+   * 랜덤 Splatoon 컬러
+   */
+  getRandomColor() {
+    const colors = ['#e94560', '#00d9ff', '#ffd700'];
+    return colors[Math.floor(Math.random() * colors.length)];
+  }
+
+  /**
+   * 리소스 업데이트
+   */
+  updateResource(type, value) {
+    const resources = document.querySelectorAll('.resource');
+    resources.forEach(resource => {
+      const text = resource.textContent;
+      if (text.includes(type)) {
+        const emoji = text.split(' ')[0];
+        resource.textContent = `${emoji} ${value}`;
+      }
+    });
+  }
+
+  /**
+   * 소화기관 건강 업데이트
+   */
+  updateOrganHealth(organIndex, health) {
+    const organs = document.querySelectorAll('.organ-status');
+    if (organs[organIndex]) {
+      const healthEmoji = organs[organIndex].querySelector('.health-emoji');
+      const maxHealth = 5;
+      const filled = Math.round(health * maxHealth);
+      const empty = maxHealth - filled;
+
+      const hearts = '❤️'.repeat(filled) + '🖤'.repeat(empty);
+      healthEmoji.textContent = hearts;
+    }
+  }
+
+  /**
+   * 타워 정보 업데이트
+   */
+  updateTowerInfo(towerData) {
+    // 타워 아이콘
+    const iconLarge = document.querySelector('.tower-icon-large');
+    if (iconLarge) iconLarge.textContent = towerData.icon;
+
+    // 타워 이름
+    const titleElement = document.querySelector('.tower-title h2');
+    if (titleElement) titleElement.textContent = towerData.name;
+
+    // 타워 서브타이틀
+    const subtitleElement = document.querySelector('.tower-subtitle');
+    if (subtitleElement) {
+      subtitleElement.textContent = `Lv ${towerData.level} • ${towerData.description}`;
+    }
+
+    // 스탯 업데이트
+    const statFills = document.querySelectorAll('.stat-fill');
+    const statNumbers = document.querySelectorAll('.stat-number');
+
+    if (towerData.stats) {
+      Object.keys(towerData.stats).forEach((key, index) => {
+        if (statFills[index]) {
+          statFills[index].style.width = towerData.stats[key].percentage + '%';
+        }
+        if (statNumbers[index]) {
+          statNumbers[index].textContent = towerData.stats[key].value;
+        }
+      });
+    }
+  }
+}

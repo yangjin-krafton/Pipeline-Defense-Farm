@@ -13,7 +13,10 @@ src/styles/
     ├── badge.css              # 배지 & FPS 카운터
     ├── music-controls.css     # 음악 컨트롤
     ├── start-overlay.css      # 시작 화면 오버레이
-    └── canvas-container.css   # 게임 캔버스 컨테이너
+    ├── canvas-container.css   # 게임 캔버스 컨테이너
+    ├── status-bar.css         # 상단 상태바 (리소스, 건강)
+    ├── tower-system.css       # 타워 시스템 (타워, 빈 타일)
+    └── bottom-sheet.css       # 하단 슬라이드업 메뉴
 ```
 
 ## 🎮 Splatoon 테마 특징
@@ -30,6 +33,26 @@ src/styles/
 - 🌀 **대각선 패턴**: 스트라이프 배경
 - ⚡ **볼드 폰트**: Arial Black (900 weight)
 - 🎯 **애니메이션**: 바운스, 펄스, 글로우 효과
+
+## 🎮 게임 UI 컴포넌트
+
+### Status Bar (상단 상태바)
+- **위치**: 화면 상단 고정
+- **기능**: 리소스 표시 (🍎 에너지, ⚡ 전력, 🦠 유산균)
+- **건강 상태**: 소화기관 3개 (🟡 위, 🟢 장, 🔴 간)
+- **스타일**: 스트라이프 배경, 스큐 효과
+
+### Tower System (타워 시스템)
+- **타워**: 클릭 가능, 호버 시 공격 범위 표시
+- **빈 타일**: 타워 설치 가능한 슬롯
+- **잉크 스플래시**: 클릭 시 컬러 효과
+- **레벨 표시**: 타워 레벨 배지
+
+### Bottom Sheet (하단 메뉴)
+- **접기/펼치기**: 핸들 또는 헤더 클릭
+- **드래그**: 상하 드래그로 열기/닫기
+- **타워 상세**: 스탯, 업그레이드 정보
+- **타워 그리드**: 설치 가능한 타워 목록
 
 ## 🔧 사용 방법
 
@@ -162,8 +185,62 @@ src/styles/
 - 글로우: `0 0 30px rgba(color, 0.6)`
 - 깊은: `0 20px 60px rgba(0, 0, 0, 0.5)`
 
+## 💻 JavaScript API
+
+### UIController 사용법
+
+```javascript
+// UIController 인스턴스는 자동으로 초기화됩니다
+const ui = window.uiController;
+
+// 리소스 업데이트
+ui.updateResource('🍎', 1500);
+
+// 소화기관 건강 업데이트 (0-1 범위)
+ui.updateOrganHealth(0, 0.8); // 위: 80%
+ui.updateOrganHealth(1, 0.6); // 장: 60%
+
+// 타워 정보 업데이트
+ui.updateTowerInfo({
+  icon: '🧪',
+  name: '효소 분사기',
+  level: 3,
+  description: '탄수화물 분해 특화',
+  stats: {
+    attack: { percentage: 60, value: '45' },
+    speed: { percentage: 80, value: '1.2초' },
+    range: { percentage: 40, value: '2타일' },
+    special: { percentage: 75, value: '+15%' }
+  }
+});
+
+// 하단 시트 수동 제어
+const sheet = document.getElementById('bottom-sheet');
+sheet.classList.add('expanded'); // 열기
+sheet.classList.remove('expanded'); // 닫기
+```
+
+### 이벤트 리스너
+
+```javascript
+// 타워 클릭 이벤트
+document.querySelectorAll('.tower-on-map').forEach(tower => {
+  tower.addEventListener('click', (e) => {
+    console.log('Tower clicked:', tower.dataset.towerId);
+  });
+});
+
+// 빈 타일 클릭 이벤트
+document.querySelectorAll('.empty-tile').forEach(tile => {
+  tile.addEventListener('click', () => {
+    console.log('Show tower build menu');
+  });
+});
+```
+
 ## 🔗 참고 자료
 
 - [CSS @import](https://developer.mozilla.org/en-US/docs/Web/CSS/@import)
 - [CSS 변수](https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_custom_properties)
 - [CSS 애니메이션](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Animations)
+- [Touch Events API](https://developer.mozilla.org/en-US/docs/Web/API/Touch_events)
