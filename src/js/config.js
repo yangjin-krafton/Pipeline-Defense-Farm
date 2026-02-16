@@ -1,0 +1,47 @@
+/**
+ * Game configuration constants
+ */
+export const VIRTUAL_W = 360;
+export const VIRTUAL_H = 640;
+export const FOOD_SPAWN_MS = 800;
+export const BASE_SPEED = 92;
+export const EMOJI_CACHE_SIZE = 48;
+
+export const PATH_POINTS = [
+  { x: 180, y: 0 },
+  { x: 180, y: 40 },
+  { x: 270, y: 80 },
+  { x: 290, y: 120 },
+  { x: 270, y: 160 },
+  { x: 210, y: 160 },
+  { x: 240, y: 120 },
+  { x: 250, y: 40 },
+  { x: 300, y: 40 },
+  { x: 330, y: 120 },
+  { x: 300, y: 200 },
+  { x: 210, y: 200 },
+  { x: 150, y: 160 },
+  { x: 90, y: 160 },
+  { x: 60, y: 200 },
+  { x: 60, y: 280 },
+  { x: 300, y: 280 },
+  { x: 300, y: 320 },
+  { x: 60, y: 320 },
+  { x: 60, y: 520 },
+  { x: 120, y: 520 },
+  { x: 120, y: 360 },
+  { x: 180, y: 360 },
+  { x: 180, y: 520 },
+  { x: 240, y: 520 },
+  { x: 240, y: 360 },
+  { x: 300, y: 360 },
+  { x: 300, y: 560 },
+  { x: 30, y: 560 },
+  { x: 30, y: 240 },
+  { x: 330, y: 240 },
+  { x: 330, y: 600 },
+  { x: 180, y: 600 },
+  { x: 180, y: 630 }
+];
+
+export const FOOD_EMOJIS = ["🍔", "🍕", "🍜", "🍟", "🍝", "🍰", "🍩", "🌮", "🍱", "🍣"];
