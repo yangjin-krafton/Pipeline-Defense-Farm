@@ -142,6 +142,24 @@ export class GameLoop {
     this.isRunning = false;
   }
 
+  /**
+   * Pause the game loop
+   */
+  pause() {
+    this.isRunning = false;
+  }
+
+  /**
+   * Resume the game loop
+   */
+  resume() {
+    if (!this.isRunning) {
+      this.isRunning = true;
+      this.lastTime = 0; // Reset time to avoid large dt
+      requestAnimationFrame((t) => this.frame(t));
+    }
+  }
+
   /* Badge and FPS display methods removed - UI elements no longer exist
    * Score and FPS are still tracked internally for debugging via:
    * - gameLoop.getScore()

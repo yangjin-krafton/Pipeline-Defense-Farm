@@ -11,6 +11,7 @@ import { GameLoop } from './game/GameLoop.js';
 import { UIController } from './ui/UIController.js';
 import { ScaleManager } from './ui/ScaleManager.js';
 import { appendCircle, buildPolylineMesh } from './utils/geometry.js';
+import { PathEditor } from './editor/PathEditor.js';
 
 /**
  * Initialize canvas and context
@@ -140,10 +141,192 @@ function checkTowerSlotClick(virtualX, virtualY) {
 }
 
 /**
+ * Setup path editor for development
+ */
+function setupPathEditor(canvas, gameLoop, webglRenderer, staticMeshes) {
+  let pathEditor = null;
+  let isEditorActive = false;
+  let editorAnimationFrame = null;
+
+  const toggleEditor = () => {
+    isEditorActive = !isEditorActive;
+
+    if (isEditorActive) {
+      // Create editor and pause game
+      console.log('Path Editor: ENABLED');
+      gameLoop.pause();
+
+      // Enable pointer events on emoji canvas
+      canvas.style.pointerEvents = 'auto';
+      canvas.style.zIndex = '1000';
+
+      pathEditor = new PathEditor(canvas, PATH_POINTS, (newPoints) => {
+        // Update path in real-time
+        updatePathVisuals(newPoints, webglRenderer, staticMeshes);
+      });
+
+      // Start editor render loop
+      const ctx = canvas.getContext('2d');
+      const renderEditor = () => {
+        if (isEditorActive && pathEditor) {
+          pathEditor.render(ctx);
+          editorAnimationFrame = requestAnimationFrame(renderEditor);
+        }
+      };
+      renderEditor();
+
+      // Show editor UI
+      showEditorUI();
+    } else {
+      // Disable editor and resume game
+      console.log('Path Editor: DISABLED');
+
+      if (pathEditor) {
+        pathEditor.removeEventListeners();
+        pathEditor = null;
+      }
+
+      if (editorAnimationFrame) {
+        cancelAnimationFrame(editorAnimationFrame);
+        editorAnimationFrame = null;
+      }
+
+      // Restore pointer events
+      canvas.style.pointerEvents = 'none';
+      canvas.style.zIndex = '';
+
+      // Clear canvas
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      gameLoop.resume();
+      hideEditorUI();
+    }
+  };
+
+  // Toggle editor with Ctrl+Shift+E
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && e.key === 'E') {
+      e.preventDefault();
+      toggleEditor();
+    }
+  });
+
+  // Expose for debugging
+  window.togglePathEditor = toggleEditor;
+  window.getPathEditor = () => pathEditor;
+  window.isPathEditorActive = () => isEditorActive;
+
+  console.log('Path Editor: Press Ctrl+Shift+E to toggle editor mode');
+}
+
+/**
+ * Update path visuals with new points
+ */
+function updatePathVisuals(points, webglRenderer, staticMeshes) {
+  // Rebuild track meshes with new points
+  staticMeshes.trackShadow = webglRenderer.createMesh(buildPolylineMesh(points, 42, 2, 3));
+  staticMeshes.trackMain = webglRenderer.createMesh(buildPolylineMesh(points, 34, 0, 0));
+  staticMeshes.trackEdge = webglRenderer.createMesh(buildPolylineMesh(points, 5, 0, 0));
+}
+
+/**
+ * Show editor UI overlay
+ */
+function showEditorUI() {
+  let overlay = document.getElementById('editor-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'editor-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 20px;
+      border-radius: 12px;
+      font-family: monospace;
+      font-size: 12px;
+      z-index: 10000;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      border: 2px solid #4ECDC4;
+      min-width: 280px;
+    `;
+    overlay.innerHTML = `
+      <div style="font-weight: bold; margin-bottom: 15px; color: #4ECDC4; font-size: 14px;">
+        🎨 PATH EDITOR ACTIVE
+      </div>
+
+      <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #444;">
+        <div style="margin-bottom: 5px;"><strong>Controls:</strong></div>
+        <div>• Ctrl+Shift+E: Toggle Editor</div>
+        <div>• G: Toggle Grid Snap</div>
+        <div>• E: Copy to Clipboard</div>
+        <div style="color: #FFD700;">• S: Save to config.js ⭐</div>
+      </div>
+
+      <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #444;">
+        <div style="margin-bottom: 5px;"><strong>Mouse:</strong></div>
+        <div>• Left Click: Add/Drag Point</div>
+        <div>• Right Click: Delete Point</div>
+        <div>• Delete Key: Remove Point</div>
+      </div>
+
+      <div style="text-align: center; margin-top: 15px;">
+        <button id="saveConfigBtn" style="
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 6px;
+          font-family: monospace;
+          font-size: 12px;
+          font-weight: bold;
+          cursor: pointer;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+          transition: all 0.2s;
+        " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+          💾 Save to config.js
+        </button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    // Add click handler for save button
+    const saveBtn = document.getElementById('saveConfigBtn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => {
+        const pathEditor = window.getPathEditor();
+        if (pathEditor) {
+          pathEditor.saveToConfigFile();
+        }
+      });
+    }
+  }
+  overlay.style.display = 'block';
+}
+
+/**
+ * Hide editor UI overlay
+ */
+function hideEditorUI() {
+  const overlay = document.getElementById('editor-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+}
+
+/**
  * Setup canvas click handler for tower slots
  */
 function setupTowerSlotClicks(container, uiController, scaleManager) {
   container.addEventListener('click', (e) => {
+    // Ignore clicks when path editor is active
+    if (window.isPathEditorActive && window.isPathEditorActive()) {
+      return;
+    }
+
     console.log('Container clicked');
 
     // Get container rect
@@ -243,6 +426,9 @@ async function init() {
   // Setup tower slot click detection on container (canvas may not receive events properly)
   const canvasContainer = document.querySelector('.canvas-container');
   setupTowerSlotClicks(canvasContainer, uiController, scaleManager);
+
+  // Setup path editor (dev mode)
+  setupPathEditor(emojiCanvas, gameLoop, webglRenderer, staticMeshes);
 
   // Expose for debugging
   window.gameLoop = gameLoop;
