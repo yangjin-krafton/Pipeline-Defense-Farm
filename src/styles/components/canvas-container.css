@@ -4,6 +4,8 @@
 
 .canvas-container {
   position: relative;
+  width: 640px;
+  height: 1063px;
   border: 8px solid white;
   border-radius: 0;
   box-shadow: 0 0 0 4px var(--splat-pink),
@@ -30,6 +32,7 @@ canvas {
 #pathCanvas {
   background: var(--bg-radial-game);
   border-radius: 0;
+  pointer-events: auto; /* Enable clicks on path canvas */
 }
 
 #emojiCanvas {

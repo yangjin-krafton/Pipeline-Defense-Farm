@@ -9,6 +9,9 @@ export class UIController {
     this.sheetHandle = null;
     this.sheetHeader = null;
     this.isExpanded = false;
+    this.selectedTowerSlot = null;
+    this.onSheetOpenCallback = null;
+    this.onSheetCloseCallback = null;
 
     this.init();
   }
@@ -50,14 +53,24 @@ export class UIController {
     }
 
     // 닫기 버튼
-    const closeButtons = document.querySelectorAll('.action-btn.primary');
-    closeButtons.forEach(btn => {
-      btn.addEventListener('click', (e) => {
+    const closeBtn = document.getElementById('closeBtn');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        this.isExpanded = false;
-        this.bottomSheet.classList.remove('expanded');
+        this.closeSheet();
       });
-    });
+    }
+
+    // 판매 버튼 (판매 후 창 닫기)
+    const sellBtn = document.getElementById('sellBtn');
+    if (sellBtn) {
+      sellBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // TODO: 판매 로직 추가
+        console.log('Tower sold');
+        this.closeSheet();
+      });
+    }
 
     // 드래그로 열고 닫기
     this.setupDrag();
@@ -118,6 +131,11 @@ export class UIController {
     if (!this.isExpanded) {
       this.isExpanded = true;
       this.bottomSheet.classList.add('expanded');
+
+      // Trigger callback when sheet opens
+      if (this.onSheetOpenCallback) {
+        this.onSheetOpenCallback(this.selectedTowerSlot);
+      }
     }
   }
 
@@ -128,7 +146,50 @@ export class UIController {
     if (this.isExpanded) {
       this.isExpanded = false;
       this.bottomSheet.classList.remove('expanded');
+      this.selectedTowerSlot = null;
+
+      // Trigger callback when sheet closes
+      if (this.onSheetCloseCallback) {
+        this.onSheetCloseCallback();
+      }
     }
+  }
+
+  /**
+   * Select a tower slot and open the sheet
+   */
+  selectTowerSlot(slotData) {
+    this.selectedTowerSlot = slotData;
+
+    // Update tower info display
+    this.updateTowerInfo({
+      icon: '🧪',
+      name: '타워 설치',
+      level: 1,
+      description: `위치: (${Math.round(slotData.x)}, ${Math.round(slotData.y)})`,
+      stats: {
+        attack: { percentage: 0, value: '-' },
+        speed: { percentage: 0, value: '-' },
+        range: { percentage: 50, value: `${slotData.radius}` },
+        special: { percentage: 0, value: '-' }
+      }
+    });
+
+    this.openSheet();
+  }
+
+  /**
+   * Set callback for when sheet opens
+   */
+  setOnSheetOpen(callback) {
+    this.onSheetOpenCallback = callback;
+  }
+
+  /**
+   * Set callback for when sheet closes
+   */
+  setOnSheetClose(callback) {
+    this.onSheetCloseCallback = callback;
   }
 
   /* REMOVED: Tower interactions moved to WebGL2 rendering

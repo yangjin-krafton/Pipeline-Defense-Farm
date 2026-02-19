@@ -10,6 +10,7 @@ import { AudioSystem } from './systems/AudioSystem.js';
 import { GameLoop } from './game/GameLoop.js';
 import { UIController } from './ui/UIController.js';
 import { ScaleManager } from './ui/ScaleManager.js';
+import { CameraController } from './ui/CameraController.js';
 import { appendCircle, buildPolylineMesh, hexToRgba } from './utils/geometry.js';
 import { PathEditor } from './editor/PathEditor.js';
 import { TowerSlotEditor } from './editor/TowerSlotEditor.js';
@@ -382,45 +383,27 @@ function setupDeveloperMenu(pathEditorToggle, towerSlotEditorToggle) {
 /**
  * Setup canvas click handler for tower slots
  */
-function setupTowerSlotClicks(container, uiController, scaleManager) {
-  container.addEventListener('click', (e) => {
+function setupTowerSlotClicks(pathCanvas, uiController, scaleManager, cameraController) {
+  pathCanvas.addEventListener('click', (e) => {
     // Ignore clicks when path editor is active
     if (window.isPathEditorActive && window.isPathEditorActive()) {
       return;
     }
 
-    console.log('Container clicked');
+    console.log('Canvas clicked');
 
-    // Get container rect
-    const rect = container.getBoundingClientRect();
+    // Get canvas rect
+    const rect = pathCanvas.getBoundingClientRect();
 
-    // Get click position relative to container
-    const containerX = e.clientX - rect.left;
-    const containerY = e.clientY - rect.top;
+    // Get click position relative to canvas
+    const canvasX = e.clientX - rect.left;
+    const canvasY = e.clientY - rect.top;
 
-    console.log('Container relative:', containerX, containerY);
-
-    // Calculate canvas dimensions and offset (same logic as fitCanvas)
-    const gameAreaWidth = 640;
-    const gameAreaHeight = 1063;
-    const scale = Math.min(gameAreaWidth / VIRTUAL_W, gameAreaHeight / VIRTUAL_H);
-    const cssW = Math.round(VIRTUAL_W * scale);
-    const cssH = Math.round(VIRTUAL_H * scale);
-    const offsetX = (gameAreaWidth - cssW) / 2;
-    const offsetY = (gameAreaHeight - cssH) / 2;
-
-    // Adjust for canvas offset
-    const canvasX = containerX - offsetX;
-    const canvasY = containerY - offsetY;
-
-    console.log('Canvas offset:', offsetX, offsetY);
     console.log('Canvas relative:', canvasX, canvasY);
 
-    // Check if click is within canvas bounds
-    if (canvasX < 0 || canvasX > cssW || canvasY < 0 || canvasY > cssH) {
-      console.log('Click outside canvas bounds');
-      return;
-    }
+    // Get canvas CSS dimensions
+    const cssW = rect.width;
+    const cssH = rect.height;
 
     // Convert to virtual coordinates (360x640)
     const virtualX = (canvasX / cssW) * VIRTUAL_W;
@@ -432,7 +415,7 @@ function setupTowerSlotClicks(container, uiController, scaleManager) {
     const slot = checkTowerSlotClick(virtualX, virtualY);
     if (slot) {
       console.log('Tower slot clicked!', slot);
-      uiController.openSheet();
+      uiController.selectTowerSlot(slot);
     }
   });
 }
@@ -488,9 +471,30 @@ async function init() {
   // Initialize Scale Manager
   const scaleManager = new ScaleManager();
 
-  // Setup tower slot click detection on container (canvas may not receive events properly)
+  // Initialize Camera Controller
   const canvasContainer = document.querySelector('.canvas-container');
-  setupTowerSlotClicks(canvasContainer, uiController, scaleManager);
+  const cameraController = new CameraController(canvasContainer);
+
+  // Set up camera callbacks for UI sheet
+  uiController.setOnSheetOpen((slot) => {
+    if (slot) {
+      cameraController.focusOnTowerSlot(slot);
+    }
+  });
+
+  uiController.setOnSheetClose(() => {
+    cameraController.reset();
+  });
+
+  // Update camera every frame
+  const updateCamera = () => {
+    cameraController.update();
+    requestAnimationFrame(updateCamera);
+  };
+  updateCamera();
+
+  // Setup tower slot click detection on pathCanvas
+  setupTowerSlotClicks(pathCanvas, uiController, scaleManager, cameraController);
 
   // Setup path editor (dev mode)
   const pathEditorToggle = setupPathEditor(emojiCanvas, gameLoop, webglRenderer, staticMeshes);
@@ -506,6 +510,7 @@ async function init() {
   window.audioSystem = audioSystem;
   window.uiController = uiController;
   window.scaleManager = scaleManager;
+  window.cameraController = cameraController;
   window.multiPathSystem = multiPathSystem;
 }
 

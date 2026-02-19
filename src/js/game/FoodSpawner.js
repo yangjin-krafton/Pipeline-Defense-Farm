@@ -1,7 +1,7 @@
 /**
  * Food spawner system for multiple paths
  */
-import { FOOD_BY_PATH, FOOD_SPAWN_MS, BASE_SPEED } from '../config.js';
+import { FOOD_STATS_BY_PATH, FOOD_SPAWN_MS, BASE_SPEED } from '../config.js';
 
 export class FoodSpawner {
   constructor(multiPathSystem) {
@@ -13,16 +13,16 @@ export class FoodSpawner {
   }
 
   /**
-   * Pick a random emoji for a specific path
+   * Pick a random food profile for a specific path
    * @param {string} pathKey - Path key
-   * @returns {string} Random emoji
+   * @returns {Object|null} Random food profile
    */
-  _pickEmojiForPath(pathKey) {
-    const emojis = FOOD_BY_PATH[pathKey];
-    if (!emojis || emojis.length === 0) {
-      return '🍔'; // Fallback
+  _pickFoodForPath(pathKey) {
+    const foods = FOOD_STATS_BY_PATH[pathKey];
+    if (!foods || foods.length === 0) {
+      return null;
     }
-    return emojis[Math.floor(Math.random() * emojis.length)];
+    return foods[Math.floor(Math.random() * foods.length)];
   }
 
   /**
@@ -44,15 +44,23 @@ export class FoodSpawner {
       pathKey = this._pickRandomPath();
     }
 
-    const emoji = this._pickEmojiForPath(pathKey);
-    console.log(`FoodSpawner: Spawning ${emoji} on ${pathKey}`);
+    const food = this._pickFoodForPath(pathKey);
+    if (!food) {
+      return;
+    }
+
+    console.log(`FoodSpawner: Spawning ${food.emoji} (${food.id}) on ${pathKey}`);
 
     this.multiPathSystem.spawn(pathKey, {
-      emoji: emoji,
-      speed: BASE_SPEED + Math.random() * 26,
-      size: 28 + Math.random() * 8,
+      ...food,
+      speed: Math.max(52, food.speed + (Math.random() - 0.5) * 8),
+      size: Math.max(20, food.size + (Math.random() - 0.5) * 2),
       spin: (Math.random() - 0.5) * 1.8,
-      exitThreshold: 25
+      exitThreshold: 25,
+      maxHp: food.hp,
+      hp: food.hp,
+      baseSpeed: food.speed,
+      speedScale: Number((food.speed / BASE_SPEED).toFixed(3))
     }, initialOffset);
   }
 
