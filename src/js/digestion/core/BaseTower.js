@@ -2,7 +2,7 @@ import { EfficiencyState, EFFICIENCY_MULTIPLIERS } from './EfficiencyState.js';
 import { TargetingPolicy } from './TargetingPolicy.js';
 
 export class BaseTower {
-  constructor(slotData, definition) {
+  constructor(slotData, definition, bulletSystem = null, particleSystem = null) {
     this.id = `tower_${Date.now()}_${Math.random()}`;
     this.type = definition.id;
     this.x = slotData.x;
@@ -30,6 +30,10 @@ export class BaseTower {
 
     // Targeting
     this.targetingPolicy = TargetingPolicy.FIRST;
+
+    // Systems (injected)
+    this.bulletSystem = bulletSystem;
+    this.particleSystem = particleSystem;
   }
 
   update(dt, foodList, multiPathSystem, currentTime) {
@@ -89,9 +93,45 @@ export class BaseTower {
     const armorMitigation = Math.max(0, 1 - (food.armor * 0.01));
     damage *= armorMitigation;
 
-    food.hp -= damage;
+    // Fire bullet instead of instant damage
+    if (this.bulletSystem) {
+      const bulletColor = this.getTowerBulletColor();
+      this.bulletSystem.createBullet(
+        this.x,
+        this.y,
+        food,
+        damage,
+        bulletColor,
+        300, // speed
+        5,   // size
+        true // homing
+      );
 
-    // Removed: console.log - too verbose (logged on death in GameLoop)
+      // Emit attack particle effect
+      if (this.particleSystem) {
+        this.particleSystem.emitTowerAttackEffect(this.x, this.y, bulletColor);
+      }
+    } else {
+      // Fallback: instant damage (backwards compatibility)
+      food.hp -= damage;
+    }
+  }
+
+  /**
+   * Get bullet color based on tower type
+   * @returns {number[]} RGBA color
+   */
+  getTowerBulletColor() {
+    switch (this.type) {
+      case 'enzyme':
+        return [0.2, 1.0, 0.2, 1.0]; // Green
+      case 'acid':
+        return [1.0, 0.5, 0.0, 1.0]; // Orange
+      case 'bile':
+        return [1.0, 1.0, 0.2, 1.0]; // Yellow
+      default:
+        return [1.0, 1.0, 1.0, 1.0]; // White
+    }
   }
 
   receiveSupply(amount, currentTime) {

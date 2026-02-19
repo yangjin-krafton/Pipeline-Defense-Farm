@@ -8,6 +8,11 @@ import { TowerManager } from '../digestion/systems/TowerManager.js';
 import { SupplySystem } from '../digestion/systems/SupplySystem.js';
 import { EconomySystem } from '../digestion/systems/EconomySystem.js';
 import { TroubleSystem } from '../digestion/systems/TroubleSystem.js';
+import { BulletSystem } from '../digestion/systems/BulletSystem.js';
+import { ParticleSystem } from '../digestion/systems/ParticleSystem.js';
+import { BulletRenderer } from '../renderer/BulletRenderer.js';
+import { HPBarRenderer } from '../renderer/HPBarRenderer.js';
+import { ParticleRenderer } from '../renderer/ParticleRenderer.js';
 
 export class GameLoop {
   constructor(multiPathSystem, webglRenderer, emojiRenderer, staticMeshes, flowSystem, audioSystem) {
@@ -31,11 +36,26 @@ export class GameLoop {
 
     this.isRunning = false;
 
-    // NEW: Initialize digestion systems
+    // Initialize digestion systems
     this.towerManager = new TowerManager();
     this.supplySystem = new SupplySystem();
     this.economySystem = new EconomySystem();
     this.troubleSystem = new TroubleSystem();
+
+    // NEW: Initialize bullet and particle systems
+    this.bulletSystem = new BulletSystem();
+    this.particleSystem = new ParticleSystem();
+
+    // Connect systems
+    this.bulletSystem.setParticleSystem(this.particleSystem);
+    this.towerManager.setBulletSystem(this.bulletSystem);
+    this.towerManager.setParticleSystem(this.particleSystem);
+
+    // NEW: Initialize WebGL2 renderers
+    const gl = webglRenderer.gl;
+    this.bulletRenderer = new BulletRenderer(gl, 500, [360, 640]);
+    this.hpBarRenderer = new HPBarRenderer(gl, 200, [360, 640]);
+    this.particleRenderer = new ParticleRenderer(gl, 2000, [360, 640]);
 
     this.currentTime = 0; // Track game time
   }
@@ -46,26 +66,32 @@ export class GameLoop {
    */
   update(dt) {
     this.time += dt;
-    this.currentTime += dt; // NEW: Track absolute time
+    this.currentTime += dt;
 
     // Spawn food
     this.foodSpawner.update(dt);
 
-    // NEW: Update digestion systems BEFORE path movement
+    // Update digestion systems BEFORE path movement
     const foodList = this.multiPathSystem.getObjects();
     this.towerManager.update(dt, foodList, this.multiPathSystem, this.currentTime);
     this.supplySystem.update(dt);
     this.troubleSystem.update(dt, foodList, this.multiPathSystem);
 
+    // NEW: Update bullet system
+    this.bulletSystem.update(dt, this.multiPathSystem);
+
+    // NEW: Update particle system
+    this.particleSystem.update(dt);
+
     // Update multi-path system
     this.multiPathSystem.update(dt, (completed) => {
-      // NEW: Earn nutrition based on zone
+      // Earn nutrition based on zone
       const reward = this.economySystem.earnFromFood(completed, completed.currentPath);
       this.score += reward;
       this.scoreDirty = true;
     });
 
-    // NEW: Handle food deaths (HP <= 0)
+    // Handle food deaths (HP <= 0)
     this._processFoodDeaths();
 
     // Update FPS
@@ -75,7 +101,6 @@ export class GameLoop {
       this.fps = Math.round(this.frameCount / this.fpsTime);
       this.frameCount = 0;
       this.fpsTime = 0;
-      // FPS display removed from UI
     }
   }
 
@@ -130,9 +155,36 @@ export class GameLoop {
     // Draw tower slots
     gl.drawMesh(this.staticMeshes.towerSlotOuter, [0.0, 0.85, 1.0, 0.4]); // Cyan
     gl.drawMesh(this.staticMeshes.towerSlotInner, [1.0, 0.89, 0.80, 0.95]); // Background color (creates ring effect)
+  }
 
-    // Draw flow animation (disabled for now to see paths clearly)
-    // gl.drawTriangles(this.flowSystem.getMesh(), [1.0, 0.96, 0.83, 0.86]);
+  /**
+   * NEW: Draw HP bars (WebGL2 Instanced Rendering)
+   */
+  drawHPBars() {
+    const foods = this.multiPathSystem.getObjects();
+    if (foods.length > 0) {
+      this.hpBarRenderer.update(foods, this.multiPathSystem);
+    }
+  }
+
+  /**
+   * NEW: Draw bullets (WebGL2 Instanced Rendering)
+   */
+  drawBullets() {
+    const bullets = this.bulletSystem.getBullets();
+    if (bullets.length > 0) {
+      this.bulletRenderer.update(bullets);
+    }
+  }
+
+  /**
+   * NEW: Draw particles (WebGL2 Instanced Rendering)
+   */
+  drawParticles() {
+    const particles = this.particleSystem.getParticles();
+    if (particles.length > 0) {
+      this.particleRenderer.update(particles);
+    }
   }
 
   /**
@@ -153,12 +205,28 @@ export class GameLoop {
       }
     }
 
-    // Reward player
+    // Reward player and emit death effects
     for (const food of deadFood) {
       const reward = this.economySystem.earnFromFood(food, food.currentPath);
       this.score += reward;
       this.scoreDirty = true;
       console.log(`Food ${food.emoji} digested in ${food.currentPath}`);
+
+      // NEW: Emit death particle effect
+      const pos = this.multiPathSystem.samplePath(food.currentPath, food.d);
+      if (pos) {
+        // Color based on food tags
+        let color = [1.0, 1.0, 0.2, 1.0]; // Default yellow
+        if (food.tags?.includes('carb')) {
+          color = [1.0, 1.0, 0.2, 1.0]; // Yellow
+        } else if (food.tags?.includes('protein')) {
+          color = [1.0, 0.2, 0.2, 1.0]; // Red
+        } else if (food.tags?.includes('fat')) {
+          color = [1.0, 0.5, 0.0, 1.0]; // Orange
+        }
+
+        this.particleSystem.emitDeathEffect(pos.x, pos.y, color);
+      }
     }
   }
 
@@ -172,8 +240,6 @@ export class GameLoop {
     const scale = renderer.getScale();
     const foods = this.multiPathSystem.getObjects();
 
-    // Removed: console.log - too verbose
-
     for (let i = 0; i < foods.length; i += 1) {
       const f = foods[i];
       // Sample path based on current path
@@ -184,7 +250,7 @@ export class GameLoop {
       renderer.drawEmoji(f.emoji, p.x, p.y, size, scale);
     }
 
-    // NEW: Draw towers
+    // Draw towers
     const towers = this.towerManager.getAllTowers();
     for (const tower of towers) {
       renderer.drawTower(tower, scale);
@@ -208,7 +274,21 @@ export class GameLoop {
     this.lastTime = now;
 
     this.update(dt);
+
+    // Rendering order (back to front):
+    // 1. WebGL: Background, paths, tower slots
     this.drawPath();
+
+    // 2. WebGL: HP bars (below food)
+    this.drawHPBars();
+
+    // 3. WebGL: Bullets
+    this.drawBullets();
+
+    // 4. WebGL: Particles (semi-transparent, rendered last in WebGL)
+    this.drawParticles();
+
+    // 5. Canvas 2D: Food emojis and tower emojis (on top)
     this.drawEmojis();
 
     requestAnimationFrame((t) => this.frame(t));
@@ -307,5 +387,21 @@ export class GameLoop {
    */
   getTroubleSystem() {
     return this.troubleSystem;
+  }
+
+  /**
+   * Get bullet system
+   * @returns {BulletSystem} Bullet system
+   */
+  getBulletSystem() {
+    return this.bulletSystem;
+  }
+
+  /**
+   * Get particle system
+   * @returns {ParticleSystem} Particle system
+   */
+  getParticleSystem() {
+    return this.particleSystem;
   }
 }

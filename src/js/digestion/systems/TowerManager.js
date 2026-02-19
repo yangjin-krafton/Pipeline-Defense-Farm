@@ -13,6 +13,26 @@ export class TowerManager {
   constructor() {
     this.towers = [];
     this.towersBySlot = new Map(); // slotKey -> tower
+
+    // Systems
+    this.bulletSystem = null;
+    this.particleSystem = null;
+  }
+
+  /**
+   * Set bullet system for towers to use
+   * @param {BulletSystem} bulletSystem
+   */
+  setBulletSystem(bulletSystem) {
+    this.bulletSystem = bulletSystem;
+  }
+
+  /**
+   * Set particle system for towers to use
+   * @param {ParticleSystem} particleSystem
+   */
+  setParticleSystem(particleSystem) {
+    this.particleSystem = particleSystem;
   }
 
   buildTower(towerType, slotData) {
@@ -23,7 +43,13 @@ export class TowerManager {
     }
 
     const TowerClass = TOWER_CLASSES[towerType];
-    const tower = new TowerClass(slotData, definition);
+    // Pass systems to tower constructor
+    const tower = new TowerClass(
+      slotData,
+      definition,
+      this.bulletSystem,
+      this.particleSystem
+    );
 
     this.towers.push(tower);
     const slotKey = `${slotData.x}_${slotData.y}`;
