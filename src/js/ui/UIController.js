@@ -132,9 +132,11 @@ export class UIController {
       this.isExpanded = true;
       this.bottomSheet.classList.add('expanded');
 
-      // Trigger callback when sheet opens
+      // Trigger callback after sheet animation completes (0.3s transition)
       if (this.onSheetOpenCallback) {
-        this.onSheetOpenCallback(this.selectedTowerSlot);
+        setTimeout(() => {
+          this.onSheetOpenCallback(this.selectedTowerSlot);
+        }, 350); // Slightly longer than 0.3s transition
       }
     }
   }

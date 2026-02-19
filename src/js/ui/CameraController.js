@@ -7,6 +7,7 @@ import { VIRTUAL_W, VIRTUAL_H } from '../config.js';
 export class CameraController {
   constructor(canvasContainer) {
     this.container = canvasContainer;
+    this.canvas = canvasContainer.querySelector('#pathCanvas');
     this.currentOffset = { x: 0, y: 0 };
     this.targetOffset = { x: 0, y: 0 };
     this.isAnimating = false;
@@ -15,54 +16,70 @@ export class CameraController {
 
   /**
    * Focus on a tower slot (position it in upper half center when bottom sheet is open)
-   * @param {Object} slot - Tower slot with x, y coordinates (in virtual coordinates)
+   * @param {Object} slot - Tower slot with x, y coordinates (in virtual coordinates 360x640)
    */
   focusOnTowerSlot(slot) {
     if (!slot) return;
 
-    // Get current container dimensions (640x1063 fixed)
-    const rect = this.container.getBoundingClientRect();
-    const gameAreaWidth = rect.width;  // 640
-    const gameAreaHeight = rect.height; // 1063
+    console.log('=== Focus Debug ===');
+    console.log('Tower virtual coords:', { x: slot.x, y: slot.y });
 
-    // Calculate scale and canvas dimensions (same as fitCanvas in main.js)
-    const scale = Math.min(gameAreaWidth / VIRTUAL_W, gameAreaHeight / VIRTUAL_H);
-    const cssW = Math.round(VIRTUAL_W * scale);
-    const cssH = Math.round(VIRTUAL_H * scale);
+    // Game area dimensions (fixed design px)
+    const gameAreaWidth = 640;
+    const gameAreaHeight = 1063;
 
-    // Calculate canvas offset within container
-    const canvasOffsetX = (gameAreaWidth - cssW) / 2;
-    const canvasOffsetY = (gameAreaHeight - cssH) / 2;
+    // Canvas virtual dimensions
+    const canvasVirtualWidth = VIRTUAL_W;  // 360
+    const canvasVirtualHeight = VIRTUAL_H; // 640
 
-    // Bottom sheet height when expanded
+    // Calculate canvas scale to fit in game area
+    const canvasScale = Math.min(
+      gameAreaWidth / canvasVirtualWidth,
+      gameAreaHeight / canvasVirtualHeight
+    );
+    console.log('Canvas scale:', canvasScale.toFixed(3));
+
+    // Canvas CSS dimensions
+    const canvasCssWidth = Math.round(canvasVirtualWidth * canvasScale);   // 598
+    const canvasCssHeight = Math.round(canvasVirtualHeight * canvasScale); // 1063
+    console.log('Canvas CSS size:', { width: canvasCssWidth, height: canvasCssHeight });
+
+    // Canvas offset within game area (centered horizontally)
+    const canvasOffsetX = (gameAreaWidth - canvasCssWidth) / 2;  // 21
+    const canvasOffsetY = (gameAreaHeight - canvasCssHeight) / 2; // 0
+    console.log('Canvas offset:', { x: canvasOffsetX, y: canvasOffsetY });
+
+    // Tower position on canvas (CSS px)
+    const towerCanvasX = slot.x * canvasScale;
+    const towerCanvasY = slot.y * canvasScale;
+    console.log('Tower on canvas:', { x: towerCanvasX.toFixed(1), y: towerCanvasY.toFixed(1) });
+
+    // Tower position in game area (CSS px)
+    const towerGameAreaX = canvasOffsetX + towerCanvasX;
+    const towerGameAreaY = canvasOffsetY + towerCanvasY;
+    console.log('Tower in game area:', { x: towerGameAreaX.toFixed(1), y: towerGameAreaY.toFixed(1) });
+
+    // Bottom sheet height when expanded (design px)
     const bottomSheetHeight = 600;
 
-    // When bottom sheet is open, visible game area is:
-    // gameAreaHeight - bottomSheetHeight = 1063 - 600 = 463px
-    const visibleAreaHeight = gameAreaHeight - bottomSheetHeight;
+    // Visible area when sheet is open
+    const visibleAreaHeight = gameAreaHeight - bottomSheetHeight; // 463
+    console.log('Visible area height:', visibleAreaHeight);
 
-    // Center of visible area (upper half)
-    const upperHalfCenterY = visibleAreaHeight / 2;
+    // Target center of visible area
+    const targetCenterX = gameAreaWidth / 2;      // 320
+    const targetCenterY = visibleAreaHeight / 2;  // 231.5
+    console.log('Target center:', { x: targetCenterX, y: targetCenterY });
 
-    // Calculate where the tower is within the canvas (in CSS pixels)
-    const towerCanvasX = slot.x * scale;
-    const towerCanvasY = slot.y * scale;
-
-    // Calculate tower's absolute position on screen (including canvas offset)
-    const towerScreenX = canvasOffsetX + towerCanvasX;
-    const towerScreenY = canvasOffsetY + towerCanvasY;
-
-    // Calculate how much we need to offset the entire container
-    // to center the tower at (gameAreaWidth/2, upperHalfCenterY)
-    const targetCenterX = gameAreaWidth / 2;
-    const targetX = targetCenterX - towerScreenX;
-    const targetY = upperHalfCenterY - towerScreenY;
+    // Required offset to move tower to target center
+    const offsetX = targetCenterX - towerGameAreaX;
+    const offsetY = targetCenterY - towerGameAreaY;
+    console.log('Required offset:', { x: offsetX.toFixed(1), y: offsetY.toFixed(1) });
+    console.log('==================');
 
     // Set target offset
-    this.targetOffset = { x: targetX, y: targetY };
+    this.targetOffset = { x: offsetX, y: offsetY };
     this.isAnimating = true;
-
-    console.log(`Focus: tower virtual (${slot.x}, ${slot.y}), scale=${scale.toFixed(2)}, visible area=${visibleAreaHeight}px, center Y=${upperHalfCenterY.toFixed(1)}px, tower screen=(${towerScreenX.toFixed(1)}, ${towerScreenY.toFixed(1)}), offset=(${targetX.toFixed(1)}, ${targetY.toFixed(1)})`);
   }
 
   /**
