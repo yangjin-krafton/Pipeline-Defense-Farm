@@ -462,7 +462,6 @@ async function init() {
   await audioSystem.loadBGM('./assets/bgm/game_theme.wav');
   audioSystem.setVolume(0.4); // 40% volume
   audioSystem.setLoop(true);
-  audioSystem.setSpatialOptions({ surroundAmount: 0.75, panJitter: 0.06 });
   audioSystem.setVariationOptions({ gainRandomRange: 0.03, sectionDynamicsDepth: 0.2, fillBoostRange: 0.06 });
 
   // Create and start game loop

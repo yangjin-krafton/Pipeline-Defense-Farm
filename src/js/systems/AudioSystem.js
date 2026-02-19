@@ -7,6 +7,7 @@ export class AudioSystem {
   constructor() {
     this.audioContext = null;
     this.masterGain = null;
+    this.masterCompressor = null;
     this.instrumentGains = new Map();
     this.instrumentBuffers = new Map(); // key: "instrument_variant"
     this.activeSources = new Set();
@@ -27,6 +28,26 @@ export class AudioSystem {
     this.basePath = './assets/bgm';
     this.instruments = ['melody', 'harmony', 'bass', 'pad', 'drums', 'arpeggio'];
     this.variants = ['A', 'B', 'C'];
+    this.surroundAmount = 0;
+    this.panJitter = 0;
+    this.gainRandomRange = 0.04;
+    this.sectionDynamicsDepth = 0.25;
+    this.fillBoostRange = 0.08;
+    this.lowBandMonoAmount = 1;
+
+    // Variation controls
+    this.reverseChance = 0.18;
+    this.fillChance = 0.22;
+    this.densityBySection = {
+      intro: 0.42,
+      build: 0.6,
+      verse: 0.72,
+      chorus: 0.9,
+      bridge: 0.48,
+      chorus2: 0.94,
+      outro: 0.5,
+      default: 0.68
+    };
   }
 
   /**
@@ -38,16 +59,27 @@ export class AudioSystem {
     try {
       this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
       this.masterGain = this.audioContext.createGain();
-      this.masterGain.connect(this.audioContext.destination);
+      this.masterCompressor = this.audioContext.createDynamicsCompressor();
+      this.masterCompressor.threshold.value = -18;
+      this.masterCompressor.knee.value = 16;
+      this.masterCompressor.ratio.value = 2.5;
+      this.masterCompressor.attack.value = 0.01;
+      this.masterCompressor.release.value = 0.2;
+      this.masterGain.connect(this.masterCompressor);
+      this.masterCompressor.connect(this.audioContext.destination);
       this.masterGain.gain.value = this.volume;
 
       // Per-instrument channels to allow mixer-style balancing.
       for (const instrument of this.instruments) {
-        const gainNode = this.audioContext.createGain();
-        gainNode.gain.value = this._defaultInstrumentGain(instrument);
-        gainNode.connect(this.masterGain);
-        this.instrumentGains.set(instrument, gainNode);
+        const chain = this._createSpatialChain(instrument);
+        this.instrumentGains.set(instrument, chain.inputGain);
       }
+
+      // Dedicated drum-fill channel.
+      const drumFillChain = this._createSpatialChain('drums', {
+        baseGainScale: 0.58
+      });
+      this.instrumentGains.set('drums_fill', drumFillChain.inputGain);
 
       console.log('AudioSystem initialized');
     } catch (error) {
@@ -204,6 +236,42 @@ export class AudioSystem {
   }
 
   /**
+   * Configure spatial sound stage.
+   * @param {Object} options
+   */
+  setSpatialOptions(options = {}) {
+    // Surround processing disabled for stable loudness.
+    this.surroundAmount = 0;
+    this.panJitter = 0;
+    this.lowBandMonoAmount = 1;
+  }
+
+  /**
+   * Configure procedural variation intensity.
+   * @param {Object} options
+   */
+  setVariationOptions(options = {}) {
+    if (typeof options.reverseChance === 'number') {
+      this.reverseChance = Math.max(0, Math.min(1, options.reverseChance));
+    }
+    if (typeof options.fillChance === 'number') {
+      this.fillChance = Math.max(0, Math.min(1, options.fillChance));
+    }
+    if (options.densityBySection && typeof options.densityBySection === 'object') {
+      this.densityBySection = { ...this.densityBySection, ...options.densityBySection };
+    }
+    if (typeof options.gainRandomRange === 'number') {
+      this.gainRandomRange = Math.max(0, Math.min(0.2, options.gainRandomRange));
+    }
+    if (typeof options.sectionDynamicsDepth === 'number') {
+      this.sectionDynamicsDepth = Math.max(0, Math.min(1, options.sectionDynamicsDepth));
+    }
+    if (typeof options.fillBoostRange === 'number') {
+      this.fillBoostRange = Math.max(0, Math.min(0.4, options.fillBoostRange));
+    }
+  }
+
+  /**
    * Get playback state
    * @returns {Object} State object
    */
@@ -229,6 +297,7 @@ export class AudioSystem {
       this.audioContext = null;
     }
     this.masterGain = null;
+    this.masterCompressor = null;
     this.instrumentGains.clear();
     this.instrumentBuffers.clear();
     this.activeSources.clear();
@@ -293,6 +362,46 @@ export class AudioSystem {
     }
   }
 
+  _createSpatialChain(instrument, options = {}) {
+    const inputGain = this.audioContext.createGain();
+    inputGain.gain.value = this._defaultInstrumentGain(instrument) * (options.baseGainScale ?? 1);
+    inputGain.connect(this.masterGain);
+    return { inputGain };
+  }
+
+  _refreshSpatialProfiles() {
+    // Surround processing disabled.
+  }
+
+  _getSpatialProfile(instrument, options = {}) {
+    const profiles = {
+      melody: { crossover: 1400, lowBandGain: 0.28, highBandGain: 0.95, width: 0.82, bias: 0.12, lowWidth: 0.12 },
+      harmony: { crossover: 1150, lowBandGain: 0.4, highBandGain: 0.82, width: 0.68, bias: -0.12, lowWidth: 0.14 },
+      bass: { crossover: 280, lowBandGain: 1.0, highBandGain: 0.2, width: 0.42, bias: 0.0, lowWidth: 0.02, lockLowPan: true },
+      pad: { crossover: 900, lowBandGain: 0.62, highBandGain: 0.8, width: 0.9, bias: 0.0, lowWidth: 0.1 },
+      drums: { crossover: 1900, lowBandGain: 0.72, highBandGain: 0.96, width: 1.0, bias: 0.04, lowWidth: 0.03, lockLowPan: true },
+      arpeggio: { crossover: 2200, lowBandGain: 0.22, highBandGain: 1.0, width: 1.0, bias: 0.2, lowWidth: 0.1 }
+    };
+    const normalizedInstrument = instrument === 'drums_fill' ? 'drums' : instrument;
+    const p = profiles[normalizedInstrument] || profiles.melody;
+    const width = p.width * this.surroundAmount;
+    const monoPull = this.lowBandMonoAmount;
+    const lowWidth = (p.lowWidth ?? 0.1) * (1 - monoPull);
+    const panBias = options.panBias ?? 0;
+    return {
+      crossover: p.crossover,
+      lowBandGain: p.lowBandGain,
+      highBandGain: p.highBandGain,
+      lowPan: this._clampPan((p.bias + panBias) - (width * lowWidth)),
+      highPan: this._clampPan((p.bias + panBias) + (width * 0.72)),
+      lockLowPan: p.lockLowPan === true
+    };
+  }
+
+  _clampPan(value) {
+    return Math.max(-1, Math.min(1, value));
+  }
+
   _startScheduler() {
     if (this.schedulerId) return;
     this.schedulerId = setInterval(() => this._scheduleAhead(), 100);
@@ -324,9 +433,15 @@ export class AudioSystem {
       return false;
     }
 
-    const barInfo = this.structure?.bars?.[normalizedBar] || {};
+    const reverseEnabled = this.totalBars > 1 && Math.random() < this.reverseChance;
+    const sourceBarIndex = reverseEnabled
+      ? (this.totalBars - 1 - normalizedBar)
+      : normalizedBar;
+    const barInfo = this.structure?.bars?.[sourceBarIndex] || this.structure?.bars?.[normalizedBar] || {};
     const sectionGain = Number(barInfo.gain ?? 1);
+    const sectionMixGain = 1 + ((sectionGain - 1) * this.sectionDynamicsDepth);
     const selected = this._selectBarInstruments(barInfo);
+    const mixCompensation = this._computeMixCompensation(selected, sectionMixGain);
 
     for (const instrument of selected) {
       const variant = this._pickVariant(barInfo, instrument);
@@ -344,8 +459,14 @@ export class AudioSystem {
       this.activeSources.add(source);
 
       // Section dynamics + small random movement for less repetitive playback.
-      const variation = 0.88 + (Math.random() * 0.24);
-      gainNode.gain.setValueAtTime(this._defaultInstrumentGain(instrument) * sectionGain * variation, startTime);
+      const variation = 1 - this.gainRandomRange + (Math.random() * this.gainRandomRange * 2);
+      const targetGain = this._defaultInstrumentGain(instrument) * sectionMixGain * mixCompensation * variation;
+      gainNode.gain.setValueAtTime(Math.max(0.02, Math.min(1.2, targetGain)), startTime);
+      this._animateSpatialForBar(instrument, startTime);
+    }
+
+    if (Math.random() < this.fillChance) {
+      this._scheduleDrumFill(startTime, sectionMixGain, mixCompensation);
     }
 
     this.playheadSeconds = Math.max(0, normalizedBar * this.barDuration);
@@ -353,17 +474,21 @@ export class AudioSystem {
   }
 
   _selectBarInstruments(barInfo) {
+    const section = String(barInfo?.section || 'default');
+    const density = this._getSectionDensity(section);
     const base = this.instruments.filter((inst) => barInfo?.instruments?.[inst]);
     const fallback = base.length > 0 ? base : ['drums', 'bass', 'pad'];
 
     // Keep groove stable with drums+bass most of the time.
     const selected = new Set();
-    if (fallback.includes('drums') && Math.random() < 0.95) selected.add('drums');
-    if (fallback.includes('bass') && Math.random() < 0.92) selected.add('bass');
+    const drumsChance = Math.min(1, 0.45 + density * 0.6);
+    const bassChance = Math.min(1, 0.4 + density * 0.6);
+    if (fallback.includes('drums') && Math.random() < drumsChance) selected.add('drums');
+    if (fallback.includes('bass') && Math.random() < bassChance) selected.add('bass');
 
     for (const instrument of fallback) {
       if (selected.has(instrument)) continue;
-      if (Math.random() < 0.68) selected.add(instrument);
+      if (Math.random() < density) selected.add(instrument);
     }
 
     if (selected.size === 0) {
@@ -391,5 +516,56 @@ export class AudioSystem {
       }
     }
     this.activeSources.clear();
+  }
+
+  _getSectionDensity(section) {
+    const value = this.densityBySection[section];
+    if (typeof value === 'number') {
+      return Math.max(0.1, Math.min(1, value));
+    }
+    return Math.max(0.1, Math.min(1, this.densityBySection.default ?? 0.68));
+  }
+
+  _scheduleDrumFill(startTime, sectionGain, mixCompensation = 1) {
+    const gainNode = this.instrumentGains.get('drums_fill') || this.instrumentGains.get('drums');
+    if (!gainNode) return;
+
+    const variant = this.variants[Math.floor(Math.random() * this.variants.length)];
+    const buffer = this.instrumentBuffers.get(`drums_${variant}`);
+    if (!buffer) return;
+
+    const fillStart = startTime + this.barDuration * (0.72 + Math.random() * 0.16);
+    const fillDuration = Math.max(0.08, this.barDuration * (0.14 + Math.random() * 0.08));
+    const maxOffset = Math.max(0, buffer.duration - fillDuration);
+    const offset = maxOffset > 0 ? Math.random() * maxOffset : 0;
+
+    const source = this.audioContext.createBufferSource();
+    source.buffer = buffer;
+    source.connect(gainNode);
+    source.start(fillStart, offset, fillDuration);
+    source.stop(fillStart + fillDuration);
+    source.onended = () => this.activeSources.delete(source);
+    this.activeSources.add(source);
+
+    const fillGain = (this._defaultInstrumentGain('drums') * sectionGain * mixCompensation) * (1 + Math.random() * this.fillBoostRange);
+    gainNode.gain.setValueAtTime(Math.max(0.02, Math.min(1.2, fillGain)), fillStart);
+    this._animateSpatialForBar('drums_fill', fillStart, fillDuration);
+  }
+
+  _computeMixCompensation(selected, sectionMixGain) {
+    if (!selected || selected.length === 0) return 1;
+
+    let sum = 0;
+    for (const instrument of selected) {
+      sum += this._defaultInstrumentGain(instrument);
+    }
+
+    const target = 2.1;
+    const raw = target / Math.max(0.3, sum * Math.max(0.5, sectionMixGain));
+    return Math.max(0.78, Math.min(1.2, raw));
+  }
+
+  _animateSpatialForBar(instrument, startTime, duration = this.barDuration) {
+    // Surround processing disabled.
   }
 }
