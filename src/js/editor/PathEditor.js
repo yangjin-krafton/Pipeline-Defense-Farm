@@ -1,6 +1,8 @@
 /**
- * PathEditor - Development tool for editing PATH_POINTS
+ * PathEditor - Development tool for editing multiple paths
  * Features:
+ * - Support multiple paths (rice/dessert/alcohol stomach, small/large intestine)
+ * - Select and edit individual paths
  * - Drag to move points
  * - Click near path line to insert points in the middle
  * - Click on empty space to add new points at the end
@@ -11,10 +13,25 @@
 import { VIRTUAL_W, VIRTUAL_H } from '../config.js';
 
 export class PathEditor {
-  constructor(canvas, points, onPathChanged) {
+  constructor(canvas, paths, onPathsChanged) {
     this.canvas = canvas;
-    this.points = [...points.map(p => ({ ...p }))]; // Deep copy
-    this.onPathChanged = onPathChanged;
+
+    // Deep copy all paths
+    this.paths = {};
+    for (const [key, pathData] of Object.entries(paths)) {
+      this.paths[key] = {
+        name: pathData.name,
+        color: pathData.color,
+        points: [...pathData.points.map(p => ({ ...p }))]
+      };
+    }
+
+    this.onPathsChanged = onPathsChanged;
+
+    // Selected path
+    this.pathKeys = Object.keys(this.paths);
+    this.selectedPathKey = this.pathKeys[0];
+    this.showAllPaths = true; // Show all paths or only selected
 
     this.isDragging = false;
     this.selectedPointIndex = -1;
@@ -79,10 +96,19 @@ export class PathEditor {
     };
   }
 
+  getCurrentPath() {
+    return this.paths[this.selectedPathKey];
+  }
+
+  getCurrentPoints() {
+    return this.getCurrentPath().points;
+  }
+
   findPointAt(x, y, threshold = 15) {
-    for (let i = 0; i < this.points.length; i++) {
-      const dx = this.points[i].x - x;
-      const dy = this.points[i].y - y;
+    const points = this.getCurrentPoints();
+    for (let i = 0; i < points.length; i++) {
+      const dx = points[i].x - x;
+      const dy = points[i].y - y;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       if (distance <= threshold) {
@@ -97,14 +123,15 @@ export class PathEditor {
    * Returns { index: number, distance: number } or null if too far
    */
   findClosestLineSegment(x, y, threshold = 20) {
-    if (this.points.length < 2) return null;
+    const points = this.getCurrentPoints();
+    if (points.length < 2) return null;
 
     let closestIndex = -1;
     let closestDistance = Infinity;
 
-    for (let i = 0; i < this.points.length - 1; i++) {
-      const p1 = this.points[i];
-      const p2 = this.points[i + 1];
+    for (let i = 0; i < points.length - 1; i++) {
+      const p1 = points[i];
+      const p2 = points[i + 1];
 
       // Calculate distance from point to line segment
       const distance = this.pointToSegmentDistance(x, y, p1.x, p1.y, p2.x, p2.y);
@@ -156,15 +183,16 @@ export class PathEditor {
         // Try to insert point in the middle of a path segment
         const closestSegment = this.findClosestLineSegment(coords.x, coords.y);
         const snapped = this.snapToGrid(coords.x, coords.y);
+        const points = this.getCurrentPoints();
 
         if (closestSegment) {
           // Insert point in the middle of the closest segment
-          this.points.splice(closestSegment.index, 0, snapped);
-          console.log(`Inserted point at index ${closestSegment.index}`);
+          points.splice(closestSegment.index, 0, snapped);
+          console.log(`Inserted point at index ${closestSegment.index} in ${this.getCurrentPath().name}`);
         } else {
           // Add new point at the end
-          this.points.push(snapped);
-          console.log('Added point at the end');
+          points.push(snapped);
+          console.log(`Added point at the end of ${this.getCurrentPath().name}`);
         }
         this.notifyChange();
       }
@@ -178,7 +206,8 @@ export class PathEditor {
 
     if (this.isDragging && this.selectedPointIndex !== -1) {
       const snapped = this.snapToGrid(coords.x, coords.y);
-      this.points[this.selectedPointIndex] = snapped;
+      const points = this.getCurrentPoints();
+      points[this.selectedPointIndex] = snapped;
       this.notifyChange();
     } else {
       // Update hover state
@@ -212,8 +241,8 @@ export class PathEditor {
       this.gridEnabled = !this.gridEnabled;
       console.log(`Grid snap: ${this.gridEnabled ? 'ON' : 'OFF'}`);
     } else if (e.key === 'e' || e.key === 'E') {
-      // Export path to clipboard
-      this.exportPath();
+      // Export paths to clipboard
+      this.exportPaths();
     } else if (e.key === 's' || e.key === 'S') {
       // Save to config.js
       e.preventDefault();
@@ -222,12 +251,31 @@ export class PathEditor {
       // Toggle UI visibility
       this.showUI = !this.showUI;
       console.log(`UI visibility: ${this.showUI ? 'ON' : 'OFF'}`);
+    } else if (e.key === 'Tab') {
+      // Switch to next path
+      e.preventDefault();
+      const currentIndex = this.pathKeys.indexOf(this.selectedPathKey);
+      const nextIndex = (currentIndex + 1) % this.pathKeys.length;
+      this.selectedPathKey = this.pathKeys[nextIndex];
+      console.log(`Switched to: ${this.getCurrentPath().name}`);
+    } else if (e.key === 'v' || e.key === 'V') {
+      // Toggle show all paths
+      this.showAllPaths = !this.showAllPaths;
+      console.log(`Show all paths: ${this.showAllPaths ? 'ON' : 'OFF'}`);
+    } else if (e.key >= '1' && e.key <= '5') {
+      // Quick select path by number
+      const index = parseInt(e.key) - 1;
+      if (index < this.pathKeys.length) {
+        this.selectedPathKey = this.pathKeys[index];
+        console.log(`Selected: ${this.getCurrentPath().name}`);
+      }
     }
   }
 
   deletePoint(index) {
-    if (this.points.length > 2) { // Keep at least 2 points
-      this.points.splice(index, 1);
+    const points = this.getCurrentPoints();
+    if (points.length > 2) { // Keep at least 2 points
+      points.splice(index, 1);
       this.notifyChange();
     } else {
       console.warn('Cannot delete point: minimum 2 points required');
@@ -235,8 +283,8 @@ export class PathEditor {
   }
 
   notifyChange() {
-    if (this.onPathChanged) {
-      this.onPathChanged(this.points);
+    if (this.onPathsChanged) {
+      this.onPathsChanged(this.paths);
     }
   }
 
@@ -296,36 +344,53 @@ export class PathEditor {
   }
 
   drawPath(ctx) {
-    if (this.points.length < 2) return;
-
     const scaleX = this.canvas.width / VIRTUAL_W;
     const scaleY = this.canvas.height / VIRTUAL_H;
 
-    ctx.strokeStyle = '#FFD700';
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    // Draw all paths if enabled
+    for (const [key, pathData] of Object.entries(this.paths)) {
+      const points = pathData.points;
+      if (points.length < 2) continue;
 
-    ctx.beginPath();
-    ctx.moveTo(this.points[0].x * scaleX, this.points[0].y * scaleY);
+      const isSelected = key === this.selectedPathKey;
+      const shouldDraw = this.showAllPaths || isSelected;
 
-    for (let i = 1; i < this.points.length; i++) {
-      ctx.lineTo(this.points[i].x * scaleX, this.points[i].y * scaleY);
+      if (!shouldDraw) continue;
+
+      // Set style based on selection
+      ctx.strokeStyle = pathData.color;
+      ctx.lineWidth = isSelected ? 5 : 2;
+      ctx.globalAlpha = isSelected ? 1.0 : 0.4;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      ctx.beginPath();
+      ctx.moveTo(points[0].x * scaleX, points[0].y * scaleY);
+
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x * scaleX, points[i].y * scaleY);
+      }
+
+      ctx.stroke();
     }
 
-    ctx.stroke();
+    ctx.globalAlpha = 1.0;
   }
 
   drawPoints(ctx) {
     const scaleX = this.canvas.width / VIRTUAL_W;
     const scaleY = this.canvas.height / VIRTUAL_H;
 
-    this.points.forEach((point, index) => {
+    // Only draw points for selected path
+    const points = this.getCurrentPoints();
+    const pathColor = this.getCurrentPath().color;
+
+    points.forEach((point, index) => {
       const x = point.x * scaleX;
       const y = point.y * scaleY;
 
       // Point background
-      ctx.fillStyle = index === this.selectedPointIndex ? '#FF6B6B' : '#4ECDC4';
+      ctx.fillStyle = index === this.selectedPointIndex ? '#FF6B6B' : pathColor;
       ctx.beginPath();
       ctx.arc(x, y, this.pointRadius, 0, Math.PI * 2);
       ctx.fill();
@@ -348,7 +413,8 @@ export class PathEditor {
     const scaleX = this.canvas.width / VIRTUAL_W;
     const scaleY = this.canvas.height / VIRTUAL_H;
 
-    const point = this.points[this.hoveredPointIndex];
+    const points = this.getCurrentPoints();
+    const point = points[this.hoveredPointIndex];
     const x = point.x * scaleX;
     const y = point.y * scaleY;
 
@@ -372,8 +438,8 @@ export class PathEditor {
       return;
     }
 
-    const uiWidth = 320;
-    const uiHeight = 145;
+    const uiWidth = 340;
+    const uiHeight = 220;
     const padding = 10;
 
     // Fixed position (top-left)
@@ -388,47 +454,82 @@ export class PathEditor {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
 
+    const currentPath = this.getCurrentPath();
+    const pathIndex = this.pathKeys.indexOf(this.selectedPathKey) + 1;
+
     const lines = [
-      'PATH EDITOR (Dev Mode)',
-      `Points: ${this.points.length}`,
-      `Grid Snap: ${this.gridEnabled ? 'ON' : 'OFF'} (G to toggle)`,
+      'MULTI-PATH EDITOR (Dev Mode)',
+      `Current: [${pathIndex}] ${currentPath.name}`,
+      `Points: ${this.getCurrentPoints().length}`,
+      `Grid: ${this.gridEnabled ? 'ON' : 'OFF'} (G) | View: ${this.showAllPaths ? 'ALL' : 'ONE'} (V)`,
       '',
-      'Left Click: Add point (mid-path insert)',
-      'Drag Point: Move point',
+      'Left Click: Add/Drag point',
       'Right Click: Delete point',
-      'H: Toggle UI help',
-      'E: Copy to clipboard',
-      'S: Save to config.js'
+      'Tab: Switch path',
+      '1-5: Quick select path',
+      'H: Toggle UI',
+      'E: Export | S: Save to config.js'
     ];
 
     lines.forEach((line, index) => {
+      // Highlight current path line
+      if (index === 1) {
+        ctx.fillStyle = currentPath.color;
+        ctx.font = 'bold 12px monospace';
+      } else {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '12px monospace';
+      }
       ctx.fillText(line, uiX + 10, uiY + 10 + index * 15);
+    });
+
+    // Draw path list
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.fillRect(uiX + 10, uiY + 180, uiWidth - 20, 30);
+
+    ctx.font = '10px monospace';
+    let xOffset = uiX + 15;
+    this.pathKeys.forEach((key, index) => {
+      const pathData = this.paths[key];
+      const isSelected = key === this.selectedPathKey;
+
+      ctx.fillStyle = isSelected ? pathData.color : 'rgba(255, 255, 255, 0.5)';
+      ctx.font = isSelected ? 'bold 10px monospace' : '10px monospace';
+
+      const label = `[${index + 1}]${pathData.name}`;
+      ctx.fillText(label, xOffset, uiY + 193);
+      xOffset += ctx.measureText(label).width + 10;
     });
   }
 
-  exportPath() {
-    const formatted = JSON.stringify(this.points, null, 2);
-    console.log('=== PATH_POINTS ===');
+  exportPaths() {
+    const formatted = JSON.stringify(this.paths, null, 2);
+    console.log('=== PATHS ===');
     console.log(formatted);
-    console.log('==================');
+    console.log('=============');
 
     // Copy to clipboard if available
     if (navigator.clipboard) {
       navigator.clipboard.writeText(formatted).then(() => {
-        console.log('Path copied to clipboard!');
-        this.showNotification('Path copied to clipboard!');
+        console.log('Paths copied to clipboard!');
+        this.showNotification('Paths copied to clipboard!');
       }).catch(err => {
         console.error('Failed to copy to clipboard:', err);
       });
     }
 
-    return this.points;
+    return this.paths;
   }
 
   /**
-   * Download edited path as config.js file
+   * Download edited paths as config.js file
    */
   downloadConfigFile() {
+    const pathsFormatted = JSON.stringify(this.paths, null, 2)
+      .split('\n')
+      .map((line, i) => i === 0 ? line : '  ' + line)
+      .join('\n');
+
     const configContent = `/**
  * Game configuration constants
  */
@@ -438,7 +539,18 @@ export const FOOD_SPAWN_MS = 800;
 export const BASE_SPEED = 92;
 export const EMOJI_CACHE_SIZE = 48;
 
-export const PATH_POINTS = ${JSON.stringify(this.points, null, 2)};
+/**
+ * Multiple path system
+ * Each path represents different digestive tract
+ */
+export const PATHS = ${pathsFormatted};
+
+// Backward compatibility: export first path as PATH_POINTS
+export const PATH_POINTS = PATHS.rice_stomach.points;
+
+export const TOWER_SLOTS = [
+  { x: 100, y: 200, radius: 30 }
+];
 
 export const FOOD_EMOJIS = ["🍔", "🍕", "🍜", "🍟", "🍝", "🍰", "🍩", "🌮", "🍱", "🍣"];
 `;
@@ -466,6 +578,11 @@ export const FOOD_EMOJIS = ["🍔", "🍕", "🍜", "🍟", "🍝", "🍰", "�
     }
 
     try {
+      const pathsFormatted = JSON.stringify(this.paths, null, 2)
+        .split('\n')
+        .map((line, i) => i === 0 ? line : '  ' + line)
+        .join('\n');
+
       const configContent = `/**
  * Game configuration constants
  */
@@ -475,7 +592,18 @@ export const FOOD_SPAWN_MS = 800;
 export const BASE_SPEED = 92;
 export const EMOJI_CACHE_SIZE = 48;
 
-export const PATH_POINTS = ${JSON.stringify(this.points, null, 2)};
+/**
+ * Multiple path system
+ * Each path represents different digestive tract
+ */
+export const PATHS = ${pathsFormatted};
+
+// Backward compatibility: export first path as PATH_POINTS
+export const PATH_POINTS = PATHS.rice_stomach.points;
+
+export const TOWER_SLOTS = [
+  { x: 100, y: 200, radius: 30 }
+];
 
 export const FOOD_EMOJIS = ["🍔", "🍕", "🍜", "🍟", "🍝", "🍰", "🍩", "🌮", "🍱", "🍣"];
 `;
@@ -543,8 +671,13 @@ export const FOOD_EMOJIS = ["🍔", "🍕", "🍜", "🍟", "🍝", "🍰", "�
     }, 2000);
   }
 
+  getPaths() {
+    return this.paths;
+  }
+
   getPoints() {
-    return this.points;
+    // For backward compatibility
+    return this.getCurrentPoints();
   }
 
   setGridSize(size) {

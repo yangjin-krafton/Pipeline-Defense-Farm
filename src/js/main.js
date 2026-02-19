@@ -1,8 +1,8 @@
 /**
  * Main entry point for Digestive Run game
  */
-import { VIRTUAL_W, VIRTUAL_H, PATH_POINTS, TOWER_SLOTS } from './config.js';
-import { PathFollowerSystem } from './utils/PathFollowerSystem.js';
+import { VIRTUAL_W, VIRTUAL_H, PATH_POINTS, PATHS, TOWER_SLOTS } from './config.js';
+import { MultiPathFollowerSystem } from './utils/MultiPathFollowerSystem.js';
 import { WebGLRenderer } from './renderer/WebGLRenderer.js';
 import { EmojiRenderer } from './renderer/EmojiRenderer.js';
 import { FlowSystem } from './systems/FlowSystem.js';
@@ -107,12 +107,24 @@ function createStaticMeshes(renderer) {
     appendCircle(towerSlotInner, slot.x, slot.y, slot.radius - 5, 24);
   }
 
+  // Combine all paths for rendering
+  const shadowMesh = [];
+  const mainMesh = [];
+  const edgeMesh = [];
+
+  for (const [key, pathData] of Object.entries(PATHS)) {
+    const points = pathData.points;
+    shadowMesh.push(...buildPolylineMesh(points, 42, 2, 3));
+    mainMesh.push(...buildPolylineMesh(points, 34, 0, 0));
+    edgeMesh.push(...buildPolylineMesh(points, 5, 0, 0));
+  }
+
   return {
     bgWarm: renderer.createMesh(bgWarm),
     bgCool: renderer.createMesh(bgCool),
-    trackShadow: renderer.createMesh(buildPolylineMesh(PATH_POINTS, 42, 2, 3)),
-    trackMain: renderer.createMesh(buildPolylineMesh(PATH_POINTS, 34, 0, 0)),
-    trackEdge: renderer.createMesh(buildPolylineMesh(PATH_POINTS, 5, 0, 0)),
+    trackShadow: renderer.createMesh(shadowMesh),
+    trackMain: renderer.createMesh(mainMesh),
+    trackEdge: renderer.createMesh(edgeMesh),
     towerSlotOuter: renderer.createMesh(towerSlotOuter),
     towerSlotInner: renderer.createMesh(towerSlotInner)
   };
@@ -158,9 +170,9 @@ function setupPathEditor(canvas, gameLoop, webglRenderer, staticMeshes) {
       canvas.style.pointerEvents = 'auto';
       canvas.style.zIndex = '1000';
 
-      pathEditor = new PathEditor(canvas, PATH_POINTS, (newPoints) => {
-        // Update path in real-time
-        updatePathVisuals(newPoints, webglRenderer, staticMeshes);
+      pathEditor = new PathEditor(canvas, PATHS, (newPaths) => {
+        // Update paths in real-time
+        updatePathVisuals(newPaths, webglRenderer, staticMeshes);
       });
 
       // Start editor render loop
@@ -289,13 +301,24 @@ function setupTowerSlotEditor(canvas, gameLoop, webglRenderer, staticMeshes) {
 }
 
 /**
- * Update path visuals with new points
+ * Update path visuals with new paths
  */
-function updatePathVisuals(points, webglRenderer, staticMeshes) {
-  // Rebuild track meshes with new points
-  staticMeshes.trackShadow = webglRenderer.createMesh(buildPolylineMesh(points, 42, 2, 3));
-  staticMeshes.trackMain = webglRenderer.createMesh(buildPolylineMesh(points, 34, 0, 0));
-  staticMeshes.trackEdge = webglRenderer.createMesh(buildPolylineMesh(points, 5, 0, 0));
+function updatePathVisuals(paths, webglRenderer, staticMeshes) {
+  // Combine all paths into single meshes for rendering
+  const shadowMesh = [];
+  const mainMesh = [];
+  const edgeMesh = [];
+
+  for (const [key, pathData] of Object.entries(paths)) {
+    const points = pathData.points;
+    shadowMesh.push(...buildPolylineMesh(points, 42, 2, 3));
+    mainMesh.push(...buildPolylineMesh(points, 34, 0, 0));
+    edgeMesh.push(...buildPolylineMesh(points, 5, 0, 0));
+  }
+
+  staticMeshes.trackShadow = webglRenderer.createMesh(shadowMesh);
+  staticMeshes.trackMain = webglRenderer.createMesh(mainMesh);
+  staticMeshes.trackEdge = webglRenderer.createMesh(edgeMesh);
 }
 
 /**
@@ -428,11 +451,13 @@ async function init() {
   fitCanvas(pathCanvas, emojiCanvas, container, gl);
 
   // Initialize systems
-  const pathSystem = new PathFollowerSystem(PATH_POINTS);
+  const multiPathSystem = new MultiPathFollowerSystem(PATHS);
   const webglRenderer = new WebGLRenderer(gl);
   const emojiRenderer = new EmojiRenderer(emojiCanvas);
   const staticMeshes = createStaticMeshes(webglRenderer);
-  const flowSystem = new FlowSystem(pathSystem);
+
+  // Use first path for flow system (backward compatibility)
+  const flowSystem = new FlowSystem(multiPathSystem.getPathSystem('rice_stomach'));
 
   // Initialize audio system
   const audioSystem = new AudioSystem();
@@ -443,7 +468,7 @@ async function init() {
 
   // Create and start game loop
   const gameLoop = new GameLoop(
-    pathSystem,
+    multiPathSystem,
     webglRenderer,
     emojiRenderer,
     staticMeshes,
@@ -483,6 +508,7 @@ async function init() {
   window.audioSystem = audioSystem;
   window.uiController = uiController;
   window.scaleManager = scaleManager;
+  window.multiPathSystem = multiPathSystem;
 }
 
 /**

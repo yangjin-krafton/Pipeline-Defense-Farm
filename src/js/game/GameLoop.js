@@ -5,14 +5,14 @@ import { FOOD_SPAWN_MS, BASE_SPEED } from '../config.js';
 import { FoodSpawner } from './FoodSpawner.js';
 
 export class GameLoop {
-  constructor(pathSystem, webglRenderer, emojiRenderer, staticMeshes, flowSystem, audioSystem) {
-    this.pathSystem = pathSystem;
+  constructor(multiPathSystem, webglRenderer, emojiRenderer, staticMeshes, flowSystem, audioSystem) {
+    this.multiPathSystem = multiPathSystem;
     this.webglRenderer = webglRenderer;
     this.emojiRenderer = emojiRenderer;
     this.staticMeshes = staticMeshes;
     this.flowSystem = flowSystem;
     this.audioSystem = audioSystem;
-    this.foodSpawner = new FoodSpawner(pathSystem);
+    this.foodSpawner = new FoodSpawner(multiPathSystem);
 
     this.time = 0;
     this.score = 0;
@@ -37,8 +37,8 @@ export class GameLoop {
     // Spawn food
     this.foodSpawner.update(dt);
 
-    // Update path system
-    this.pathSystem.update(dt, (completed) => {
+    // Update multi-path system
+    this.multiPathSystem.update(dt, (completed) => {
       this.score += 10;
       this.scoreDirty = true;
     });
@@ -86,11 +86,16 @@ export class GameLoop {
     renderer.clear();
 
     const scale = renderer.getScale();
-    const foods = this.pathSystem.getObjects();
+    const foods = this.multiPathSystem.getObjects();
+
+    if (this.frameCount % 60 === 0) {
+      console.log(`Drawing ${foods.length} food items`);
+    }
 
     for (let i = 0; i < foods.length; i += 1) {
       const f = foods[i];
-      const p = this.pathSystem.samplePath(f.d);
+      // Sample path based on current path
+      const p = this.multiPathSystem.samplePath(f.currentPath, f.d);
       const pulse = 1 + Math.sin((this.time * 8) + f.d * 0.08 + f.spin) * 0.08;
 
       const size = f.size * pulse;
@@ -127,9 +132,11 @@ export class GameLoop {
   start() {
     this.isRunning = true;
 
-    // Spawn initial foods
+    // Spawn initial foods on different paths
+    const spawnablePaths = ['rice_stomach', 'dessert_stomach', 'alcohol_stomach'];
     for (let i = 0; i < 5; i += 1) {
-      this.foodSpawner.spawnFood(i * 56);
+      const pathKey = spawnablePaths[i % spawnablePaths.length];
+      this.foodSpawner.spawnFood(pathKey, i * 56);
     }
 
     requestAnimationFrame((t) => this.frame(t));

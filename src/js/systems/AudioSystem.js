@@ -1,19 +1,32 @@
 /**
- * Audio System for BGM and Sound Effects
- * Uses Web Audio API for high-quality audio playback
+ * Audio System for procedural chiptune-style BGM mixing
+ * Mixes per-instrument bar loops in real time with Web Audio API.
  */
 
 export class AudioSystem {
   constructor() {
     this.audioContext = null;
-    this.bgmBuffer = null;
-    this.bgmSource = null;
-    this.gainNode = null;
+    this.masterGain = null;
+    this.instrumentGains = new Map();
+    this.instrumentBuffers = new Map(); // key: "instrument_variant"
+    this.activeSources = new Set();
+
+    this.structure = null;
+    this.barDuration = 3.2;
+    this.totalBars = 0;
+    this.currentBar = 0;
+    this.nextBarTime = 0;
+    this.schedulerId = null;
+
     this.isPlaying = false;
     this.volume = 0.5;
     this.startTime = 0;
-    this.pauseTime = 0;
+    this.playheadSeconds = 0;
     this.loop = true;
+
+    this.basePath = './assets/bgm';
+    this.instruments = ['melody', 'harmony', 'bass', 'pad', 'drums', 'arpeggio'];
+    this.variants = ['A', 'B', 'C'];
   }
 
   /**
@@ -24,9 +37,18 @@ export class AudioSystem {
 
     try {
       this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      this.gainNode = this.audioContext.createGain();
-      this.gainNode.connect(this.audioContext.destination);
-      this.gainNode.gain.value = this.volume;
+      this.masterGain = this.audioContext.createGain();
+      this.masterGain.connect(this.audioContext.destination);
+      this.masterGain.gain.value = this.volume;
+
+      // Per-instrument channels to allow mixer-style balancing.
+      for (const instrument of this.instruments) {
+        const gainNode = this.audioContext.createGain();
+        gainNode.gain.value = this._defaultInstrumentGain(instrument);
+        gainNode.connect(this.masterGain);
+        this.instrumentGains.set(instrument, gainNode);
+      }
+
       console.log('AudioSystem initialized');
     } catch (error) {
       console.error('Failed to initialize AudioSystem:', error);
@@ -34,8 +56,9 @@ export class AudioSystem {
   }
 
   /**
-   * Load BGM from URL
-   * @param {string} url - URL to audio file
+   * Load structure + per-instrument samples.
+   * Backward compatible: accepts previous wav path and resolves base folder.
+   * @param {string} url - Base BGM asset hint (e.g. ./assets/bgm/game_theme.wav)
    */
   async loadBGM(url) {
     if (!this.audioContext) {
@@ -43,21 +66,21 @@ export class AudioSystem {
     }
 
     try {
-      const response = await fetch(url);
-      const arrayBuffer = await response.arrayBuffer();
-      this.bgmBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
-      console.log(`BGM loaded: ${url} (${this.bgmBuffer.duration.toFixed(1)}s)`);
+      this.basePath = this._resolveBasePath(url);
+      await this._loadStructure(`${this.basePath}/game_theme_structure.json`);
+      await this._loadInstrumentBuffers(`${this.basePath}/instruments`);
+      console.log('Procedural BGM assets loaded');
     } catch (error) {
       console.error('Failed to load BGM:', error);
     }
   }
 
   /**
-   * Play BGM
+   * Play procedural BGM
    */
   play() {
-    if (!this.audioContext || !this.bgmBuffer) {
-      console.warn('AudioSystem not initialized or BGM not loaded');
+    if (!this.audioContext || this.instrumentBuffers.size === 0) {
+      console.warn('AudioSystem not initialized or instrument buffers not loaded');
       return;
     }
 
@@ -66,54 +89,45 @@ export class AudioSystem {
       this.audioContext.resume();
     }
 
-    // Stop current source if playing
-    if (this.bgmSource) {
-      this.bgmSource.stop();
-    }
+    if (this.isPlaying) return;
 
-    // Create new source
-    this.bgmSource = this.audioContext.createBufferSource();
-    this.bgmSource.buffer = this.bgmBuffer;
-    this.bgmSource.loop = this.loop;
-    this.bgmSource.connect(this.gainNode);
-
-    // Start playback
-    const offset = this.pauseTime % this.bgmBuffer.duration;
-    this.bgmSource.start(0, offset);
-    this.startTime = this.audioContext.currentTime - offset;
+    // Continue from paused playhead at nearest bar index.
+    this.currentBar = Math.floor(this.playheadSeconds / this.barDuration);
+    this.nextBarTime = this.audioContext.currentTime + 0.05;
+    this.startTime = this.audioContext.currentTime - this.playheadSeconds;
     this.isPlaying = true;
+    this._startScheduler();
 
-    console.log('BGM playing');
+    console.log('Procedural BGM playing');
   }
 
   /**
    * Pause BGM
    */
   pause() {
-    if (!this.isPlaying || !this.bgmSource) return;
+    if (!this.isPlaying) return;
 
-    const elapsed = this.audioContext.currentTime - this.startTime;
-    this.pauseTime = elapsed;
-    this.bgmSource.stop();
-    this.bgmSource = null;
+    this.playheadSeconds = Math.max(0, this.audioContext.currentTime - this.startTime);
+    this._stopScheduler();
+    this._stopActiveSources();
     this.isPlaying = false;
 
-    console.log('BGM paused');
+    console.log('Procedural BGM paused');
   }
 
   /**
    * Stop BGM
    */
   stop() {
-    if (this.bgmSource) {
-      this.bgmSource.stop();
-      this.bgmSource = null;
-    }
+    this._stopScheduler();
+    this._stopActiveSources();
     this.isPlaying = false;
-    this.pauseTime = 0;
+    this.playheadSeconds = 0;
+    this.currentBar = 0;
+    this.nextBarTime = 0;
     this.startTime = 0;
 
-    console.log('BGM stopped');
+    console.log('Procedural BGM stopped');
   }
 
   /**
@@ -133,8 +147,8 @@ export class AudioSystem {
    */
   setVolume(value) {
     this.volume = Math.max(0, Math.min(1, value));
-    if (this.gainNode) {
-      this.gainNode.gain.value = this.volume;
+    if (this.masterGain) {
+      this.masterGain.gain.value = this.volume;
     }
   }
 
@@ -151,12 +165,12 @@ export class AudioSystem {
    * @param {number} duration - Fade duration in seconds
    */
   fadeIn(duration = 2.0) {
-    if (!this.gainNode) return;
+    if (!this.masterGain) return;
 
     const currentTime = this.audioContext.currentTime;
-    this.gainNode.gain.cancelScheduledValues(currentTime);
-    this.gainNode.gain.setValueAtTime(0, currentTime);
-    this.gainNode.gain.linearRampToValueAtTime(this.volume, currentTime + duration);
+    this.masterGain.gain.cancelScheduledValues(currentTime);
+    this.masterGain.gain.setValueAtTime(0, currentTime);
+    this.masterGain.gain.linearRampToValueAtTime(this.volume, currentTime + duration);
 
     console.log(`BGM fading in (${duration}s)`);
   }
@@ -166,16 +180,16 @@ export class AudioSystem {
    * @param {number} duration - Fade duration in seconds
    */
   fadeOut(duration = 2.0) {
-    if (!this.gainNode) return;
+    if (!this.masterGain) return;
 
     const currentTime = this.audioContext.currentTime;
-    this.gainNode.gain.cancelScheduledValues(currentTime);
-    this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, currentTime);
-    this.gainNode.gain.linearRampToValueAtTime(0, currentTime + duration);
+    this.masterGain.gain.cancelScheduledValues(currentTime);
+    this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, currentTime);
+    this.masterGain.gain.linearRampToValueAtTime(0, currentTime + duration);
 
     setTimeout(() => {
       this.pause();
-      this.gainNode.gain.value = this.volume;
+      this.masterGain.gain.value = this.volume;
     }, duration * 1000);
 
     console.log(`BGM fading out (${duration}s)`);
@@ -187,9 +201,6 @@ export class AudioSystem {
    */
   setLoop(enabled) {
     this.loop = enabled;
-    if (this.bgmSource) {
-      this.bgmSource.loop = enabled;
-    }
   }
 
   /**
@@ -202,9 +213,9 @@ export class AudioSystem {
       volume: this.volume,
       loop: this.loop,
       currentTime: this.isPlaying
-        ? this.audioContext.currentTime - this.startTime
-        : this.pauseTime,
-      duration: this.bgmBuffer ? this.bgmBuffer.duration : 0
+        ? Math.max(0, this.audioContext.currentTime - this.startTime)
+        : this.playheadSeconds,
+      duration: this.totalBars > 0 ? this.totalBars * this.barDuration : 0
     };
   }
 
@@ -217,7 +228,168 @@ export class AudioSystem {
       this.audioContext.close();
       this.audioContext = null;
     }
-    this.bgmBuffer = null;
-    this.gainNode = null;
+    this.masterGain = null;
+    this.instrumentGains.clear();
+    this.instrumentBuffers.clear();
+    this.activeSources.clear();
+    this.structure = null;
+  }
+
+  _resolveBasePath(url) {
+    if (!url) return this.basePath;
+    if (url.endsWith('.wav') || url.endsWith('.json')) {
+      return url.slice(0, url.lastIndexOf('/'));
+    }
+    return url.endsWith('/') ? url.slice(0, -1) : url;
+  }
+
+  async _loadStructure(url) {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to load structure: ${url}`);
+    }
+
+    this.structure = await response.json();
+    const bpm = Number(this.structure?.bpm || 150);
+    const beatsPerBar = Number(this.structure?.beats_per_bar || 8);
+    this.barDuration = (60 / bpm) * beatsPerBar;
+    this.totalBars = Number(this.structure?.total_bars || 0);
+  }
+
+  async _loadInstrumentBuffers(instrumentsPath) {
+    const jobs = [];
+
+    for (const instrument of this.instruments) {
+      for (const variant of this.variants) {
+        const key = `${instrument}_${variant}`;
+        const file = `${instrumentsPath}/${key}.wav`;
+        jobs.push(this._loadSample(file).then((buffer) => {
+          this.instrumentBuffers.set(key, buffer);
+        }));
+      }
+    }
+
+    await Promise.all(jobs);
+  }
+
+  async _loadSample(url) {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch sample: ${url}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    return this.audioContext.decodeAudioData(arrayBuffer);
+  }
+
+  _defaultInstrumentGain(instrument) {
+    switch (instrument) {
+      case 'drums': return 0.75;
+      case 'bass': return 0.68;
+      case 'pad': return 0.5;
+      case 'harmony': return 0.52;
+      case 'arpeggio': return 0.48;
+      case 'melody':
+      default: return 0.62;
+    }
+  }
+
+  _startScheduler() {
+    if (this.schedulerId) return;
+    this.schedulerId = setInterval(() => this._scheduleAhead(), 100);
+    this._scheduleAhead();
+  }
+
+  _stopScheduler() {
+    if (!this.schedulerId) return;
+    clearInterval(this.schedulerId);
+    this.schedulerId = null;
+  }
+
+  _scheduleAhead() {
+    if (!this.isPlaying || !this.audioContext) return;
+    const scheduleAheadSeconds = 0.45;
+    while (this.nextBarTime < this.audioContext.currentTime + scheduleAheadSeconds) {
+      const scheduled = this._scheduleBar(this.currentBar, this.nextBarTime);
+      if (!scheduled) break;
+      this.currentBar += 1;
+      this.nextBarTime += this.barDuration;
+    }
+  }
+
+  _scheduleBar(barIndex, startTime) {
+    const normalizedBar = this.totalBars > 0 ? (barIndex % this.totalBars) : barIndex;
+
+    if (!this.loop && this.totalBars > 0 && barIndex >= this.totalBars) {
+      this.pause();
+      return false;
+    }
+
+    const barInfo = this.structure?.bars?.[normalizedBar] || {};
+    const sectionGain = Number(barInfo.gain ?? 1);
+    const selected = this._selectBarInstruments(barInfo);
+
+    for (const instrument of selected) {
+      const variant = this._pickVariant(barInfo, instrument);
+      const key = `${instrument}_${variant}`;
+      const buffer = this.instrumentBuffers.get(key);
+      const gainNode = this.instrumentGains.get(instrument);
+      if (!buffer || !gainNode) continue;
+
+      const source = this.audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(gainNode);
+      source.start(startTime);
+      source.stop(startTime + this.barDuration);
+      source.onended = () => this.activeSources.delete(source);
+      this.activeSources.add(source);
+
+      // Section dynamics + small random movement for less repetitive playback.
+      const variation = 0.88 + (Math.random() * 0.24);
+      gainNode.gain.setValueAtTime(this._defaultInstrumentGain(instrument) * sectionGain * variation, startTime);
+    }
+
+    this.playheadSeconds = Math.max(0, normalizedBar * this.barDuration);
+    return true;
+  }
+
+  _selectBarInstruments(barInfo) {
+    const base = this.instruments.filter((inst) => barInfo?.instruments?.[inst]);
+    const fallback = base.length > 0 ? base : ['drums', 'bass', 'pad'];
+
+    // Keep groove stable with drums+bass most of the time.
+    const selected = new Set();
+    if (fallback.includes('drums') && Math.random() < 0.95) selected.add('drums');
+    if (fallback.includes('bass') && Math.random() < 0.92) selected.add('bass');
+
+    for (const instrument of fallback) {
+      if (selected.has(instrument)) continue;
+      if (Math.random() < 0.68) selected.add(instrument);
+    }
+
+    if (selected.size === 0) {
+      selected.add(fallback[Math.floor(Math.random() * fallback.length)]);
+    }
+
+    return Array.from(selected);
+  }
+
+  _pickVariant(barInfo, instrument) {
+    const original = barInfo?.instruments?.[instrument]?.variant;
+    // 65% follows score, 35% random variant for live-like variation.
+    if (original && Math.random() < 0.65) {
+      return original;
+    }
+    return this.variants[Math.floor(Math.random() * this.variants.length)];
+  }
+
+  _stopActiveSources() {
+    for (const source of this.activeSources) {
+      try {
+        source.stop();
+      } catch (error) {
+        // Source may already be stopped; ignore.
+      }
+    }
+    this.activeSources.clear();
   }
 }
