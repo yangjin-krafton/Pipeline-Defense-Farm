@@ -467,6 +467,7 @@ async function init() {
 
   // Initialize UI Controller
   const uiController = new UIController();
+  uiController.setGameLoop(gameLoop); // NEW: Connect UI to game systems
 
   // Initialize Scale Manager
   const scaleManager = new ScaleManager();
@@ -492,6 +493,24 @@ async function init() {
     requestAnimationFrame(updateCamera);
   };
   updateCamera();
+
+  // NEW: Update UI displays every frame
+  const updateUIDisplays = () => {
+    const economySystem = gameLoop.getEconomySystem();
+    const supplySystem = gameLoop.getSupplySystem();
+    const troubleSystem = gameLoop.getTroubleSystem();
+
+    uiController.updateNutritionDisplay(economySystem.getBalance());
+
+    const apState = supplySystem.getAPState();
+    uiController.updateAPDisplay(apState.current, apState.max);
+
+    const troubleState = troubleSystem.getState();
+    uiController.updateTroubleDisplay(troubleState.congestion, troubleState.acidity);
+
+    requestAnimationFrame(updateUIDisplays);
+  };
+  updateUIDisplays();
 
   // Setup tower slot click detection on pathCanvas
   setupTowerSlotClicks(pathCanvas, uiController, scaleManager, cameraController);

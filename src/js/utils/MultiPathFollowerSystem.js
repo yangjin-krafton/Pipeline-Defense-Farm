@@ -130,7 +130,7 @@ export class MultiPathFollowerSystem {
     };
 
     const obj = pathSystem.spawn(enhancedProperties, initialOffset);
-    console.log(`Spawned ${obj.emoji} on ${pathKey}, total objects: ${this.getObjects().length}`);
+    // Removed: console.log - too verbose
     return obj;
   }
 
@@ -168,7 +168,7 @@ export class MultiPathFollowerSystem {
           // Spawn on next path (reuse same object)
           this.pathSystems[nextPath].objects.push(obj);
 
-          console.log(`Food ${obj.emoji} moved from ${pathKey} (${lastPoint.x}, ${lastPoint.y}) to ${nextPath} at distance ${startDistance.toFixed(1)}`);
+          // Removed: console.log - too verbose
         } else {
           // Journey complete
           finalCompleted.push(obj);
@@ -177,7 +177,7 @@ export class MultiPathFollowerSystem {
             onComplete(obj);
           }
 
-          console.log(`Food ${obj.emoji} completed entire journey`);
+          // Removed: console.log - too verbose
         }
       }
     }

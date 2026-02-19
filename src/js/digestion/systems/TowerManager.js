@@ -1,0 +1,67 @@
+import { TOWER_DEFINITIONS } from '../data/towerDefinitions.js';
+import { EnzymeTower } from '../towers/EnzymeTower.js';
+import { AcidTower } from '../towers/AcidTower.js';
+import { BileTower } from '../towers/BileTower.js';
+
+const TOWER_CLASSES = {
+  enzyme: EnzymeTower,
+  acid: AcidTower,
+  bile: BileTower
+};
+
+export class TowerManager {
+  constructor() {
+    this.towers = [];
+    this.towersBySlot = new Map(); // slotKey -> tower
+  }
+
+  buildTower(towerType, slotData) {
+    const definition = TOWER_DEFINITIONS[towerType];
+    if (!definition) {
+      console.error(`Tower type ${towerType} not found`);
+      return null;
+    }
+
+    const TowerClass = TOWER_CLASSES[towerType];
+    const tower = new TowerClass(slotData, definition);
+
+    this.towers.push(tower);
+    const slotKey = `${slotData.x}_${slotData.y}`;
+    this.towersBySlot.set(slotKey, tower);
+
+    console.log(`Built ${towerType} tower at (${slotData.x}, ${slotData.y})`);
+    return tower;
+  }
+
+  getTowerAtSlot(slotData) {
+    const slotKey = `${slotData.x}_${slotData.y}`;
+    return this.towersBySlot.get(slotKey);
+  }
+
+  sellTower(tower) {
+    const index = this.towers.indexOf(tower);
+    if (index !== -1) {
+      this.towers.splice(index, 1);
+    }
+
+    // Remove from slot map
+    for (const [key, t] of this.towersBySlot.entries()) {
+      if (t === tower) {
+        this.towersBySlot.delete(key);
+        break;
+      }
+    }
+
+    return Math.floor(tower.definition.cost * 0.7); // 70% refund
+  }
+
+  update(dt, foodList, multiPathSystem, currentTime) {
+    for (const tower of this.towers) {
+      tower.update(dt, foodList, multiPathSystem, currentTime);
+    }
+  }
+
+  getAllTowers() {
+    return this.towers;
+  }
+}

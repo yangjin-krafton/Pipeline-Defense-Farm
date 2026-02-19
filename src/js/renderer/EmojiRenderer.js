@@ -77,6 +77,46 @@ export class EmojiRenderer {
   }
 
   /**
+   * Draw a tower at a position
+   * @param {BaseTower} tower - Tower object
+   * @param {number} scale - Canvas scale factor
+   */
+  drawTower(tower, scale) {
+    const ctx = this.ctx;
+    const x = tower.x * scale;
+    const y = tower.y * scale;
+    const size = tower.slotRadius * 2 * scale;
+
+    // Draw tower emoji
+    ctx.font = `${size}px Arial`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(tower.definition.emoji, x, y);
+
+    // Draw efficiency indicator (colored ring)
+    ctx.strokeStyle = this._getEfficiencyColor(tower.efficiencyState);
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x, y, size * 0.6, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  /**
+   * Get color for efficiency state
+   * @param {string} state - Efficiency state
+   * @returns {string} Color
+   */
+  _getEfficiencyColor(state) {
+    switch(state) {
+      case 'STARVED': return '#ff4444';
+      case 'NORMAL': return '#44ff44';
+      case 'BOOSTED': return '#ffff44';
+      case 'OVERCHARGED': return '#ff44ff';
+      default: return '#ffffff';
+    }
+  }
+
+  /**
    * Get the canvas scale factor
    * @returns {number} Scale factor
    */

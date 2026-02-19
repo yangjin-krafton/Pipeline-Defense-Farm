@@ -46,8 +46,7 @@ export class ScaleManager {
     // 스케일 적용
     this.gameScreen.style.transform = `scale(${scale})`;
 
-    // 디버그 로그
-    console.log(`Scale adjusted: ${scale.toFixed(3)} (${containerWidth}x${containerHeight})`);
+    // Removed: console.log - too verbose
   }
 
   /**

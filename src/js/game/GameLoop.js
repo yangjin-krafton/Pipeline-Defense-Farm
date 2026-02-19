@@ -4,6 +4,10 @@
 import { FOOD_SPAWN_MS, BASE_SPEED, PATHS, PATH_RENDER_SETTINGS } from '../config.js';
 import { FoodSpawner } from './FoodSpawner.js';
 import { hexToRgba } from '../utils/geometry.js';
+import { TowerManager } from '../digestion/systems/TowerManager.js';
+import { SupplySystem } from '../digestion/systems/SupplySystem.js';
+import { EconomySystem } from '../digestion/systems/EconomySystem.js';
+import { TroubleSystem } from '../digestion/systems/TroubleSystem.js';
 
 export class GameLoop {
   constructor(multiPathSystem, webglRenderer, emojiRenderer, staticMeshes, flowSystem, audioSystem) {
@@ -26,6 +30,14 @@ export class GameLoop {
     this.fpsTime = 0;
 
     this.isRunning = false;
+
+    // NEW: Initialize digestion systems
+    this.towerManager = new TowerManager();
+    this.supplySystem = new SupplySystem();
+    this.economySystem = new EconomySystem();
+    this.troubleSystem = new TroubleSystem();
+
+    this.currentTime = 0; // Track game time
   }
 
   /**
@@ -34,15 +46,27 @@ export class GameLoop {
    */
   update(dt) {
     this.time += dt;
+    this.currentTime += dt; // NEW: Track absolute time
 
     // Spawn food
     this.foodSpawner.update(dt);
 
+    // NEW: Update digestion systems BEFORE path movement
+    const foodList = this.multiPathSystem.getObjects();
+    this.towerManager.update(dt, foodList, this.multiPathSystem, this.currentTime);
+    this.supplySystem.update(dt);
+    this.troubleSystem.update(dt, foodList, this.multiPathSystem);
+
     // Update multi-path system
     this.multiPathSystem.update(dt, (completed) => {
-      this.score += 10;
+      // NEW: Earn nutrition based on zone
+      const reward = this.economySystem.earnFromFood(completed, completed.currentPath);
+      this.score += reward;
       this.scoreDirty = true;
     });
+
+    // NEW: Handle food deaths (HP <= 0)
+    this._processFoodDeaths();
 
     // Update FPS
     this.frameCount++;
@@ -112,6 +136,33 @@ export class GameLoop {
   }
 
   /**
+   * Process food deaths (HP <= 0)
+   */
+  _processFoodDeaths() {
+    const foodList = this.multiPathSystem.getObjects();
+
+    // Collect dead food
+    const deadFood = [];
+    for (const pathSystem of Object.values(this.multiPathSystem.pathSystems)) {
+      for (let i = pathSystem.objects.length - 1; i >= 0; i--) {
+        const food = pathSystem.objects[i];
+        if (food.hp <= 0) {
+          const removed = pathSystem.objects.splice(i, 1)[0];
+          deadFood.push(removed);
+        }
+      }
+    }
+
+    // Reward player
+    for (const food of deadFood) {
+      const reward = this.economySystem.earnFromFood(food, food.currentPath);
+      this.score += reward;
+      this.scoreDirty = true;
+      console.log(`Food ${food.emoji} digested in ${food.currentPath}`);
+    }
+  }
+
+  /**
    * Draw the emoji layer (Canvas 2D)
    */
   drawEmojis() {
@@ -121,9 +172,7 @@ export class GameLoop {
     const scale = renderer.getScale();
     const foods = this.multiPathSystem.getObjects();
 
-    if (this.frameCount % 60 === 0) {
-      console.log(`Drawing ${foods.length} food items`);
-    }
+    // Removed: console.log - too verbose
 
     for (let i = 0; i < foods.length; i += 1) {
       const f = foods[i];
@@ -133,6 +182,12 @@ export class GameLoop {
 
       const size = f.size * pulse;
       renderer.drawEmoji(f.emoji, p.x, p.y, size, scale);
+    }
+
+    // NEW: Draw towers
+    const towers = this.towerManager.getAllTowers();
+    for (const tower of towers) {
+      renderer.drawTower(tower, scale);
     }
 
     // Badge removed from UI, score tracking still active
@@ -220,5 +275,37 @@ export class GameLoop {
    */
   getFPS() {
     return this.fps;
+  }
+
+  /**
+   * Get tower manager
+   * @returns {TowerManager} Tower manager
+   */
+  getTowerManager() {
+    return this.towerManager;
+  }
+
+  /**
+   * Get supply system
+   * @returns {SupplySystem} Supply system
+   */
+  getSupplySystem() {
+    return this.supplySystem;
+  }
+
+  /**
+   * Get economy system
+   * @returns {EconomySystem} Economy system
+   */
+  getEconomySystem() {
+    return this.economySystem;
+  }
+
+  /**
+   * Get trouble system
+   * @returns {TroubleSystem} Trouble system
+   */
+  getTroubleSystem() {
+    return this.troubleSystem;
   }
 }

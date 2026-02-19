@@ -3,6 +3,8 @@
  * UI 인터랙션 관리 (Splatoon Style)
  */
 
+import { TOWER_DEFINITIONS } from '../digestion/data/towerDefinitions.js';
+
 export class UIController {
   constructor() {
     this.bottomSheet = null;
@@ -12,6 +14,9 @@ export class UIController {
     this.selectedTowerSlot = null;
     this.onSheetOpenCallback = null;
     this.onSheetCloseCallback = null;
+
+    this.gameLoop = null; // Will be set by main.js
+    this.selectedSlot = null;
 
     this.init();
   }
@@ -162,20 +167,63 @@ export class UIController {
    */
   selectTowerSlot(slotData) {
     this.selectedTowerSlot = slotData;
+    this.selectedSlot = slotData; // Store for supply actions
 
-    // Update tower info display
-    this.updateTowerInfo({
-      icon: '🧪',
-      name: '타워 설치',
-      level: 1,
-      description: `위치: (${Math.round(slotData.x)}, ${Math.round(slotData.y)})`,
-      stats: {
-        attack: { percentage: 0, value: '-' },
-        speed: { percentage: 0, value: '-' },
-        range: { percentage: 50, value: `${slotData.radius}` },
-        special: { percentage: 0, value: '-' }
-      }
-    });
+    if (!this.gameLoop) {
+      console.warn('GameLoop not set in UIController');
+      return;
+    }
+
+    const towerManager = this.gameLoop.getTowerManager();
+    const existingTower = towerManager.getTowerAtSlot(slotData);
+
+    if (existingTower) {
+      // Show existing tower info
+      this.updateTowerInfo({
+        icon: existingTower.definition.emoji,
+        name: existingTower.definition.name,
+        level: 1,
+        description: existingTower.definition.description,
+        stats: {
+          attack: {
+            percentage: (existingTower.damage / 30) * 100,
+            value: existingTower.damage.toFixed(1)
+          },
+          speed: {
+            percentage: (existingTower.attackSpeed / 2) * 100,
+            value: existingTower.attackSpeed.toFixed(2) + '초'
+          },
+          range: {
+            percentage: (existingTower.range / 120) * 100,
+            value: existingTower.range
+          },
+          special: {
+            percentage: existingTower.getEfficiencyMultiplier() * 50,
+            value: existingTower.efficiencyState
+          }
+        }
+      });
+
+      // Show supply button
+      this._setupSupplyButton(existingTower);
+    } else {
+      // Show tower placement options
+      this.updateTowerInfo({
+        icon: '🧪',
+        name: '타워 설치',
+        level: 1,
+        description: `위치: (${Math.round(slotData.x)}, ${Math.round(slotData.y)})`,
+        stats: {
+          attack: { percentage: 0, value: '-' },
+          speed: { percentage: 0, value: '-' },
+          range: { percentage: 50, value: `${slotData.radius}` },
+          special: { percentage: 0, value: '-' }
+        }
+      });
+
+      // Setup tower build buttons
+      this._setupTowerBuildButtons();
+    }
 
     this.openSheet();
   }
@@ -277,6 +325,114 @@ export class UIController {
           statNumbers[index].textContent = towerData.stats[key].value;
         }
       });
+    }
+  }
+
+  /**
+   * Set game loop reference
+   */
+  setGameLoop(gameLoop) {
+    this.gameLoop = gameLoop;
+  }
+
+  /**
+   * Setup supply button for existing tower
+   */
+  _setupSupplyButton(tower) {
+    // Add supply button to action buttons section
+    const actionButtons = document.querySelector('.action-buttons');
+    if (!actionButtons) return;
+
+    // Check if supply button already exists
+    let supplyBtn = document.getElementById('supplyBtn');
+    if (!supplyBtn) {
+      supplyBtn = document.createElement('button');
+      supplyBtn.id = 'supplyBtn';
+      supplyBtn.className = 'action-btn primary';
+      actionButtons.insertBefore(supplyBtn, actionButtons.firstChild);
+    }
+
+    const supplySystem = this.gameLoop.getSupplySystem();
+    const apState = supplySystem.getAPState();
+    supplyBtn.textContent = `⚡ 영양 보급 (AP: ${apState.current}/${apState.max})`;
+    supplyBtn.disabled = !supplySystem.canSupply();
+
+    supplyBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (supplySystem.supplyTower(tower, this.gameLoop.currentTime)) {
+        console.log('Tower supplied successfully');
+        // Refresh display
+        this.selectTowerSlot(this.selectedSlot);
+      }
+    };
+  }
+
+  /**
+   * Setup tower build buttons
+   */
+  _setupTowerBuildButtons() {
+    const towerGrid = document.querySelector('.tower-grid');
+    if (!towerGrid) return;
+
+    const towerCards = towerGrid.querySelectorAll('.tower-card');
+    const economySystem = this.gameLoop.getEconomySystem();
+    const towerManager = this.gameLoop.getTowerManager();
+
+    // Define which tower types the cards represent (based on HTML order)
+    const towerTypes = ['enzyme', 'acid', 'bile'];
+
+    towerCards.forEach((card, index) => {
+      if (index >= towerTypes.length) return;
+
+      const towerType = towerTypes[index];
+      const definition = TOWER_DEFINITIONS[towerType];
+
+      card.onclick = (e) => {
+        e.stopPropagation();
+
+        if (!economySystem.canAfford(definition.cost)) {
+          console.warn('Not enough nutrition to build tower');
+          return;
+        }
+
+        if (economySystem.spend(definition.cost)) {
+          towerManager.buildTower(towerType, this.selectedSlot);
+          console.log(`Built ${towerType} tower`);
+          this.closeSheet();
+          // Update nutrition display
+          this.updateNutritionDisplay(economySystem.getBalance());
+        }
+      };
+    });
+  }
+
+  /**
+   * Update nutrition display in resource bar
+   */
+  updateNutritionDisplay(balance) {
+    const resources = document.querySelectorAll('.resource');
+    if (resources[0]) {
+      resources[0].textContent = `🍎 ${balance}`;
+    }
+  }
+
+  /**
+   * Update AP display in resource bar
+   */
+  updateAPDisplay(current, max) {
+    const resources = document.querySelectorAll('.resource');
+    if (resources[1]) {
+      resources[1].textContent = `⚡ ${current}/${max}`;
+    }
+  }
+
+  /**
+   * Update trouble display in resource bar
+   */
+  updateTroubleDisplay(congestion, acidity) {
+    const resources = document.querySelectorAll('.resource');
+    if (resources[2]) {
+      resources[2].textContent = `🦠 ${Math.round(congestion)}/${Math.round(acidity)}`;
     }
   }
 }

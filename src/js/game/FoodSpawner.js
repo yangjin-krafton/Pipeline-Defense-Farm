@@ -49,7 +49,7 @@ export class FoodSpawner {
       return;
     }
 
-    console.log(`FoodSpawner: Spawning ${food.emoji} (${food.id}) on ${pathKey}`);
+    // Removed: console.log - too verbose
 
     this.multiPathSystem.spawn(pathKey, {
       ...food,
