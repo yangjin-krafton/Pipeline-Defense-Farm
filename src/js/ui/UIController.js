@@ -23,9 +23,23 @@ export class UIController {
   init() {
     this.bottomSheet = document.getElementById('bottom-sheet');
     this.sheetHandle = document.getElementById('sheetHandle');
+    this.towerDetailContent = document.getElementById('tower-detail');
+    this.towerBuildContent = document.getElementById('tower-build');
+
+    console.log('UIController init:', {
+      bottomSheet: !!this.bottomSheet,
+      sheetHandle: !!this.sheetHandle,
+      towerDetail: !!this.towerDetailContent,
+      towerBuild: !!this.towerBuildContent
+    });
 
     if (!this.bottomSheet || !this.sheetHandle) {
       console.warn('Bottom sheet elements not found');
+      return;
+    }
+
+    if (!this.towerDetailContent || !this.towerBuildContent) {
+      console.warn('Tower content elements not found');
       return;
     }
 
@@ -48,10 +62,19 @@ export class UIController {
     // 핸들 클릭
     this.sheetHandle.addEventListener('click', toggleSheet);
 
-    // 닫기 버튼
+    // 닫기 버튼 (타워 상세)
     const closeBtn = document.getElementById('closeBtn');
     if (closeBtn) {
       closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.closeSheet();
+      });
+    }
+
+    // 닫기 버튼 (타워 설치)
+    const closeBuildBtn = document.getElementById('closeBuildBtn');
+    if (closeBuildBtn) {
+      closeBuildBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.closeSheet();
       });
@@ -62,9 +85,7 @@ export class UIController {
     if (sellBtn) {
       sellBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        // TODO: 판매 로직 추가
-        console.log('Tower sold');
-        this.closeSheet();
+        this._handleSellTower();
       });
     }
 
@@ -144,6 +165,16 @@ export class UIController {
       this.bottomSheet.classList.remove('expanded');
       this.selectedTowerSlot = null;
 
+      // Remove supply button if it exists
+      const supplyBtn = document.getElementById('supplyBtn');
+      if (supplyBtn) {
+        supplyBtn.remove();
+      }
+
+      // Hide both content sections
+      if (this.towerDetailContent) this.towerDetailContent.classList.add('hidden');
+      if (this.towerBuildContent) this.towerBuildContent.classList.add('hidden');
+
       // Trigger callback when sheet closes
       if (this.onSheetCloseCallback) {
         this.onSheetCloseCallback();
@@ -167,51 +198,11 @@ export class UIController {
     const existingTower = towerManager.getTowerAtSlot(slotData);
 
     if (existingTower) {
-      // Show existing tower info
-      this.updateTowerInfo({
-        icon: existingTower.definition.emoji,
-        name: existingTower.definition.name,
-        level: 1,
-        description: existingTower.definition.description,
-        stats: {
-          attack: {
-            percentage: (existingTower.damage / 30) * 100,
-            value: existingTower.damage.toFixed(1)
-          },
-          speed: {
-            percentage: (existingTower.attackSpeed / 2) * 100,
-            value: existingTower.attackSpeed.toFixed(2) + '초'
-          },
-          range: {
-            percentage: (existingTower.range / 120) * 100,
-            value: existingTower.range
-          },
-          special: {
-            percentage: existingTower.getEfficiencyMultiplier() * 50,
-            value: existingTower.efficiencyState
-          }
-        }
-      });
-
-      // Show supply button
-      this._setupSupplyButton(existingTower);
+      // 타워가 설치되어 있음 - 상세 정보 표시
+      this._showTowerDetail(existingTower);
     } else {
-      // Show tower placement options
-      this.updateTowerInfo({
-        icon: '🧪',
-        name: '타워 설치',
-        level: 1,
-        description: `위치: (${Math.round(slotData.x)}, ${Math.round(slotData.y)})`,
-        stats: {
-          attack: { percentage: 0, value: '-' },
-          speed: { percentage: 0, value: '-' },
-          range: { percentage: 50, value: `${slotData.radius}` },
-          special: { percentage: 0, value: '-' }
-        }
-      });
-
-      // Setup tower build buttons
-      this._setupTowerBuildButtons();
+      // 빈 슬롯 - 타워 설치 UI 표시
+      this._showTowerBuild();
     }
 
     this.openSheet();
@@ -284,26 +275,29 @@ export class UIController {
    */
 
   /**
-   * 타워 정보 업데이트
+   * 타워 정보 업데이트 (tower-detail 안에서만)
    */
   updateTowerInfo(towerData) {
+    const detailSection = document.getElementById('tower-detail');
+    if (!detailSection) return;
+
     // 타워 아이콘
-    const iconLarge = document.querySelector('.tower-icon-large');
+    const iconLarge = detailSection.querySelector('.tower-icon-large');
     if (iconLarge) iconLarge.textContent = towerData.icon;
 
     // 타워 이름
-    const titleElement = document.querySelector('.tower-title h2');
+    const titleElement = detailSection.querySelector('.tower-title h2');
     if (titleElement) titleElement.textContent = towerData.name;
 
     // 타워 서브타이틀
-    const subtitleElement = document.querySelector('.tower-subtitle');
+    const subtitleElement = detailSection.querySelector('.tower-subtitle');
     if (subtitleElement) {
       subtitleElement.textContent = `Lv ${towerData.level} • ${towerData.description}`;
     }
 
     // 스탯 업데이트
-    const statFills = document.querySelectorAll('.stat-fill');
-    const statNumbers = document.querySelectorAll('.stat-number');
+    const statFills = detailSection.querySelectorAll('.stat-fill');
+    const statNumbers = detailSection.querySelectorAll('.stat-number');
 
     if (towerData.stats) {
       Object.keys(towerData.stats).forEach((key, index) => {
@@ -328,8 +322,8 @@ export class UIController {
    * Setup supply button for existing tower
    */
   _setupSupplyButton(tower) {
-    // Add supply button to action buttons section
-    const actionButtons = document.querySelector('.action-buttons');
+    // Add supply button to action buttons section (in tower-detail)
+    const actionButtons = document.querySelector('#tower-detail .action-buttons');
     if (!actionButtons) return;
 
     // Check if supply button already exists
@@ -357,27 +351,120 @@ export class UIController {
   }
 
   /**
+   * Show tower detail UI (for existing tower)
+   */
+  _showTowerDetail(tower) {
+    console.log('UIController: Showing tower detail');
+    // Hide build UI, show detail UI
+    if (this.towerBuildContent) {
+      this.towerBuildContent.classList.add('hidden');
+      console.log('UIController: Hidden tower-build');
+    }
+    if (this.towerDetailContent) {
+      this.towerDetailContent.classList.remove('hidden');
+      console.log('UIController: Showing tower-detail');
+    }
+
+    // Update tower info
+    this.updateTowerInfo({
+      icon: tower.definition.emoji,
+      name: tower.definition.name,
+      level: 1,
+      description: tower.definition.description,
+      stats: {
+        attack: {
+          percentage: (tower.damage / 30) * 100,
+          value: tower.damage.toFixed(1)
+        },
+        speed: {
+          percentage: (tower.attackSpeed / 2) * 100,
+          value: tower.attackSpeed.toFixed(2) + '초'
+        },
+        range: {
+          percentage: (tower.range / 200) * 100,
+          value: tower.range
+        },
+        special: {
+          percentage: tower.getEfficiencyMultiplier() * 50,
+          value: tower.efficiencyState
+        }
+      }
+    });
+
+    // Show supply button
+    this._setupSupplyButton(tower);
+  }
+
+  /**
+   * Show tower build UI (for empty slot)
+   */
+  _showTowerBuild() {
+    console.log('UIController: Showing tower build');
+    // Hide detail UI, show build UI
+    if (this.towerDetailContent) {
+      this.towerDetailContent.classList.add('hidden');
+      console.log('UIController: Hidden tower-detail');
+    }
+    if (this.towerBuildContent) {
+      this.towerBuildContent.classList.remove('hidden');
+      console.log('UIController: Showing tower-build');
+    }
+
+    // Setup tower build buttons
+    this._setupTowerBuildButtons();
+  }
+
+  /**
+   * Handle sell tower action
+   */
+  _handleSellTower() {
+    if (!this.gameLoop || !this.selectedSlot) return;
+
+    const towerManager = this.gameLoop.getTowerManager();
+    const tower = towerManager.getTowerAtSlot(this.selectedSlot);
+
+    if (!tower) {
+      console.warn('No tower to sell');
+      return;
+    }
+
+    const refund = towerManager.sellTower(tower);
+    const economySystem = this.gameLoop.getEconomySystem();
+    economySystem.earn(refund);
+
+    console.log(`Tower sold for ${refund} nutrition`);
+
+    // Update nutrition display
+    this.updateNutritionDisplay(economySystem.getBalance());
+
+    // Close sheet
+    this.closeSheet();
+  }
+
+  /**
    * Setup tower build buttons
    */
   _setupTowerBuildButtons() {
-    const towerGrid = document.querySelector('.tower-grid');
+    const towerGrid = document.querySelector('#tower-build .tower-grid');
     if (!towerGrid) return;
 
-    const towerCards = towerGrid.querySelectorAll('.tower-card');
+    const towerCards = towerGrid.querySelectorAll('.tower-card:not(.locked)');
     const economySystem = this.gameLoop.getEconomySystem();
     const towerManager = this.gameLoop.getTowerManager();
 
-    // Define which tower types the cards represent (based on HTML order)
-    const towerTypes = ['enzyme', 'acid', 'bile'];
+    towerCards.forEach((card) => {
+      const towerType = card.getAttribute('data-tower-type');
+      if (!towerType) return;
 
-    towerCards.forEach((card, index) => {
-      if (index >= towerTypes.length) return;
-
-      const towerType = towerTypes[index];
       const definition = TOWER_DEFINITIONS[towerType];
 
       card.onclick = (e) => {
         e.stopPropagation();
+
+        if (card.classList.contains('locked')) {
+          console.warn('Tower type is locked');
+          return;
+        }
 
         if (!economySystem.canAfford(definition.cost)) {
           console.warn('Not enough nutrition to build tower');

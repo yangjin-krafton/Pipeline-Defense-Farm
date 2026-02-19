@@ -53,6 +53,10 @@
   pointer-events: auto; /* Enable clicks on content */
 }
 
+.sheet-content.hidden {
+  display: none;
+}
+
 .sheet-content::-webkit-scrollbar {
   width: 10px;
 }
