@@ -397,7 +397,6 @@ export class UIController {
 
         if (economySystem.spend(definition.cost)) {
           towerManager.buildTower(towerType, this.selectedSlot);
-          console.log(`Built ${towerType} tower`);
           this.closeSheet();
           // Update nutrition display
           this.updateNutritionDisplay(economySystem.getBalance());

@@ -129,8 +129,6 @@ export class AudioSystem {
     this.startTime = this.audioContext.currentTime - this.playheadSeconds;
     this.isPlaying = true;
     this._startScheduler();
-
-    console.log('Procedural BGM playing');
   }
 
   /**
@@ -143,8 +141,6 @@ export class AudioSystem {
     this._stopScheduler();
     this._stopActiveSources();
     this.isPlaying = false;
-
-    console.log('Procedural BGM paused');
   }
 
   /**
@@ -203,8 +199,6 @@ export class AudioSystem {
     this.masterGain.gain.cancelScheduledValues(currentTime);
     this.masterGain.gain.setValueAtTime(0, currentTime);
     this.masterGain.gain.linearRampToValueAtTime(this.volume, currentTime + duration);
-
-    console.log(`BGM fading in (${duration}s)`);
   }
 
   /**
@@ -223,8 +217,6 @@ export class AudioSystem {
       this.pause();
       this.masterGain.gain.value = this.volume;
     }, duration * 1000);
-
-    console.log(`BGM fading out (${duration}s)`);
   }
 
   /**

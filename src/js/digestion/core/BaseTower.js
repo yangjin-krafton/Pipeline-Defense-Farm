@@ -91,7 +91,7 @@ export class BaseTower {
 
     food.hp -= damage;
 
-    console.log(`Tower ${this.type} dealt ${damage.toFixed(1)} damage to ${food.emoji}`);
+    // Removed: console.log - too verbose (logged on death in GameLoop)
   }
 
   receiveSupply(amount, currentTime) {

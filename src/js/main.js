@@ -390,16 +390,12 @@ function setupTowerSlotClicks(pathCanvas, uiController, scaleManager, cameraCont
       return;
     }
 
-    console.log('Canvas clicked');
-
     // Get canvas rect
     const rect = pathCanvas.getBoundingClientRect();
 
     // Get click position relative to canvas
     const canvasX = e.clientX - rect.left;
     const canvasY = e.clientY - rect.top;
-
-    console.log('Canvas relative:', canvasX, canvasY);
 
     // Get canvas CSS dimensions
     const cssW = rect.width;
@@ -409,12 +405,9 @@ function setupTowerSlotClicks(pathCanvas, uiController, scaleManager, cameraCont
     const virtualX = (canvasX / cssW) * VIRTUAL_W;
     const virtualY = (canvasY / cssH) * VIRTUAL_H;
 
-    console.log('Virtual coords:', virtualX, virtualY);
-
     // Check if click is on a tower slot
     const slot = checkTowerSlotClick(virtualX, virtualY);
     if (slot) {
-      console.log('Tower slot clicked!', slot);
       uiController.selectTowerSlot(slot);
     }
   });

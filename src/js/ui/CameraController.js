@@ -21,9 +21,6 @@ export class CameraController {
   focusOnTowerSlot(slot) {
     if (!slot) return;
 
-    console.log('=== Focus Debug ===');
-    console.log('Tower virtual coords:', { x: slot.x, y: slot.y });
-
     // Game area dimensions (fixed design px)
     const gameAreaWidth = 640;
     const gameAreaHeight = 1063;
@@ -37,45 +34,36 @@ export class CameraController {
       gameAreaWidth / canvasVirtualWidth,
       gameAreaHeight / canvasVirtualHeight
     );
-    console.log('Canvas scale:', canvasScale.toFixed(3));
 
     // Canvas CSS dimensions
     const canvasCssWidth = Math.round(canvasVirtualWidth * canvasScale);   // 598
     const canvasCssHeight = Math.round(canvasVirtualHeight * canvasScale); // 1063
-    console.log('Canvas CSS size:', { width: canvasCssWidth, height: canvasCssHeight });
 
     // Canvas offset within game area (centered horizontally)
     const canvasOffsetX = (gameAreaWidth - canvasCssWidth) / 2;  // 21
     const canvasOffsetY = (gameAreaHeight - canvasCssHeight) / 2; // 0
-    console.log('Canvas offset:', { x: canvasOffsetX, y: canvasOffsetY });
 
     // Tower position on canvas (CSS px)
     const towerCanvasX = slot.x * canvasScale;
     const towerCanvasY = slot.y * canvasScale;
-    console.log('Tower on canvas:', { x: towerCanvasX.toFixed(1), y: towerCanvasY.toFixed(1) });
 
     // Tower position in game area (CSS px)
     const towerGameAreaX = canvasOffsetX + towerCanvasX;
     const towerGameAreaY = canvasOffsetY + towerCanvasY;
-    console.log('Tower in game area:', { x: towerGameAreaX.toFixed(1), y: towerGameAreaY.toFixed(1) });
 
     // Bottom sheet height when expanded (design px)
     const bottomSheetHeight = 600;
 
     // Visible area when sheet is open
     const visibleAreaHeight = gameAreaHeight - bottomSheetHeight; // 463
-    console.log('Visible area height:', visibleAreaHeight);
 
     // Target center of visible area
     const targetCenterX = gameAreaWidth / 2;      // 320
     const targetCenterY = visibleAreaHeight / 2;  // 231.5
-    console.log('Target center:', { x: targetCenterX, y: targetCenterY });
 
     // Required offset to move tower to target center
     const offsetX = targetCenterX - towerGameAreaX;
     const offsetY = targetCenterY - towerGameAreaY;
-    console.log('Required offset:', { x: offsetX.toFixed(1), y: offsetY.toFixed(1) });
-    console.log('==================');
 
     // Set target offset
     this.targetOffset = { x: offsetX, y: offsetY };
