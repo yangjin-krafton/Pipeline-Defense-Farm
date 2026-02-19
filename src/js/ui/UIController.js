@@ -9,7 +9,6 @@ export class UIController {
   constructor() {
     this.bottomSheet = null;
     this.sheetHandle = null;
-    this.sheetHeader = null;
     this.isExpanded = false;
     this.selectedTowerSlot = null;
     this.onSheetOpenCallback = null;
@@ -24,7 +23,6 @@ export class UIController {
   init() {
     this.bottomSheet = document.getElementById('bottom-sheet');
     this.sheetHandle = document.getElementById('sheetHandle');
-    this.sheetHeader = document.getElementById('sheetHeader');
 
     if (!this.bottomSheet || !this.sheetHandle) {
       console.warn('Bottom sheet elements not found');
@@ -40,22 +38,15 @@ export class UIController {
    */
   setupBottomSheet() {
     const toggleSheet = () => {
-      this.isExpanded = !this.isExpanded;
-
       if (this.isExpanded) {
-        this.bottomSheet.classList.add('expanded');
+        this.closeSheet();
       } else {
-        this.bottomSheet.classList.remove('expanded');
+        this.openSheet();
       }
     };
 
     // 핸들 클릭
     this.sheetHandle.addEventListener('click', toggleSheet);
-
-    // 헤더 클릭
-    if (this.sheetHeader) {
-      this.sheetHeader.addEventListener('click', toggleSheet);
-    }
 
     // 닫기 버튼
     const closeBtn = document.getElementById('closeBtn');
@@ -104,12 +95,10 @@ export class UIController {
       if (Math.abs(deltaY) > 50) {
         if (deltaY > 0 && this.isExpanded) {
           // 아래로 드래그 -> 닫기
-          this.isExpanded = false;
-          this.bottomSheet.classList.remove('expanded');
+          this.closeSheet();
         } else if (deltaY < 0 && !this.isExpanded) {
           // 위로 드래그 -> 열기
-          this.isExpanded = true;
-          this.bottomSheet.classList.add('expanded');
+          this.openSheet();
         }
         isDragging = false;
       }

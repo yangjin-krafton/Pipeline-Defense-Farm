@@ -14,7 +14,7 @@ export class EconomySystem {
       return false;
     }
     this.nutrition -= cost;
-    console.log(`Spent ${cost} nutrition, balance: ${this.nutrition}`);
+    //console.log(`Spent ${cost} nutrition, balance: ${this.nutrition}`);
     return true;
   }
 
@@ -24,7 +24,7 @@ export class EconomySystem {
     const finalReward = Math.round(baseReward * zoneMultiplier);
 
     this.nutrition += finalReward;
-    console.log(`Earned ${finalReward} nutrition from ${food.emoji} in ${pathKey}`);
+    //console.log(`Earned ${finalReward} nutrition from ${food.emoji} in ${pathKey}`);
     return finalReward;
   }
 
