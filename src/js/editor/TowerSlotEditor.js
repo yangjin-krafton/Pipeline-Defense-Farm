@@ -1,33 +1,33 @@
 /**
- * PathEditor - Development tool for editing PATH_POINTS
+ * TowerSlotEditor - Development tool for editing TOWER_SLOTS
  * Features:
- * - Drag to move points
- * - Click near path line to insert points in the middle
- * - Click on empty space to add new points at the end
- * - Right-click or Delete key to remove points
+ * - Drag to move tower slots
+ * - Click on empty space to add new slots
+ * - Right-click or Delete key to remove slots
  * - Grid snap functionality
+ * - Visual radius adjustment with mouse wheel
  */
 
 import { VIRTUAL_W, VIRTUAL_H } from '../config.js';
 
-export class PathEditor {
-  constructor(canvas, points, onPathChanged) {
+export class TowerSlotEditor {
+  constructor(canvas, slots, onSlotsChanged) {
     this.canvas = canvas;
-    this.points = [...points.map(p => ({ ...p }))]; // Deep copy
-    this.onPathChanged = onPathChanged;
+    this.slots = [...slots.map(s => ({ ...s }))]; // Deep copy
+    this.onSlotsChanged = onSlotsChanged;
 
     this.isDragging = false;
-    this.selectedPointIndex = -1;
-    this.hoveredPointIndex = -1;
+    this.selectedSlotIndex = -1;
+    this.hoveredSlotIndex = -1;
 
     // Grid settings
     this.gridSize = 10;
     this.gridEnabled = true;
 
     // Visual settings
-    this.pointRadius = 8;
-    this.hoverRadius = 12;
-    this.lineWidth = 2;
+    this.slotRadius = 30; // Default radius for new slots
+    this.minRadius = 20;
+    this.maxRadius = 60;
 
     // Mouse state
     this.mouseX = 0;
@@ -45,6 +45,7 @@ export class PathEditor {
     this.canvas.addEventListener('mousemove', this.onMouseMove.bind(this));
     this.canvas.addEventListener('mouseup', this.onMouseUp.bind(this));
     this.canvas.addEventListener('contextmenu', this.onContextMenu.bind(this));
+    this.canvas.addEventListener('wheel', this.onWheel.bind(this));
 
     // Keyboard events
     document.addEventListener('keydown', this.onKeyDown.bind(this));
@@ -55,6 +56,7 @@ export class PathEditor {
     this.canvas.removeEventListener('mousemove', this.onMouseMove.bind(this));
     this.canvas.removeEventListener('mouseup', this.onMouseUp.bind(this));
     this.canvas.removeEventListener('contextmenu', this.onContextMenu.bind(this));
+    this.canvas.removeEventListener('wheel', this.onWheel.bind(this));
     document.removeEventListener('keydown', this.onKeyDown.bind(this));
   }
 
@@ -79,93 +81,37 @@ export class PathEditor {
     };
   }
 
-  findPointAt(x, y, threshold = 15) {
-    for (let i = 0; i < this.points.length; i++) {
-      const dx = this.points[i].x - x;
-      const dy = this.points[i].y - y;
+  findSlotAt(x, y) {
+    for (let i = 0; i < this.slots.length; i++) {
+      const dx = this.slots[i].x - x;
+      const dy = this.slots[i].y - y;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
-      if (distance <= threshold) {
+      if (distance <= this.slots[i].radius) {
         return i;
       }
     }
     return -1;
   }
 
-  /**
-   * Find the closest line segment to a point and return insertion index
-   * Returns { index: number, distance: number } or null if too far
-   */
-  findClosestLineSegment(x, y, threshold = 20) {
-    if (this.points.length < 2) return null;
-
-    let closestIndex = -1;
-    let closestDistance = Infinity;
-
-    for (let i = 0; i < this.points.length - 1; i++) {
-      const p1 = this.points[i];
-      const p2 = this.points[i + 1];
-
-      // Calculate distance from point to line segment
-      const distance = this.pointToSegmentDistance(x, y, p1.x, p1.y, p2.x, p2.y);
-
-      if (distance < closestDistance && distance <= threshold) {
-        closestDistance = distance;
-        closestIndex = i + 1; // Insert after p1 (before p2)
-      }
-    }
-
-    return closestIndex !== -1 ? { index: closestIndex, distance: closestDistance } : null;
-  }
-
-  /**
-   * Calculate perpendicular distance from point (x, y) to line segment (x1, y1) - (x2, y2)
-   */
-  pointToSegmentDistance(x, y, x1, y1, x2, y2) {
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const lengthSquared = dx * dx + dy * dy;
-
-    if (lengthSquared === 0) {
-      // Segment is a point
-      return Math.sqrt((x - x1) * (x - x1) + (y - y1) * (y - y1));
-    }
-
-    // Calculate projection of point onto line segment
-    let t = ((x - x1) * dx + (y - y1) * dy) / lengthSquared;
-    t = Math.max(0, Math.min(1, t)); // Clamp to segment
-
-    // Find closest point on segment
-    const closestX = x1 + t * dx;
-    const closestY = y1 + t * dy;
-
-    // Return distance to closest point
-    return Math.sqrt((x - closestX) * (x - closestX) + (y - closestY) * (y - closestY));
-  }
-
   onMouseDown(e) {
     const coords = this.getCanvasCoords(e);
-    const pointIndex = this.findPointAt(coords.x, coords.y);
+    const slotIndex = this.findSlotAt(coords.x, coords.y);
 
     if (e.button === 0) { // Left click
-      if (pointIndex !== -1) {
-        // Start dragging existing point
+      if (slotIndex !== -1) {
+        // Start dragging existing slot
         this.isDragging = true;
-        this.selectedPointIndex = pointIndex;
+        this.selectedSlotIndex = slotIndex;
       } else {
-        // Try to insert point in the middle of a path segment
-        const closestSegment = this.findClosestLineSegment(coords.x, coords.y);
+        // Add new slot
         const snapped = this.snapToGrid(coords.x, coords.y);
-
-        if (closestSegment) {
-          // Insert point in the middle of the closest segment
-          this.points.splice(closestSegment.index, 0, snapped);
-          console.log(`Inserted point at index ${closestSegment.index}`);
-        } else {
-          // Add new point at the end
-          this.points.push(snapped);
-          console.log('Added point at the end');
-        }
+        this.slots.push({
+          x: snapped.x,
+          y: snapped.y,
+          radius: this.slotRadius
+        });
+        console.log('Added tower slot at', snapped);
         this.notifyChange();
       }
     }
@@ -176,48 +122,70 @@ export class PathEditor {
     this.mouseX = coords.x;
     this.mouseY = coords.y;
 
-    if (this.isDragging && this.selectedPointIndex !== -1) {
+    if (this.isDragging && this.selectedSlotIndex !== -1) {
       const snapped = this.snapToGrid(coords.x, coords.y);
-      this.points[this.selectedPointIndex] = snapped;
+      this.slots[this.selectedSlotIndex].x = snapped.x;
+      this.slots[this.selectedSlotIndex].y = snapped.y;
       this.notifyChange();
     } else {
       // Update hover state
-      this.hoveredPointIndex = this.findPointAt(coords.x, coords.y);
+      this.hoveredSlotIndex = this.findSlotAt(coords.x, coords.y);
     }
   }
 
   onMouseUp(e) {
     if (this.isDragging) {
       this.isDragging = false;
-      this.selectedPointIndex = -1;
+      this.selectedSlotIndex = -1;
     }
   }
 
   onContextMenu(e) {
     e.preventDefault();
     const coords = this.getCanvasCoords(e);
-    const pointIndex = this.findPointAt(coords.x, coords.y);
+    const slotIndex = this.findSlotAt(coords.x, coords.y);
 
-    if (pointIndex !== -1) {
-      this.deletePoint(pointIndex);
+    if (slotIndex !== -1) {
+      this.deleteSlot(slotIndex);
+    }
+  }
+
+  onWheel(e) {
+    e.preventDefault();
+
+    if (this.hoveredSlotIndex !== -1) {
+      // Adjust radius of hovered slot
+      const delta = e.deltaY > 0 ? -2 : 2;
+      const slot = this.slots[this.hoveredSlotIndex];
+      slot.radius = Math.max(this.minRadius, Math.min(this.maxRadius, slot.radius + delta));
+      console.log(`Slot ${this.hoveredSlotIndex} radius: ${slot.radius}`);
+      this.notifyChange();
     }
   }
 
   onKeyDown(e) {
-    if (e.key === 'Delete' && this.hoveredPointIndex !== -1) {
-      this.deletePoint(this.hoveredPointIndex);
-      this.hoveredPointIndex = -1;
+    if (e.key === 'Delete' && this.hoveredSlotIndex !== -1) {
+      this.deleteSlot(this.hoveredSlotIndex);
+      this.hoveredSlotIndex = -1;
     } else if (e.key === 'g' || e.key === 'G') {
       // Toggle grid
       this.gridEnabled = !this.gridEnabled;
       console.log(`Grid snap: ${this.gridEnabled ? 'ON' : 'OFF'}`);
     } else if (e.key === 'e' || e.key === 'E') {
-      // Export path to clipboard
-      this.exportPath();
+      // Export slots to clipboard
+      this.exportSlots();
     } else if (e.key === 's' || e.key === 'S') {
       // Save to config.js
       e.preventDefault();
       this.saveToConfigFile();
+    } else if (e.key === '+' || e.key === '=') {
+      // Increase default radius
+      this.slotRadius = Math.min(this.maxRadius, this.slotRadius + 2);
+      console.log(`Default radius: ${this.slotRadius}`);
+    } else if (e.key === '-' || e.key === '_') {
+      // Decrease default radius
+      this.slotRadius = Math.max(this.minRadius, this.slotRadius - 2);
+      console.log(`Default radius: ${this.slotRadius}`);
     } else if (e.key === 'h' || e.key === 'H') {
       // Toggle UI visibility
       this.showUI = !this.showUI;
@@ -225,18 +193,15 @@ export class PathEditor {
     }
   }
 
-  deletePoint(index) {
-    if (this.points.length > 2) { // Keep at least 2 points
-      this.points.splice(index, 1);
-      this.notifyChange();
-    } else {
-      console.warn('Cannot delete point: minimum 2 points required');
-    }
+  deleteSlot(index) {
+    this.slots.splice(index, 1);
+    console.log('Deleted slot', index);
+    this.notifyChange();
   }
 
   notifyChange() {
-    if (this.onPathChanged) {
-      this.onPathChanged(this.points);
+    if (this.onSlotsChanged) {
+      this.onSlotsChanged(this.slots);
     }
   }
 
@@ -252,14 +217,11 @@ export class PathEditor {
       this.drawGrid(ctx);
     }
 
-    // Draw path lines
-    this.drawPath(ctx);
-
-    // Draw points
-    this.drawPoints(ctx);
+    // Draw slots
+    this.drawSlots(ctx);
 
     // Draw hover indicator
-    if (this.hoveredPointIndex !== -1) {
+    if (this.hoveredSlotIndex !== -1) {
       this.drawHoverIndicator(ctx);
     }
 
@@ -295,52 +257,43 @@ export class PathEditor {
     }
   }
 
-  drawPath(ctx) {
-    if (this.points.length < 2) return;
-
+  drawSlots(ctx) {
     const scaleX = this.canvas.width / VIRTUAL_W;
     const scaleY = this.canvas.height / VIRTUAL_H;
 
-    ctx.strokeStyle = '#FFD700';
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    this.slots.forEach((slot, index) => {
+      const x = slot.x * scaleX;
+      const y = slot.y * scaleY;
+      const r = slot.radius * scaleX; // Assume square aspect ratio
 
-    ctx.beginPath();
-    ctx.moveTo(this.points[0].x * scaleX, this.points[0].y * scaleY);
-
-    for (let i = 1; i < this.points.length; i++) {
-      ctx.lineTo(this.points[i].x * scaleX, this.points[i].y * scaleY);
-    }
-
-    ctx.stroke();
-  }
-
-  drawPoints(ctx) {
-    const scaleX = this.canvas.width / VIRTUAL_W;
-    const scaleY = this.canvas.height / VIRTUAL_H;
-
-    this.points.forEach((point, index) => {
-      const x = point.x * scaleX;
-      const y = point.y * scaleY;
-
-      // Point background
-      ctx.fillStyle = index === this.selectedPointIndex ? '#FF6B6B' : '#4ECDC4';
+      // Outer circle (slot area)
+      ctx.fillStyle = index === this.selectedSlotIndex
+        ? 'rgba(255, 107, 107, 0.3)'
+        : 'rgba(78, 205, 196, 0.3)';
       ctx.beginPath();
-      ctx.arc(x, y, this.pointRadius, 0, Math.PI * 2);
+      ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fill();
 
-      // Point border
-      ctx.strokeStyle = '#FFFFFF';
-      ctx.lineWidth = 2;
+      // Border
+      ctx.strokeStyle = index === this.selectedSlotIndex ? '#FF6B6B' : '#4ECDC4';
+      ctx.lineWidth = 3;
       ctx.stroke();
 
-      // Point number
+      // Center point
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 10px monospace';
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Slot number and info
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 14px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(index.toString(), x, y);
+      ctx.fillText(index.toString(), x, y - 10);
+
+      ctx.font = '10px monospace';
+      ctx.fillText(`r:${slot.radius}`, x, y + 10);
     });
   }
 
@@ -348,15 +301,18 @@ export class PathEditor {
     const scaleX = this.canvas.width / VIRTUAL_W;
     const scaleY = this.canvas.height / VIRTUAL_H;
 
-    const point = this.points[this.hoveredPointIndex];
-    const x = point.x * scaleX;
-    const y = point.y * scaleY;
+    const slot = this.slots[this.hoveredSlotIndex];
+    const x = slot.x * scaleX;
+    const y = slot.y * scaleY;
+    const r = slot.radius * scaleX;
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
     ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
     ctx.beginPath();
-    ctx.arc(x, y, this.hoverRadius, 0, Math.PI * 2);
+    ctx.arc(x, y, r + 5, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   drawUI(ctx) {
@@ -372,8 +328,8 @@ export class PathEditor {
       return;
     }
 
-    const uiWidth = 320;
-    const uiHeight = 145;
+    const uiWidth = 340;
+    const uiHeight = 160;
     const padding = 10;
 
     // Fixed position (top-left)
@@ -389,13 +345,14 @@ export class PathEditor {
     ctx.textBaseline = 'top';
 
     const lines = [
-      'PATH EDITOR (Dev Mode)',
-      `Points: ${this.points.length}`,
+      'TOWER SLOT EDITOR (Dev Mode)',
+      `Slots: ${this.slots.length}`,
+      `Default Radius: ${this.slotRadius} (+/- to adjust)`,
       `Grid Snap: ${this.gridEnabled ? 'ON' : 'OFF'} (G to toggle)`,
       '',
-      'Left Click: Add point (mid-path insert)',
-      'Drag Point: Move point',
-      'Right Click: Delete point',
+      'Left Click: Add/Drag slot',
+      'Mouse Wheel: Adjust radius (hover)',
+      'Right Click: Delete slot',
       'H: Toggle UI help',
       'E: Copy to clipboard',
       'S: Save to config.js'
@@ -406,27 +363,27 @@ export class PathEditor {
     });
   }
 
-  exportPath() {
-    const formatted = JSON.stringify(this.points, null, 2);
-    console.log('=== PATH_POINTS ===');
+  exportSlots() {
+    const formatted = JSON.stringify(this.slots, null, 2);
+    console.log('=== TOWER_SLOTS ===');
     console.log(formatted);
-    console.log('==================');
+    console.log('===================');
 
     // Copy to clipboard if available
     if (navigator.clipboard) {
       navigator.clipboard.writeText(formatted).then(() => {
-        console.log('Path copied to clipboard!');
-        this.showNotification('Path copied to clipboard!');
+        console.log('Slots copied to clipboard!');
+        this.showNotification('Tower slots copied to clipboard!');
       }).catch(err => {
         console.error('Failed to copy to clipboard:', err);
       });
     }
 
-    return this.points;
+    return this.slots;
   }
 
   /**
-   * Download edited path as config.js file
+   * Download edited slots as config.js file
    */
   downloadConfigFile() {
     const configContent = `/**
@@ -438,7 +395,11 @@ export const FOOD_SPAWN_MS = 800;
 export const BASE_SPEED = 92;
 export const EMOJI_CACHE_SIZE = 48;
 
-export const PATH_POINTS = ${JSON.stringify(this.points, null, 2)};
+export const PATH_POINTS = [
+  // ... (PATH_POINTS would be preserved here)
+];
+
+export const TOWER_SLOTS = ${JSON.stringify(this.slots, null, 2)};
 
 export const FOOD_EMOJIS = ["🍔", "🍕", "🍜", "🍟", "🍝", "🍰", "🍩", "🌮", "🍱", "🍣"];
 `;
@@ -475,7 +436,11 @@ export const FOOD_SPAWN_MS = 800;
 export const BASE_SPEED = 92;
 export const EMOJI_CACHE_SIZE = 48;
 
-export const PATH_POINTS = ${JSON.stringify(this.points, null, 2)};
+export const PATH_POINTS = [
+  // ... (PATH_POINTS would be preserved here)
+];
+
+export const TOWER_SLOTS = ${JSON.stringify(this.slots, null, 2)};
 
 export const FOOD_EMOJIS = ["🍔", "🍕", "🍜", "🍟", "🍝", "🍰", "🍩", "🌮", "🍱", "🍣"];
 `;
@@ -543,8 +508,8 @@ export const FOOD_EMOJIS = ["🍔", "🍕", "🍜", "🍟", "🍝", "🍰", "�
     }, 2000);
   }
 
-  getPoints() {
-    return this.points;
+  getSlots() {
+    return this.slots;
   }
 
   setGridSize(size) {

@@ -15,6 +15,7 @@
 @import './components/status-bar.css';
 @import './components/tower-system.css';
 @import './components/bottom-sheet.css';
+@import './components/dev-menu.css';
 
 /* Global Reset & Base Layout */
 * {

@@ -146,4 +146,8 @@ export const PATH_POINTS = [
   }
 ];
 
+export const TOWER_SLOTS = [
+  { x: 100, y: 200, radius: 30 }
+];
+
 export const FOOD_EMOJIS = ["🍔", "🍕", "🍜", "🍟", "🍝", "🍰", "🍩", "🌮", "🍱", "🍣"];

@@ -1,7 +1,7 @@
 /**
  * Main entry point for Digestive Run game
  */
-import { VIRTUAL_W, VIRTUAL_H, PATH_POINTS } from './config.js';
+import { VIRTUAL_W, VIRTUAL_H, PATH_POINTS, TOWER_SLOTS } from './config.js';
 import { PathFollowerSystem } from './utils/PathFollowerSystem.js';
 import { WebGLRenderer } from './renderer/WebGLRenderer.js';
 import { EmojiRenderer } from './renderer/EmojiRenderer.js';
@@ -12,6 +12,7 @@ import { UIController } from './ui/UIController.js';
 import { ScaleManager } from './ui/ScaleManager.js';
 import { appendCircle, buildPolylineMesh } from './utils/geometry.js';
 import { PathEditor } from './editor/PathEditor.js';
+import { TowerSlotEditor } from './editor/TowerSlotEditor.js';
 
 /**
  * Initialize canvas and context
@@ -95,17 +96,16 @@ function createStaticMeshes(renderer) {
     }
   }
 
-  // Create tower slot (test position)
-  const towerSlot = [];
-  const slotX = 100;
-  const slotY = 200;
+  // Create tower slots from config
+  const towerSlotOuter = [];
+  const towerSlotInner = [];
 
-  // Outer ring
-  appendCircle(towerSlot, slotX, slotY, 30, 24);
-
-  // Inner circle (will be drawn in different color for ring effect)
-  const innerSlot = [];
-  appendCircle(innerSlot, slotX, slotY, 25, 24);
+  for (const slot of TOWER_SLOTS) {
+    // Outer ring
+    appendCircle(towerSlotOuter, slot.x, slot.y, slot.radius, 24);
+    // Inner circle (will be drawn in different color for ring effect)
+    appendCircle(towerSlotInner, slot.x, slot.y, slot.radius - 5, 24);
+  }
 
   return {
     bgWarm: renderer.createMesh(bgWarm),
@@ -113,17 +113,15 @@ function createStaticMeshes(renderer) {
     trackShadow: renderer.createMesh(buildPolylineMesh(PATH_POINTS, 42, 2, 3)),
     trackMain: renderer.createMesh(buildPolylineMesh(PATH_POINTS, 34, 0, 0)),
     trackEdge: renderer.createMesh(buildPolylineMesh(PATH_POINTS, 5, 0, 0)),
-    towerSlotOuter: renderer.createMesh(towerSlot),
-    towerSlotInner: renderer.createMesh(innerSlot)
+    towerSlotOuter: renderer.createMesh(towerSlotOuter),
+    towerSlotInner: renderer.createMesh(towerSlotInner)
   };
 }
 
 /**
- * Tower slot positions (for click detection)
+ * Tower slot positions imported from config.js
+ * Can be edited with Ctrl+Shift+T in dev mode
  */
-const TOWER_SLOTS = [
-  { x: 100, y: 200, radius: 30 }
-];
 
 /**
  * Check if click is on a tower slot
@@ -174,9 +172,6 @@ function setupPathEditor(canvas, gameLoop, webglRenderer, staticMeshes) {
         }
       };
       renderEditor();
-
-      // Show editor UI
-      showEditorUI();
     } else {
       // Disable editor and resume game
       console.log('Path Editor: DISABLED');
@@ -200,7 +195,6 @@ function setupPathEditor(canvas, gameLoop, webglRenderer, staticMeshes) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       gameLoop.resume();
-      hideEditorUI();
     }
   };
 
@@ -218,6 +212,80 @@ function setupPathEditor(canvas, gameLoop, webglRenderer, staticMeshes) {
   window.isPathEditorActive = () => isEditorActive;
 
   console.log('Path Editor: Press Ctrl+Shift+E to toggle editor mode');
+
+  // Return toggle function for menu
+  return toggleEditor;
+}
+
+/**
+ * Setup tower slot editor for development
+ */
+function setupTowerSlotEditor(canvas, gameLoop, webglRenderer, staticMeshes) {
+  let slotEditor = null;
+  let isEditorActive = false;
+  let editorAnimationFrame = null;
+
+  const toggleEditor = () => {
+    isEditorActive = !isEditorActive;
+
+    if (isEditorActive) {
+      // Create editor and pause game
+      console.log('Tower Slot Editor: ENABLED');
+      gameLoop.pause();
+
+      // Enable pointer events on emoji canvas
+      canvas.style.pointerEvents = 'auto';
+      canvas.style.zIndex = '1000';
+
+      slotEditor = new TowerSlotEditor(canvas, TOWER_SLOTS, (newSlots) => {
+        // Update tower slots in real-time
+        updateTowerSlotVisuals(newSlots, webglRenderer, staticMeshes);
+      });
+
+      // Start editor render loop
+      const ctx = canvas.getContext('2d');
+      const renderEditor = () => {
+        if (isEditorActive && slotEditor) {
+          slotEditor.render(ctx);
+          editorAnimationFrame = requestAnimationFrame(renderEditor);
+        }
+      };
+      renderEditor();
+    } else {
+      // Disable editor and resume game
+      console.log('Tower Slot Editor: DISABLED');
+
+      if (slotEditor) {
+        slotEditor.removeEventListeners();
+        slotEditor = null;
+      }
+
+      if (editorAnimationFrame) {
+        cancelAnimationFrame(editorAnimationFrame);
+        editorAnimationFrame = null;
+      }
+
+      // Restore pointer events
+      canvas.style.pointerEvents = 'none';
+      canvas.style.zIndex = '';
+
+      // Clear canvas
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      gameLoop.resume();
+    }
+  };
+
+  // Expose for debugging
+  window.toggleTowerSlotEditor = toggleEditor;
+  window.getTowerSlotEditor = () => slotEditor;
+  window.isTowerSlotEditorActive = () => isEditorActive;
+
+  console.log('Tower Slot Editor: Available in developer menu');
+
+  // Return toggle function for menu
+  return toggleEditor;
 }
 
 /**
@@ -231,91 +299,65 @@ function updatePathVisuals(points, webglRenderer, staticMeshes) {
 }
 
 /**
- * Show editor UI overlay
+ * Update tower slot visuals with new slots
  */
-function showEditorUI() {
-  let overlay = document.getElementById('editor-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'editor-overlay';
-    overlay.style.cssText = `
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      background: rgba(0, 0, 0, 0.9);
-      color: white;
-      padding: 20px;
-      border-radius: 12px;
-      font-family: monospace;
-      font-size: 12px;
-      z-index: 10000;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-      border: 2px solid #4ECDC4;
-      min-width: 280px;
-    `;
-    overlay.innerHTML = `
-      <div style="font-weight: bold; margin-bottom: 15px; color: #4ECDC4; font-size: 14px;">
-        🎨 PATH EDITOR ACTIVE
-      </div>
+function updateTowerSlotVisuals(slots, webglRenderer, staticMeshes) {
+  // Rebuild tower slot meshes with new slots
+  const outerMesh = [];
+  const innerMesh = [];
 
-      <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #444;">
-        <div style="margin-bottom: 5px;"><strong>Controls:</strong></div>
-        <div>• Ctrl+Shift+E: Toggle Editor</div>
-        <div>• G: Toggle Grid Snap</div>
-        <div>• E: Copy to Clipboard</div>
-        <div style="color: #FFD700;">• S: Save to config.js ⭐</div>
-      </div>
-
-      <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #444;">
-        <div style="margin-bottom: 5px;"><strong>Mouse:</strong></div>
-        <div>• Left Click: Add/Drag Point</div>
-        <div>• Right Click: Delete Point</div>
-        <div>• Delete Key: Remove Point</div>
-      </div>
-
-      <div style="text-align: center; margin-top: 15px;">
-        <button id="saveConfigBtn" style="
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          border: none;
-          padding: 10px 20px;
-          border-radius: 6px;
-          font-family: monospace;
-          font-size: 12px;
-          font-weight: bold;
-          cursor: pointer;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-          transition: all 0.2s;
-        " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-          💾 Save to config.js
-        </button>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-
-    // Add click handler for save button
-    const saveBtn = document.getElementById('saveConfigBtn');
-    if (saveBtn) {
-      saveBtn.addEventListener('click', () => {
-        const pathEditor = window.getPathEditor();
-        if (pathEditor) {
-          pathEditor.saveToConfigFile();
-        }
-      });
-    }
+  for (const slot of slots) {
+    appendCircle(outerMesh, slot.x, slot.y, slot.radius, 24);
+    appendCircle(innerMesh, slot.x, slot.y, slot.radius - 5, 24);
   }
-  overlay.style.display = 'block';
+
+  staticMeshes.towerSlotOuter = webglRenderer.createMesh(outerMesh);
+  staticMeshes.towerSlotInner = webglRenderer.createMesh(innerMesh);
 }
 
 /**
- * Hide editor UI overlay
+ * Setup developer menu UI
  */
-function hideEditorUI() {
-  const overlay = document.getElementById('editor-overlay');
-  if (overlay) {
-    overlay.style.display = 'none';
+function setupDeveloperMenu(pathEditorToggle, towerSlotEditorToggle) {
+  const menuToggle = document.getElementById('dev-menu-toggle');
+  const menuPanel = document.getElementById('dev-menu-panel');
+  const pathEditorBtn = document.getElementById('dev-path-editor');
+  const towerEditorBtn = document.getElementById('dev-tower-editor');
+
+  if (!menuToggle || !menuPanel || !pathEditorBtn || !towerEditorBtn) {
+    console.warn('Developer menu elements not found');
+    return;
   }
+
+  // Toggle menu panel
+  menuToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isVisible = menuPanel.style.display !== 'none';
+    menuPanel.style.display = isVisible ? 'none' : 'block';
+  });
+
+  // Close menu when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!menuPanel.contains(e.target) && e.target !== menuToggle) {
+      menuPanel.style.display = 'none';
+    }
+  });
+
+  // Path Editor button
+  pathEditorBtn.addEventListener('click', () => {
+    pathEditorToggle();
+    menuPanel.style.display = 'none';
+  });
+
+  // Tower Slot Editor button
+  towerEditorBtn.addEventListener('click', () => {
+    towerSlotEditorToggle();
+    menuPanel.style.display = 'none';
+  });
+
+  console.log('Developer menu initialized');
 }
+
 
 /**
  * Setup canvas click handler for tower slots
@@ -428,7 +470,13 @@ async function init() {
   setupTowerSlotClicks(canvasContainer, uiController, scaleManager);
 
   // Setup path editor (dev mode)
-  setupPathEditor(emojiCanvas, gameLoop, webglRenderer, staticMeshes);
+  const pathEditorToggle = setupPathEditor(emojiCanvas, gameLoop, webglRenderer, staticMeshes);
+
+  // Setup tower slot editor (dev mode)
+  const towerSlotEditorToggle = setupTowerSlotEditor(emojiCanvas, gameLoop, webglRenderer, staticMeshes);
+
+  // Setup developer menu
+  setupDeveloperMenu(pathEditorToggle, towerSlotEditorToggle);
 
   // Expose for debugging
   window.gameLoop = gameLoop;
