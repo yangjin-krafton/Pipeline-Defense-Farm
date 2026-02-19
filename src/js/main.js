@@ -10,7 +10,7 @@ import { AudioSystem } from './systems/AudioSystem.js';
 import { GameLoop } from './game/GameLoop.js';
 import { UIController } from './ui/UIController.js';
 import { ScaleManager } from './ui/ScaleManager.js';
-import { appendCircle, buildPolylineMesh } from './utils/geometry.js';
+import { appendCircle, buildPolylineMesh, hexToRgba } from './utils/geometry.js';
 import { PathEditor } from './editor/PathEditor.js';
 import { TowerSlotEditor } from './editor/TowerSlotEditor.js';
 
@@ -107,24 +107,23 @@ function createStaticMeshes(renderer) {
     appendCircle(towerSlotInner, slot.x, slot.y, slot.radius - 5, 24);
   }
 
-  // Combine all paths for rendering
-  const shadowMesh = [];
-  const mainMesh = [];
-  const edgeMesh = [];
+  // Create meshes for each path individually
+  const pathMeshes = {};
 
   for (const [key, pathData] of Object.entries(PATHS)) {
     const points = pathData.points;
-    shadowMesh.push(...buildPolylineMesh(points, 42, 2, 3));
-    mainMesh.push(...buildPolylineMesh(points, 34, 0, 0));
-    edgeMesh.push(...buildPolylineMesh(points, 5, 0, 0));
+    pathMeshes[key] = {
+      shadow: renderer.createMesh(buildPolylineMesh(points, 42, 2, 3)),
+      main: renderer.createMesh(buildPolylineMesh(points, 34, 0, 0)),
+      edge: renderer.createMesh(buildPolylineMesh(points, 5, 0, 0)),
+      color: pathData.color
+    };
   }
 
   return {
     bgWarm: renderer.createMesh(bgWarm),
     bgCool: renderer.createMesh(bgCool),
-    trackShadow: renderer.createMesh(shadowMesh),
-    trackMain: renderer.createMesh(mainMesh),
-    trackEdge: renderer.createMesh(edgeMesh),
+    paths: pathMeshes,
     towerSlotOuter: renderer.createMesh(towerSlotOuter),
     towerSlotInner: renderer.createMesh(towerSlotInner)
   };
@@ -304,21 +303,19 @@ function setupTowerSlotEditor(canvas, gameLoop, webglRenderer, staticMeshes) {
  * Update path visuals with new paths
  */
 function updatePathVisuals(paths, webglRenderer, staticMeshes) {
-  // Combine all paths into single meshes for rendering
-  const shadowMesh = [];
-  const mainMesh = [];
-  const edgeMesh = [];
-
+  // Recreate meshes for each path individually
   for (const [key, pathData] of Object.entries(paths)) {
     const points = pathData.points;
-    shadowMesh.push(...buildPolylineMesh(points, 42, 2, 3));
-    mainMesh.push(...buildPolylineMesh(points, 34, 0, 0));
-    edgeMesh.push(...buildPolylineMesh(points, 5, 0, 0));
-  }
 
-  staticMeshes.trackShadow = webglRenderer.createMesh(shadowMesh);
-  staticMeshes.trackMain = webglRenderer.createMesh(mainMesh);
-  staticMeshes.trackEdge = webglRenderer.createMesh(edgeMesh);
+    if (!staticMeshes.paths[key]) {
+      staticMeshes.paths[key] = {};
+    }
+
+    staticMeshes.paths[key].shadow = webglRenderer.createMesh(buildPolylineMesh(points, 42, 2, 3));
+    staticMeshes.paths[key].main = webglRenderer.createMesh(buildPolylineMesh(points, 34, 0, 0));
+    staticMeshes.paths[key].edge = webglRenderer.createMesh(buildPolylineMesh(points, 5, 0, 0));
+    staticMeshes.paths[key].color = pathData.color;
+  }
 }
 
 /**
@@ -465,6 +462,8 @@ async function init() {
   await audioSystem.loadBGM('./assets/bgm/game_theme.wav');
   audioSystem.setVolume(0.4); // 40% volume
   audioSystem.setLoop(true);
+  audioSystem.setSpatialOptions({ surroundAmount: 0.75, panJitter: 0.06 });
+  audioSystem.setVariationOptions({ gainRandomRange: 0.03, sectionDynamicsDepth: 0.2, fillBoostRange: 0.06 });
 
   // Create and start game loop
   const gameLoop = new GameLoop(

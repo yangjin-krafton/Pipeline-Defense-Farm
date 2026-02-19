@@ -1,8 +1,9 @@
 /**
  * Main game loop
  */
-import { FOOD_SPAWN_MS, BASE_SPEED } from '../config.js';
+import { FOOD_SPAWN_MS, BASE_SPEED, PATHS, PATH_RENDER_SETTINGS } from '../config.js';
 import { FoodSpawner } from './FoodSpawner.js';
+import { hexToRgba } from '../utils/geometry.js';
 
 export class GameLoop {
   constructor(multiPathSystem, webglRenderer, emojiRenderer, staticMeshes, flowSystem, audioSystem) {
@@ -65,17 +66,49 @@ export class GameLoop {
     gl.drawMesh(this.staticMeshes.bgWarm, [1.0, 0.72, 0.66, 0.24]);
     gl.drawMesh(this.staticMeshes.bgCool, [1.0, 1.0, 1.0, 0.18]);
 
-    // Draw track
-    gl.drawMesh(this.staticMeshes.trackShadow, [0.25, 0.09, 0.14, 0.25]);
-    gl.drawMesh(this.staticMeshes.trackMain, [0.96, 0.66, 0.74, 0.95]);
-    gl.drawMesh(this.staticMeshes.trackEdge, [0.42, 0.18, 0.27, 0.9]);
+    // Draw each path with its own color (using settings from config.js)
+    const settings = PATH_RENDER_SETTINGS;
 
-    // Draw tower slots (test)
+    for (const pathKey of settings.renderOrder) {
+      const pathMesh = this.staticMeshes.paths[pathKey];
+      if (!pathMesh) continue;
+
+      const baseColor = hexToRgba(pathMesh.color, 1.0);
+
+      // Shadow layer
+      const shadowColor = [
+        baseColor[0] * settings.shadowBrightness,
+        baseColor[1] * settings.shadowBrightness,
+        baseColor[2] * settings.shadowBrightness,
+        settings.shadowAlpha
+      ];
+      gl.drawMesh(pathMesh.shadow, shadowColor);
+
+      // Main track layer
+      const mainColor = [
+        baseColor[0] * settings.mainBrightness,
+        baseColor[1] * settings.mainBrightness,
+        baseColor[2] * settings.mainBrightness,
+        settings.mainAlpha
+      ];
+      gl.drawMesh(pathMesh.main, mainColor);
+
+      // Edge layer
+      const edgeColor = [
+        baseColor[0] * settings.edgeBrightness,
+        baseColor[1] * settings.edgeBrightness,
+        baseColor[2] * settings.edgeBrightness,
+        settings.edgeAlpha
+      ];
+      gl.drawMesh(pathMesh.edge, edgeColor);
+    }
+
+    // Draw tower slots
     gl.drawMesh(this.staticMeshes.towerSlotOuter, [0.0, 0.85, 1.0, 0.4]); // Cyan
     gl.drawMesh(this.staticMeshes.towerSlotInner, [1.0, 0.89, 0.80, 0.95]); // Background color (creates ring effect)
 
-    // Draw flow animation
-    gl.drawTriangles(this.flowSystem.getMesh(), [1.0, 0.96, 0.83, 0.86]);
+    // Draw flow animation (disabled for now to see paths clearly)
+    // gl.drawTriangles(this.flowSystem.getMesh(), [1.0, 0.96, 0.83, 0.86]);
   }
 
   /**

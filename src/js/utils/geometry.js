@@ -3,6 +3,24 @@
  */
 
 /**
+ * Convert hex color to RGBA array
+ * @param {string} hex - Hex color string (e.g. "#FFD700")
+ * @param {number} alpha - Alpha value (0-1)
+ * @returns {Array<number>} RGBA array [r, g, b, a]
+ */
+export function hexToRgba(hex, alpha = 1.0) {
+  // Remove # if present
+  hex = hex.replace('#', '');
+
+  // Parse hex values
+  const r = parseInt(hex.substring(0, 2), 16) / 255;
+  const g = parseInt(hex.substring(2, 4), 16) / 255;
+  const b = parseInt(hex.substring(4, 6), 16) / 255;
+
+  return [r, g, b, alpha];
+}
+
+/**
  * Append a circle to a vertex array
  * @param {Array<number>} out - Output vertex array
  * @param {number} cx - Center X
