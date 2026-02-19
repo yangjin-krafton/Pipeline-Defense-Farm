@@ -1,178 +1,279 @@
-﻿# 타워 모듈 개발 구조 제안
+﻿# Pipeline Defense Farm - 소화기관 운영형 방치 디펜스 개발 기획서
 
-이 문서는 `BaseTower`를 공통 부모로 두고, 타워 타입별로 오버라이드하여 확장하는 구조를 정의한다.
-목표는 다음 3가지다.
+## 1. 문서 목적
 
-- 타입별 로직 분리(공격, 타겟팅, 스킬)
-- 데이터 중심 밸런싱(스탯 테이블 분리)
-- 런타임 조립(팩토리/레지스트리 기반)
+본 문서는 `Pipeline Defense Farm`의 핵심 정체성을 "타워디펜스"보다 "소화기관 운영"에 두고,
+소화 테마에 맞는 전투, 성장, 경제, 아키텍처를 개발 기준으로 정리한다.
 
-## 1) 핵심 아키텍처
+핵심 목표:
 
-- `BaseTower`:
-공통 생명주기와 상태를 담당한다. (`tick`, `acquireTarget`, `canFire`, `fire`, `upgrade`, `sell`)
-- `TowerTypeClass`:
-`BaseTower`를 상속하고 필요한 메서드를 오버라이드한다.
-- `TowerDefinition`:
-타워 스탯/비용/사거리/업그레이드 데이터. 코드가 아니라 데이터로 관리한다.
-- `TowerFactory`:
-`towerType + level + position`으로 실제 타워 인스턴스를 생성한다.
-- `TowerRegistry`:
-타워 타입 문자열과 클래스/정의를 등록한다.
+- 음식 처리 전투를 소화 시뮬레이션 감성으로 구현
+- 방치 + 수동 개입(영양 보급) 루프를 자연스럽게 결합
+- 타워 성장과 경제를 인체 대사/연구 테마로 일관화
 
-## 2) 제안 폴더 구조
+## 2. 게임 정체성
+
+한 줄 정의:
+
+- 음식 웨이브를 "파괴"하는 게임이 아니라, 기관별 규칙에 맞게 "소화"해 병목과 트러블을 관리하는 게임
+
+플레이 감정:
+
+- "막았다"보다 "소화가 안정됐다"는 성취감
+- "강한 타워"보다 "기관에 맞는 처방"을 찾는 운영 재미
+- 장기적으로는 내 소화기관 문명을 키워가는 발전 재미
+
+## 3. 세계관 기반 코어 루프
+
+### 3.1 접속 중 루프
+
+1. 음식이 식도에서 유입되고 기관을 따라 이동
+2. 소화 장치(타워)가 자동으로 분해/중화/유화/흡수 보조 수행
+3. 플레이어가 영양 보급으로 특정 장치 효율을 순간 증폭
+4. 정체/가스/염증/과산 등 트러블 지표를 관리
+5. 웨이브 종료 후 대사 자원 획득, 연구/강화 진행
+
+### 3.2 방치 루프
+
+1. 오프라인 시간 동안 저속 소화가 계속 진행
+2. 복귀 시 처리량/잔류물/트러블 상태를 정산
+3. 정산 결과를 바탕으로 기관 튜닝과 다음 처방 선택
+
+## 4. 기관별 전장 규칙
+
+- `식도`: 좁은 직선. 역류 이벤트와 급속 병목 발생 가능
+- `위`: 산도(pH) 중심 구간. 산성 제어 실패 시 과산 트러블
+- `소장`: 긴 처리 구간. 흡수/연동/효율 최적화의 핵심
+- `대장`: 잔류물 관리 구간. 정체 장기화 시 발효/염증 리스크 증가
+
+전략 원칙:
+
+- 같은 장치라도 설치 구간에 따라 가치가 달라진다.
+- 웨이브 강도보다 "현재 기관 상태"가 더 중요한 의사결정 기준이 된다.
+
+## 5. 음식(Enemy) 설계
+
+음식은 HP 덩어리가 아니라 "소화 속성 패키지"다.
+
+주요 속성:
+
+- `digestLoad`: 소화 부담도
+- `fat/carb/protein/fiber`: 성분 비율
+- `acidity`: 산도 반응성
+- `fermentRisk`: 발효/가스 위험도
+- `residue`: 처리 실패 시 잔류량
+
+예시 계열:
+
+- 지방식: 느리고 단단하며 유화 보조 필요
+- 당류식: 빠르게 몰려 병목 유발
+- 단백질식: 위 구간 처리 효율 영향 큼
+- 복합 보스식: 다중 속성 + 저항 + 트러블 증폭
+
+## 6. 소화 장치(타워) 체계
+
+### 6.1 기본 장치군
+
+1. `Enzyme Dispenser`: 성분 분해 특화
+2. `Acid Sprayer`: 산성 처리 + 방어 약화
+3. `Bile Jet`: 지방 유화 + 광역 약화
+4. `Probiotic Cloud`: 장내 환경 안정 + 버프
+5. `Peristalsis Pulse`: 밀어내기/정체 해소
+6. `Absorption Filter`: 처리 수익 보정 + 자원 효율
+
+### 6.2 확장 장치군(후반)
+
+- 점액 보호막 장치(Mucus Shield): 기관 손상 완화
+- 효소 연쇄 반응기(Chain Reactor): 처치 연쇄 처리
+- 장내균 배양기(Microbiome Lab): 장기 버프 스택
+- 해독 분해기(Detox Unit): 특정 트러블 즉시 안정화
+
+## 7. 영양 보급 시스템(수동 개입 핵심)
+
+보급 철학:
+
+- 자동 전투는 기본 성능을 보장
+- 수동 보급은 결정적 구간에서 효율을 폭발시킴
+- 과도한 클릭 피로는 상한/회복/자동화로 제어
+
+효율 상태:
+
+- `STARVED`: 0.5x (저속 소화)
+- `NORMAL`: 1.0x
+- `BOOSTED`: 2.0x
+- `OVERCHARGED`: 3.0x (짧은 지속)
+
+MVP 수치:
+
+- `nutritionCapPerTower = 100`
+- `supplyPerAction = 25`
+- `globalSupplyAPCap = 5`
+- `globalSupplyAPRegenSec = 30`
+- `boostDurationSec = 20`
+- `overchargeDurationSec = 6`
+- 동일 장치 연속 보급 시 효율 점감 `-15%`
+
+핵심 체감:
+
+- 방치만 하면 안정적이나 느리다.
+- 직접 보급하면 위기 구간을 역전할 수 있다.
+
+## 8. 성장 체계: 소화기관 문명 트리
+
+목표:
+
+- 장치 레벨업을 넘어, 기관 철학 자체를 발전시키는 감각 제공
+
+구조:
+
+- 타워별 `Era 1~5` 트리
+- 각 Era 2~3개 선택 노드
+- `requires`(선행), `excludes`(배타) 지원
+- 해금 조건: 웨이브 + 연구 자원 + 기관 안정도
+
+Enzyme 예시:
+
+- Era 1 기초 분해학: 반응속도 vs 안정성
+- Era 2 성분 특화학: 탄수 대사 vs 단백 대사
+- Era 3 반응공학: 연쇄 분해 vs 효율 보존
+- Era 4 자율조절학: 자동 보급 보정 vs 스마트 타겟팅
+- Era 5 초월대사학: 폭발적 처리 vs 저효율 바닥 보정
+
+## 9. 경제 시스템(대사 기반)
+
+경제 원칙:
+
+- 통화마다 역할을 분리하고, 소화 테마와 연결한다.
+- 수동 개입은 분당 효율을 올리고, 방치는 장기 누적을 보장한다.
+
+재화 구성:
+
+1. `Nutrition`:
+- 용도: 장치 설치/일반 업그레이드
+- 출처: 웨이브 처리량
+
+2. `Enzyme Point`:
+- 용도: 타워 개별 강화
+- 출처: 성분 특화 처리 보너스
+
+3. `Microbiome`:
+- 용도: 기관 안정/보조 시스템 해금
+- 출처: 대장 안정 유지, 트러블 억제 보상
+
+4. `Research Cell`:
+- 용도: Era 트리 연구
+- 출처: 보스/도전 목표
+
+5. `Genome`(프레스티지):
+- 용도: 영구 메타 강화
+- 출처: 시즌 리셋 또는 누적 진행 리셋 환산
+
+오프라인 정산:
+
+- `OfflineDigest = BaseDigest * OfflineRate * OfflineHours`
+- `OfflineRate` 초기 0.25, 메타 성장으로 0.65 상한
+- 잔류물 과다 시 보상 일부 감쇠(방치 페널티)
+
+## 10. UX/UI 방향
+
+필수 표시:
+
+- 기관 상태 패널: 산도, 정체도, 염증도, 발효도
+- 타워 카드: 현재 효율 배수(`0.5x ~ 3.0x`), 영양 탱크, 보급 버튼
+- 전역 보급 AP 게이지 + 회복 타이머
+- 웨이브 리포트: "처리량/잔류량/주요 트러블" 요약
+
+복귀 UX:
+
+- 오프라인 정산 카드(잘된 점/문제 구간)
+- "오늘 뭐 드셨어요" 체크인과 연계된 특수 웨이브
+
+## 11. 코드 아키텍처(테마 반영)
 
 ```text
 src/js/
-  towers/
-    base/
+  digestion/
+    core/
       BaseTower.js
+      DigestStateMachine.js
       TargetingPolicy.js
-      AttackResolver.js
-    types/
+    towers/
       EnzymeTower.js
       AcidTower.js
       BileTower.js
       ProbioticTower.js
       PeristalsisTower.js
       AbsorptionTower.js
-      CannonTower.js
-      SniperTower.js
-      SplashTower.js
-      SlowTower.js
-      PoisonTower.js
-      SupportTower.js
     data/
       towerDefinitions.js
-      upgradeCurves.js
-      statusEffects.js
+      digestionRules.js
+      techTreeDefinitions.js
+      economyDefinitions.js
     systems/
       TowerManager.js
-      TowerFactory.js
-      TowerRegistry.js
+      SupplySystem.js
+      TroubleSystem.js
+      EconomySystem.js
 ```
 
-## 3) BaseTower 계약(권장 인터페이스)
+원칙:
 
-```js
-export class BaseTower {
-  constructor({ id, type, position, level, stats, targeting = 'first' }) {}
+- 공통 처리 규칙은 코어 시스템에 집중
+- 타워별 개성은 오버라이드 + 데이터 정의로 분리
+- 수치 밸런스는 코드가 아닌 정의 파일에서 조정
 
-  tick(dt, context) {}
-  acquireTarget(enemies, context) {}
-  canFire(now) {}
-  fire(target, context) {}
+## 12. 개발 단계(로드맵)
 
-  // Optional hooks for child towers
-  onHit(target, context) {}
-  onKill(target, context) {}
-  onWaveStart(context) {}
+### Phase 1: 테마 일치 MVP
 
-  upgrade(nextLevelDef) {}
-  getSellValue() {}
-}
-```
+- Enzyme/Acid/Bile 전투 완성
+- 영양 보급 상태 머신 적용
+- 기관 트러블(정체/과산) 2종 구현
 
-`context`에는 최소한 아래를 포함한다.
+### Phase 2: 성장/경제 확장
 
-- `now`: 현재 시간
-- `enemies`: 활성 적 목록
-- `projectileSystem`: 투사체 생성 시스템
-- `statusSystem`: 상태이상 적용 시스템
-- `economySystem`: 골드/리워드 시스템
+- Era 트리 1차(타워당 Era 3까지)
+- Nutrition/Microbiome/Research Cell 경제 연결
+- 오프라인 정산 로직 적용
 
-## 4) 오버라이드 가이드
+### Phase 3: 메타 루프
 
-타워별로 아래 중 필요한 메서드만 오버라이드한다.
+- Genome 프레스티지
+- 자동 보급/기관 자동화 연구
+- 체크인 웨이브 정식 도입
 
-- 단일 딜러: `fire()`
-- 범위 딜러: `fire()`, `onHit()`
-- 디버프형: `onHit()`
-- 버퍼형: `tick()` 또는 `onWaveStart()`
+### Phase 4: 라이브 운영
 
-규칙:
+- 텔레메트리 기반 밸런스
+- 신규 음식 계열/장치군 확장
+- 시즌 테마 이벤트 운영
 
-- 공통 쿨다운/타겟팅/업그레이드 계산은 `BaseTower`에 유지
-- 타입 특화 수치/효과만 자식 클래스에 둔다
-- 레벨별 수치는 클래스 하드코딩 금지, `towerDefinitions.js`에서 로드
+## 13. 리스크와 대응
 
-## 5) 데이터 스키마 예시
+1. 일반 TD처럼 느껴지는 문제
+- 대응: 기관 상태/트러블 지표를 승패 핵심으로 강화
 
-```js
-export const TOWER_DEFS = {
-  enzyme: {
-    className: 'EnzymeTower',
-    role: 'single_dps',
-    cost: 100,
-    upgradeCost: [80, 120, 180],
-    base: {
-      damage: 16,
-      cooldownMs: 900,
-      range: 110,
-      projectileSpeed: 260
-    },
-    scaling: {
-      damage: [1.0, 1.35, 1.8, 2.4],
-      cooldown: [1.0, 0.93, 0.86, 0.8],
-      range: [1.0, 1.05, 1.1, 1.15]
-    },
-    effects: []
-  }
-};
-```
+2. 클릭 피로도 과다
+- 대응: AP 상한 + 자동화 연구 + 추천 보급 UX
 
-## 6) 런타임 흐름
+3. 경제 폭주
+- 대응: 잔류물 페널티, 통화 역할 고정, 프레스티지 완화 곡선
 
-1. 맵 로딩 시 `TowerRegistry`에 타입 등록
-2. 플레이어가 슬롯 클릭 후 타워 타입 선택
-3. `TowerFactory.create(type, slot)` 호출
-4. `TowerManager`가 타워를 업데이트 루프에 포함
-5. 각 타워는 `tick(dt, context)`에서 타겟 획득/발사 처리
+4. 빌드 고착
+- 대응: 배타 노드, 음식 조합 기반 카운터 설계
 
-## 7) 실제 타워디펜스에서 자주 쓰는 타워 타입 제안
+## 14. 성공 지표
 
-아래는 장르에서 반복적으로 검증된 타입들이다.
+- 세션당 평균 보급 횟수
+- 기관 트러블 관리 성공률
+- 오프라인 복귀 후 10분 내 재도전율
+- 타워/트리 선택 다양성(편중률)
+- D1/D7 유지율
 
-1. 기본 포탑(Single Target / Cannon)
-2. 스나이퍼(Long Range / High Damage)
-3. 연사형(Gatling / Rapid Fire)
-4. 범위 공격형(Splash / Bomb / Mortar)
-5. 관통형(Pierce / Line Shot)
-6. 슬로우형(Freeze / Glue / Web)
-7. 독/도트형(Poison / Burn / Bleed)
-8. 체인 번개형(Chain Lightning)
-9. 디버프 오라형(Armor Break / Vulnerability)
-10. 버프 오라형(Attack Speed Buff / Damage Buff)
-11. 소환형(Summoner / Drone / Minion)
-12. 수익형(Economy / Farm / Interest)
-13. 유틸형(Detection / Reveal Camo)
-14. 보스 특화형(Execute / %HP Damage)
-15. 군중 제어형(Stun / Knockback / Pull)
+## 15. 참고 축
 
-## 8) 현재 프로젝트 테마 매핑 예시
+- 방치형: Cookie Clicker, Trimps (프레스티지 루프)
+- 타워 운용: Legion TD 2, Infinitode 2 (자동 전투 + 수동 선택)
+- 성장 철학: Civilization류 테크 트리 (선행/분기/배타)
 
-`Pipeline Defense Farm` 테마로는 아래 매핑이 자연스럽다.
-
-- Enzyme: 기본 단일딜
-- Acid: 방어력 감소 + 지속 피해
-- Bile: 광역 처리 + 지방 계열 추가 계수
-- Probiotic: 아군 버프/디버프 저항
-- Peristalsis: 밀어내기/이동 제어
-- Absorption: 처치 시 자원 보너스
-
-## 9) 적용 순서(권장)
-
-1. `BaseTower`, `TowerRegistry`, `TowerFactory` 골격 구현
-2. `towerDefinitions.js`로 스탯 분리
-3. MVP 타워 3종(Enzyme/Acid/Bile) 구현
-4. `TowerManager`를 게임 루프에 연결
-5. UI(`tower-card`)와 타입 선택/배치 연동
-6. 상태이상 시스템(슬로우/독/방깎) 확장
-
-## 10) 구현 체크리스트
-
-- 타워 클래스에 하드코딩 수치가 남아있지 않은가?
-- 타겟팅 정책 변경이 클래스 수정 없이 가능한가?
-- 새 타워 타입 추가 시 수정 파일이 3개 이하인가?
-- 레벨/업그레이드 밸런싱이 데이터 수정만으로 가능한가?
-- 테스트에서 `tick -> target -> fire -> effect` 순서를 검증하는가?
+본 프로젝트는 위 장르 요소를 차용하되, 핵심 경험은 "소화기관을 운영하는 전략 게임"으로 고정한다.
