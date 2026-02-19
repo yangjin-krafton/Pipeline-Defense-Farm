@@ -114,10 +114,9 @@ export class Bullet {
 
     target.hp -= this.damage;
 
-    // 파티클 효과 생성 (있으면)
-    if (particleSystem) {
-      const particleCount = Math.min(Math.max(Math.floor(this.damage / 5), 3), 15);
-      particleSystem.emit(this.x, this.y, particleCount, this.color, 80, 1.0);
+    // 피격 파티클 효과 생성 (있으면)
+    if (particleSystem && particleSystem.emitHitEffect) {
+      particleSystem.emitHitEffect(this.x, this.y, this.color, this.damage);
     }
   }
 }

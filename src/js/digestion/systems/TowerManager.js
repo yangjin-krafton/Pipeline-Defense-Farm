@@ -42,6 +42,11 @@ export class TowerManager {
       return null;
     }
 
+    console.log('TowerManager.buildTower: Systems available?', {
+      bulletSystem: this.bulletSystem,
+      particleSystem: this.particleSystem
+    });
+
     const TowerClass = TOWER_CLASSES[towerType];
     // Pass systems to tower constructor
     const tower = new TowerClass(

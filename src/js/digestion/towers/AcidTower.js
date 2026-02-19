@@ -1,8 +1,8 @@
 import { BaseTower } from '../core/BaseTower.js';
 
 export class AcidTower extends BaseTower {
-  constructor(slotData, definition) {
-    super(slotData, definition);
+  constructor(slotData, definition, bulletSystem = null, particleSystem = null) {
+    super(slotData, definition, bulletSystem, particleSystem);
     this.armorReduction = definition.stats.armorReduction || 0;
   }
 

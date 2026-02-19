@@ -51,6 +51,11 @@ export class GameLoop {
     this.towerManager.setBulletSystem(this.bulletSystem);
     this.towerManager.setParticleSystem(this.particleSystem);
 
+    console.log('GameLoop: Systems connected to TowerManager', {
+      bulletSystem: this.bulletSystem,
+      particleSystem: this.particleSystem
+    });
+
     // NEW: Initialize WebGL2 renderers
     const gl = webglRenderer.gl;
     this.bulletRenderer = new BulletRenderer(gl, 500, [360, 640]);

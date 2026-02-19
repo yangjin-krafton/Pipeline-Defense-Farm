@@ -185,6 +185,10 @@ export class InstancedRenderer {
 
     this.currentInstanceCount = instanceCount;
 
+    // Enable blending for transparency
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
     gl.useProgram(this.program);
     gl.bindVertexArray(this.vao);
 

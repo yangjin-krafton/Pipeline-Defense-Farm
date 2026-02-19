@@ -14,7 +14,7 @@ export const TOWER_DEFINITIONS = {
     stats: {
       damage: 15,          // Base DPS
       attackSpeed: 1.2,    // Attacks per second
-      range: 80,           // Detection range in virtual pixels
+      range: 150,          // Detection range in virtual pixels (INCREASED FOR DEBUG)
       projectileSpeed: 150 // For future visual projectiles
     },
     // Tag bonuses (multiplicative)
@@ -32,7 +32,7 @@ export const TOWER_DEFINITIONS = {
     stats: {
       damage: 12,
       attackSpeed: 1.0,
-      range: 70,
+      range: 150,          // INCREASED FOR DEBUG
       armorReduction: 5    // Reduces target armor
     },
     tagBonuses: {
@@ -49,7 +49,7 @@ export const TOWER_DEFINITIONS = {
     stats: {
       damage: 20,
       attackSpeed: 0.8,
-      range: 90,
+      range: 150,          // INCREASED FOR DEBUG
       splash: 30           // Splash damage range
     },
     tagBonuses: {
