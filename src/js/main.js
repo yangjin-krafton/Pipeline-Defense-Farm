@@ -500,6 +500,9 @@ async function init() {
     // Update NC/SC display
     uiController.updateNutritionDisplay(economySystem.getState());
 
+    // Update boost display (timer and button states)
+    uiController.updateBoostDisplay();
+
     requestAnimationFrame(updateUIDisplays);
   };
   updateUIDisplays();

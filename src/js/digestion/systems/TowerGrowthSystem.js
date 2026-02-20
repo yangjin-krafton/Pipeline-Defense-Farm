@@ -129,18 +129,46 @@ export class TowerGrowthSystem {
   }
 
   /**
+   * 승급 비용 조회
+   * @param {number} star - 현재 성급
+   * @returns {{nc: number, sc: number}} 비용
+   */
+  getUpgradeCost(star) {
+    const cost = STAR_UPGRADE_COSTS.find(c => c.from === star);
+    return cost ? { nc: cost.nc, sc: cost.sc } : { nc: 0, sc: 0 };
+  }
+
+  /**
+   * 다음 레벨까지 필요한 XP 조회
+   * @param {BaseTower} tower
+   * @returns {number} 필요 XP
+   */
+  getXPRequiredForNextLevel(tower) {
+    const maxLevel = this.calculateMaxLevel(tower.star);
+    if (tower.level >= maxLevel) {
+      return 0; // 만랩
+    }
+
+    const xpReqs = this._getXPRequirements(tower.star);
+    return xpReqs[tower.level] || 0;
+  }
+
+  /**
    * 승급 실행
    * @param {BaseTower} tower
+   * @param {EconomySystem} economySystem - Optional, uses internal if not provided
    * @returns {boolean} 성공 여부
    */
-  upgradeStar(tower) {
+  upgradeStar(tower, economySystem = null) {
+    const economy = economySystem || this.economySystem;
+
     if (!this.canUpgradeStar(tower)) {
       console.warn('[TowerGrowthSystem] Cannot upgrade star');
       return false;
     }
 
     const cost = STAR_UPGRADE_COSTS.find(c => c.from === tower.star);
-    if (!this.economySystem.spendBoth(cost.nc, cost.sc)) {
+    if (!economy.spendBoth(cost.nc, cost.sc)) {
       return false;
     }
 
@@ -208,12 +236,14 @@ export class TowerGrowthSystem {
   /**
    * 스탯 리롤
    * @param {BaseTower} tower
+   * @param {EconomySystem} economySystem - Optional, uses internal if not provided
    * @returns {boolean} 성공 여부
    */
-  rerollStats(tower) {
+  rerollStats(tower, economySystem = null) {
+    const economy = economySystem || this.economySystem;
     const cost = 20;  // SC 20
 
-    if (!this.economySystem.canAffordSC(cost)) {
+    if (!economy.canAffordSC(cost)) {
       console.warn('[TowerGrowthSystem] Cannot afford stat reroll');
       return false;
     }
@@ -223,7 +253,7 @@ export class TowerGrowthSystem {
       return false;
     }
 
-    this.economySystem.spendSC(cost);
+    economy.spendSC(cost);
 
     // 이전 스탯 롤백 (마지막 승급의 스탯만 리롤)
     const lastGain = this.upgradeHistory[this.upgradeHistory.length - 1];

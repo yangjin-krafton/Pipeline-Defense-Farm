@@ -74,7 +74,7 @@
 
 .speed-btn {
   width: 42px;
-  height: 32px;
+  height: 48px;
   border: 3px solid var(--splat-dark);
   border-radius: 12px;
   font-size: 13px;
@@ -87,6 +87,12 @@
   box-shadow: 0 2px 0 var(--splat-dark);
   position: relative;
   top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 2px;
 }
 
 .speed-btn:hover {
@@ -134,4 +140,259 @@
   }
 }
 
+/* 비활성 버튼 (SC 부족 또는 활성 부스터 있음) */
+.speed-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #ccc;
+  pointer-events: none;
+}
+
+.speed-btn.disabled:hover {
+  transform: none;
+  background: #ccc;
+}
+
+/* 활성 부스터 버튼 (구매되어 실행 중) */
+.speed-btn.boost-active {
+  background: var(--splat-pink);
+  color: white;
+  animation: boost-pulse 2s infinite;
+}
+
+@keyframes boost-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px white,
+                0 0 0 4px var(--splat-dark),
+                0 2px 0 var(--splat-dark),
+                0 0 15px rgba(233, 69, 96, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 2px white,
+                0 0 0 4px var(--splat-dark),
+                0 2px 0 var(--splat-dark),
+                0 0 25px rgba(233, 69, 96, 1);
+  }
+}
+
+/* 속도 텍스트 (2x, 3x) */
+.speed-text {
+  display: block;
+  line-height: 1;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+/* 비용 표시 (가격표 스타일) */
+.speed-cost {
+  display: block;
+  font-size: 9px;
+  line-height: 1;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: white;
+  padding: 2px 4px;
+  border-radius: 6px;
+  border: 2px solid var(--splat-dark);
+  box-shadow: 0 1px 0 var(--splat-dark),
+              inset 0 0 8px rgba(255, 255, 255, 0.3);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  font-weight: 900;
+  min-width: 28px;
+  text-align: center;
+}
+
+/* 부스터 타이머 컨테이너 */
+.boost-timer-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(233, 69, 96, 0.2);
+  border: 3px solid var(--splat-dark);
+  border-radius: 16px;
+  padding: 4px 10px;
+  font-family: 'Arial Black', sans-serif;
+  font-weight: 900;
+  box-shadow: 0 2px 0 var(--splat-dark);
+}
+
+.boost-icon {
+  font-size: 14px;
+}
+
+.boost-timer {
+  font-size: 13px;
+  color: var(--splat-dark);
+  min-width: 42px;
+  text-align: center;
+}
+
+.boost-label {
+  font-size: 12px;
+  color: var(--splat-pink);
+  background: white;
+  padding: 2px 6px;
+  border-radius: 8px;
+  border: 2px solid var(--splat-dark);
+}
+
+/* SC 부족 시 흔들림 애니메이션 */
+@keyframes insufficient-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}
+
+.sc-resource.insufficient-shake {
+  animation: insufficient-shake 0.3s ease-in-out 2;
+}
+
 /* 고정 레이아웃 - 반응형 불필요 (스케일링으로 처리) */
+
+/* NC Resource (text only) */
+.nc-resource {
+  min-width: 100px;
+  text-align: center;
+}
+
+/* SC Resource with fill gauge */
+.sc-resource {
+  position: relative;
+  min-width: 120px;
+  padding: 8px 16px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f5f5f5, #e0e0e0);
+}
+
+/* SC bar progress (next 1 SC progress, 0-100%) */
+.sc-bar-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #fbbf24, #f59e0b);
+  transition: width 0.1s linear;
+  box-shadow: inset 0 0 15px rgba(251, 191, 36, 0.6);
+  z-index: 1;
+}
+
+/* Shine effect on SC bar progress */
+.sc-bar-progress::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  animation: sc-shine 1.5s infinite;
+}
+
+@keyframes sc-shine {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+.sc-content {
+  position: relative;
+  z-index: 2;
+  display: inline-block;
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--splat-dark);
+  text-shadow: 0 0 3px rgba(255, 255, 255, 0.8);
+}
+
+/* SC increase animation */
+@keyframes sc-increase {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.3);
+    color: #fbbf24;
+    text-shadow: 0 0 15px #fbbf24, 0 0 25px #fbbf24;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+#scText.increase {
+  animation: sc-increase 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* SC bar progress pulse animation (when SC increases) */
+@keyframes sc-progress-pulse {
+  0% {
+    box-shadow: inset 0 0 15px rgba(251, 191, 36, 0.6);
+    filter: brightness(1);
+  }
+  50% {
+    box-shadow: inset 0 0 35px rgba(251, 191, 36, 1), 0 0 25px rgba(251, 191, 36, 1);
+    filter: brightness(1.5);
+  }
+  100% {
+    box-shadow: inset 0 0 15px rgba(251, 191, 36, 0.6);
+    filter: brightness(1);
+  }
+}
+
+.sc-bar-progress.pulse {
+  animation: sc-progress-pulse 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Particle effect on SC increase */
+@keyframes sc-particle {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-30px) scale(0);
+    opacity: 0;
+  }
+}
+
+.sc-resource::after {
+  content: '+1';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 18px;
+  font-weight: 900;
+  color: #fbbf24;
+  text-shadow: 0 0 10px #fbbf24;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.sc-resource.show-particle::after {
+  animation: sc-particle 0.8s ease-out;
+}
+
+/* SC Full (100%) effect - when progress bar reaches 100% */
+.sc-bar-progress.full {
+  background: linear-gradient(90deg, #10b981, #059669);
+  animation: sc-full-glow 0.5s ease-out;
+}
+
+@keyframes sc-full-glow {
+  0% {
+    box-shadow: inset 0 0 15px rgba(16, 185, 129, 0.6);
+    filter: brightness(1);
+  }
+  50% {
+    box-shadow: inset 0 0 35px rgba(16, 185, 129, 1), 0 0 30px rgba(16, 185, 129, 1);
+    filter: brightness(1.8);
+  }
+  100% {
+    box-shadow: inset 0 0 15px rgba(251, 191, 36, 0.6);
+    filter: brightness(1);
+  }
+}

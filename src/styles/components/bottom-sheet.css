@@ -441,3 +441,125 @@
 }
 
 /* 고정 레이아웃 - 반응형 불필요 (스케일링으로 처리) */
+
+/* ===== Tower Growth Info (XP, Star) ===== */
+.tower-growth-info {
+  margin: 15px 0 20px 0;
+  padding: 15px;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(0, 217, 255, 0.15));
+  border: 4px solid var(--splat-dark);
+  border-radius: 15px;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.2),
+              0 0 0 2px rgba(255, 215, 0, 0.5);
+}
+
+.growth-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.growth-row:last-child {
+  margin-bottom: 0;
+}
+
+.growth-label {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--splat-dark);
+  min-width: 70px;
+}
+
+.growth-value {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--splat-dark);
+  text-shadow: 1px 1px 0 rgba(255, 215, 0, 0.3);
+}
+
+/* XP Bar */
+.xp-bar-container {
+  flex: 1;
+  height: 28px;
+  background: #e0e0e0;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 3px solid var(--splat-dark);
+  position: relative;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.xp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--splat-yellow), #ffa500);
+  border-radius: 11px;
+  transition: width 0.5s ease;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
+  position: relative;
+  overflow: hidden;
+}
+
+.xp-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  animation: shine 2s infinite;
+}
+
+.xp-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--splat-dark);
+  text-shadow: 0 0 3px white, 0 0 5px white;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Success and Warning buttons */
+.action-btn.success {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 2px white,
+              0 4px 0 var(--splat-dark);
+}
+
+.action-btn.warning {
+  background: linear-gradient(135deg, var(--splat-yellow), #ffa500);
+  color: var(--splat-dark);
+  text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 0 2px white,
+              0 4px 0 var(--splat-dark);
+}
+
+.action-btn.hidden {
+  display: none;
+}
+
+/* Animations */
+@keyframes shine {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+@keyframes gradient-slide {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 200% 0%;
+  }
+}

@@ -10,6 +10,7 @@ import { BulletSystem } from '../digestion/systems/BulletSystem.js';
 import { ParticleSystem } from '../digestion/systems/ParticleSystem.js';
 import { TimeTrackingSystem } from '../digestion/systems/TimeTrackingSystem.js';
 import { TowerGrowthSystem } from '../digestion/systems/TowerGrowthSystem.js';
+import { SpeedBoostSystem } from '../digestion/systems/SpeedBoostSystem.js';
 import { BulletRenderer } from '../renderer/BulletRenderer.js';
 import { HPBarRenderer } from '../renderer/HPBarRenderer.js';
 import { ParticleRenderer } from '../renderer/ParticleRenderer.js';
@@ -53,6 +54,9 @@ export class GameLoop {
     this.bulletSystem = new BulletSystem();
     this.particleSystem = new ParticleSystem();
 
+    // NEW: Initialize speed boost system
+    this.speedBoostSystem = new SpeedBoostSystem();
+
     // Connect systems
     this.bulletSystem.setParticleSystem(this.particleSystem);
     this.towerManager.setBulletSystem(this.bulletSystem);
@@ -77,6 +81,9 @@ export class GameLoop {
    * @param {number} dt - Delta time in seconds
    */
   update(dt) {
+    // Update speed boost system with REAL dt (before timeScale application)
+    this.speedBoostSystem.update(dt, this);
+
     // Smoothly transition timeScale
     if (this.timeScale !== this.targetTimeScale) {
       const diff = this.targetTimeScale - this.timeScale;
@@ -434,6 +441,14 @@ export class GameLoop {
    */
   getParticleSystem() {
     return this.particleSystem;
+  }
+
+  /**
+   * Get speed boost system
+   * @returns {SpeedBoostSystem} Speed boost system
+   */
+  getSpeedBoostSystem() {
+    return this.speedBoostSystem;
   }
 
   /**

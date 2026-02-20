@@ -24,14 +24,30 @@
       <!-- 상단 상태바 -->
       <header id="status-bar">
         <div class="resources">
-          <span class="resource">🍎 1250</span>
-          <span class="resource">⚡ 85</span>
+          <span class="resource nc-resource">🍎 <span id="ncAmount">1250</span></span>
+          <div class="resource sc-resource">
+            <div class="sc-bar-progress" id="scBarProgress" style="width: 0%"></div>
+            <span class="sc-content">⚡ <span id="scText">40/80</span></span>
+          </div>
         </div>
         <div class="controls-group">
           <div class="speed-controls">
-            <button class="speed-btn active" data-speed="1" title="Normal Speed">1x</button>
-            <button class="speed-btn" data-speed="2" title="2x Speed">2x</button>
-            <button class="speed-btn" data-speed="3" title="3x Speed">3x</button>
+            <button class="speed-btn active" data-speed="1" title="Normal Speed">
+              <span class="speed-text">1x</span>
+            </button>
+            <button class="speed-btn" data-speed="2" title="2x Speed (6⚡ for 10min)">
+              <span class="speed-text">2x</span>
+              <span class="speed-cost">6⚡</span>
+            </button>
+            <button class="speed-btn" data-speed="3" title="3x Speed (12⚡ for 10min)">
+              <span class="speed-text">3x</span>
+              <span class="speed-cost">12⚡</span>
+            </button>
+          </div>
+          <div class="boost-timer-container" id="boostTimerContainer" style="display: none;">
+            <span class="boost-icon">⚡</span>
+            <span class="boost-timer" id="boostTimer">10:00</span>
+            <span class="boost-label" id="boostLabel">2x</span>
           </div>
           <div class="music-controls">
             <button class="music-btn" id="musicToggle" title="Play/Pause Music">⏸️</button>
@@ -63,6 +79,22 @@
                 <p class="tower-subtitle">Lv 3 • 탄수화물 분해 특화</p>
               </div>
             </div>
+
+            <!-- 성장 정보 (XP, 성급) -->
+            <div class="tower-growth-info">
+              <div class="growth-row">
+                <span class="growth-label">성급</span>
+                <span class="growth-value" id="towerStarDisplay">⭐ 1성</span>
+              </div>
+              <div class="growth-row">
+                <span class="growth-label">경험치</span>
+                <div class="xp-bar-container">
+                  <div class="xp-bar-fill" id="towerXPBar" style="width: 0%"></div>
+                  <span class="xp-text" id="towerXPText">0 / 40</span>
+                </div>
+              </div>
+            </div>
+
             <div class="tower-stats">
               <div class="stat-row">
                 <span class="stat-icon">⚔️</span>
@@ -110,6 +142,8 @@
           </div>
 
           <div class="action-buttons">
+            <button class="action-btn success hidden" id="upgradeStarBtn">⬆️ 승급 (NC 0, SC 0)</button>
+            <button class="action-btn warning" id="rerollStatsBtn">🎲 스탯 리롤 (SC 20)</button>
             <button class="action-btn danger" id="sellBtn">🗑️ 판매</button>
             <button class="action-btn primary" id="closeBtn">✕ 닫기</button>
           </div>

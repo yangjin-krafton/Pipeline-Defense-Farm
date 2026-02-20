@@ -26,7 +26,7 @@ export const SC_CONFIG = {
   displayName: '보급 차지',
   emoji: '⚡',
   // 수급 규칙
-  passiveRegenPerHour: 20,          // 시간당 20 회복
+  passiveRegenPerHour: 20,          // 시간당 20 회복 (3분마다 1씩 증가)
   hourlyLoginBonus: 10,             // 60분 접속 보너스
   dailyLoginBonus: 20,              // 일일 접속 보너스
   overflowToNCRatio: 0.5            // 오버플로 50% NC 변환

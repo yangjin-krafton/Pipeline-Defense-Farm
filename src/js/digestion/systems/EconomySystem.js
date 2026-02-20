@@ -17,6 +17,7 @@ export class EconomySystem {
     // 시간 기반 수급 누적기
     this.ncAccumulator = 0;  // NC 수급 시간 누적 (초)
     this.scAccumulator = 0;  // SC 수급 시간 누적 (초)
+    this.scFractional = 0;   // SC 소수점 누적 (정수 1이 되면 실제 SC 증가)
 
     // 레거시 호환성
     this.nutrition = this.nc;
@@ -138,15 +139,14 @@ export class EconomySystem {
       this.ncAccumulator -= seconds;
     }
 
-    // SC 수급 (시간당 20)
+    // SC 수급 (정수 단위로 1씩 증가)
     const scPerSecond = SC_CONFIG.passiveRegenPerHour / 3600;
-    this.scAccumulator += dt;
+    this.scFractional += scPerSecond * dt;
 
-    if (this.scAccumulator >= 1.0) {
-      const seconds = Math.floor(this.scAccumulator);
-      const scGain = scPerSecond * seconds;
-      this.earnSCWithOverflow(scGain);
-      this.scAccumulator -= seconds;
+    // 1씩 증가할 때마다 실제 SC 증가
+    while (this.scFractional >= 1.0) {
+      this.earnSCWithOverflow(1);  // 1씩 증가
+      this.scFractional -= 1.0;
     }
   }
 
@@ -192,7 +192,8 @@ export class EconomySystem {
       nc: this.nc,
       sc: this.sc,
       scMax: this.scMax,
-      scPercent: (this.sc / this.scMax) * 100
+      scPercent: (this.sc / this.scMax) * 100,
+      scFractional: this.scFractional  // 0-1 범위, 다음 1 SC까지의 진행도
     };
   }
 }

@@ -4,6 +4,7 @@
  */
 
 import { TOWER_DEFINITIONS } from '../digestion/data/towerDefinitions.js';
+import { COST_RATIOS } from '../digestion/data/economyDefinitions.js';
 import { dragManager } from '../core/DragManager.js';
 
 export class UIController {
@@ -183,8 +184,18 @@ export class UIController {
 
       // Restore previous game speed
       if (this.gameLoop) {
-        this.gameLoop.setTimeScale(this.previousTimeScale);
-        this.updateSpeedButtonDisplay(this.previousTimeScale);
+        const speedBoostSystem = this.gameLoop.getSpeedBoostSystem();
+        const activeBoost = speedBoostSystem?.getActiveBoost();
+
+        if (activeBoost) {
+          // Restore boost speed if boost is active
+          this.gameLoop.setTimeScale(activeBoost.speed);
+          this.updateSpeedButtonDisplay(activeBoost.speed);
+        } else {
+          // No boost active, restore to 1x (default)
+          this.gameLoop.setTimeScale(1.0);
+          this.updateSpeedButtonDisplay(1.0);
+        }
       }
 
       // Remove supply button if it exists
@@ -338,6 +349,28 @@ export class UIController {
    */
   setGameLoop(gameLoop) {
     this.gameLoop = gameLoop;
+
+    // Setup boost system callbacks
+    const speedBoostSystem = gameLoop.getSpeedBoostSystem();
+    if (speedBoostSystem) {
+      speedBoostSystem.onBoostActivated = (speed) => {
+        // Hide speed controls when boost starts
+        const speedControls = document.querySelector('.speed-controls');
+        if (speedControls) {
+          speedControls.style.display = 'none';
+        }
+        console.log('[UIController] Speed controls hidden - Boost active');
+      };
+
+      speedBoostSystem.onBoostExpired = (speed) => {
+        // Show speed controls when boost expires
+        const speedControls = document.querySelector('.speed-controls');
+        if (speedControls) {
+          speedControls.style.display = 'flex';
+        }
+        console.log('[UIController] Speed controls restored - Boost expired');
+      };
+    }
   }
 
   /**
@@ -347,6 +380,90 @@ export class UIController {
     // DEPRECATED: SupplySystem has been removed in favor of NC/SC currency system
     // This method is kept as a stub for compatibility but does nothing
     return;
+  }
+
+  /**
+   * Update tower growth info (XP, star)
+   */
+  _updateTowerGrowthInfo(tower) {
+    // Star display
+    const starDisplay = document.getElementById('towerStarDisplay');
+    if (starDisplay) {
+      const star = tower.star || 1;
+      const starEmoji = '⭐'.repeat(Math.min(star, 5)); // Max 5 visual stars
+      starDisplay.textContent = `${starEmoji} ${star}성`;
+    }
+
+    // XP bar
+    const towerGrowthSystem = this.gameLoop?.getTowerGrowthSystem();
+    if (towerGrowthSystem) {
+      const xpRequired = towerGrowthSystem.getXPRequiredForNextLevel(tower);
+      const currentXP = tower.xp || 0;
+      const xpPercent = xpRequired > 0 ? (currentXP / xpRequired) * 100 : 100;
+
+      const xpBar = document.getElementById('towerXPBar');
+      const xpText = document.getElementById('towerXPText');
+
+      if (xpBar) {
+        xpBar.style.width = `${Math.min(xpPercent, 100)}%`;
+      }
+
+      if (xpText) {
+        if (tower.level >= towerGrowthSystem.calculateMaxLevel(tower.star)) {
+          xpText.textContent = '만렙';
+        } else {
+          xpText.textContent = `${Math.floor(currentXP)} / ${xpRequired}`;
+        }
+      }
+    }
+  }
+
+  /**
+   * Update tower action buttons (upgrade star, reroll stats)
+   */
+  _updateTowerActionButtons(tower) {
+    const economySystem = this.gameLoop?.getEconomySystem();
+    const towerGrowthSystem = this.gameLoop?.getTowerGrowthSystem();
+
+    if (!economySystem || !towerGrowthSystem) return;
+
+    // Upgrade star button
+    const upgradeStarBtn = document.getElementById('upgradeStarBtn');
+    if (upgradeStarBtn) {
+      const canUpgrade = towerGrowthSystem.canUpgradeStar(tower);
+
+      if (canUpgrade) {
+        const cost = towerGrowthSystem.getUpgradeCost(tower.star);
+        upgradeStarBtn.textContent = `⬆️ 승급 (NC ${cost.nc}, SC ${cost.sc})`;
+        upgradeStarBtn.classList.remove('hidden');
+        upgradeStarBtn.disabled = !economySystem.canAffordBoth(cost.nc, cost.sc);
+
+        upgradeStarBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (towerGrowthSystem.upgradeStar(tower, economySystem)) {
+            console.log('Tower upgraded to star', tower.star);
+            this.selectTowerSlot(this.selectedSlot); // Refresh UI
+          }
+        };
+      } else {
+        upgradeStarBtn.classList.add('hidden');
+      }
+    }
+
+    // Reroll stats button
+    const rerollStatsBtn = document.getElementById('rerollStatsBtn');
+    if (rerollStatsBtn) {
+      const canAfford = economySystem.canAffordSC(20);
+      rerollStatsBtn.disabled = !canAfford || tower.star < 2; // Must be at least 2-star to reroll
+
+      rerollStatsBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (towerGrowthSystem.rerollStats(tower, economySystem)) {
+          console.log('Tower stats rerolled');
+          this.selectTowerSlot(this.selectedSlot); // Refresh UI
+        }
+      };
+    }
   }
 
   /**
@@ -364,6 +481,22 @@ export class UIController {
       console.log('UIController: Showing tower-detail');
     }
 
+    // Update tower growth info (XP, star)
+    this._updateTowerGrowthInfo(tower);
+
+    // Calculate effective stats with star bonuses
+    const baseDamage = tower.definition.stats.damage;
+    const baseAttackSpeed = tower.definition.stats.attackSpeed;
+    const baseRange = tower.definition.stats.range;
+
+    const effectiveDamage = baseDamage * tower.starBonuses.damageMultiplier;
+    const effectiveAttackSpeed = baseAttackSpeed * tower.starBonuses.attackSpeedMultiplier;
+    const effectiveRange = baseRange * tower.starBonuses.rangeMultiplier;
+
+    const damageBonus = ((tower.starBonuses.damageMultiplier - 1) * 100);
+    const speedBonus = ((tower.starBonuses.attackSpeedMultiplier - 1) * 100);
+    const rangeBonus = ((tower.starBonuses.rangeMultiplier - 1) * 100);
+
     // Update tower info
     this.updateTowerInfo({
       icon: tower.definition.emoji,
@@ -372,23 +505,34 @@ export class UIController {
       description: tower.definition.description,
       stats: {
         attack: {
-          percentage: (tower.damage / 30) * 100,
-          value: tower.damage.toFixed(1)
+          percentage: (effectiveDamage / 100) * 100,
+          value: damageBonus > 0
+            ? `${baseDamage.toFixed(1)} → ${effectiveDamage.toFixed(1)} (+${damageBonus.toFixed(0)}%)`
+            : baseDamage.toFixed(1)
         },
         speed: {
-          percentage: (tower.attackSpeed / 2) * 100,
-          value: tower.attackSpeed.toFixed(2) + '초'
+          percentage: (effectiveAttackSpeed / 3) * 100,
+          value: speedBonus > 0
+            ? `${baseAttackSpeed.toFixed(2)} → ${effectiveAttackSpeed.toFixed(2)} (+${speedBonus.toFixed(0)}%)`
+            : baseAttackSpeed.toFixed(2) + '초'
         },
         range: {
-          percentage: (tower.range / 200) * 100,
-          value: tower.range
+          percentage: (effectiveRange / 300) * 100,
+          value: rangeBonus > 0
+            ? `${baseRange} → ${Math.floor(effectiveRange)} (+${rangeBonus.toFixed(0)}%)`
+            : baseRange.toString()
         },
         special: {
-          percentage: ((tower.star || 1) / 12) * 100,
-          value: `${tower.star || 1}성`
+          percentage: (tower.starBonuses.statusSuccessRate / 0.5) * 100,
+          value: tower.starBonuses.statusSuccessRate > 0
+            ? `상태성공률 +${(tower.starBonuses.statusSuccessRate * 100).toFixed(1)}%`
+            : '없음'
         }
       }
     });
+
+    // Update action buttons (upgrade star, reroll stats)
+    this._updateTowerActionButtons(tower);
 
     // Show upgrade tree
     this._showUpgradeTree(tower);
@@ -1071,24 +1215,107 @@ export class UIController {
    * Update nutrition display in resource bar (NC/SC 2종 재화)
    */
   updateNutritionDisplay(economyState) {
-    const resources = document.querySelectorAll('.resource');
-
-    // NC (영양 크레딧) - 첫 번째 자원
-    if (resources[0]) {
+    // NC (영양 크레딧)
+    const ncAmount = document.getElementById('ncAmount');
+    if (ncAmount) {
       if (typeof economyState === 'number') {
         // 레거시 호환: 숫자가 전달되면 NC로 간주
-        resources[0].textContent = `🍎 ${economyState}`;
+        const newAmount = Math.floor(economyState);
+        this._animateNumberChange(ncAmount, parseInt(ncAmount.textContent) || 0, newAmount);
       } else {
         // 새 형식: economyState 객체
-        resources[0].textContent = `🍎 ${Math.floor(economyState.nc)}`;
+        const newAmount = Math.floor(economyState.nc);
+        this._animateNumberChange(ncAmount, parseInt(ncAmount.textContent) || 0, newAmount);
       }
     }
 
-    // SC (보급 차지) - 두 번째 자원
-    if (resources[1] && typeof economyState === 'object') {
-      const scPercent = Math.floor(economyState.scPercent);
-      resources[1].textContent = `⚡ ${Math.floor(economyState.sc)}/${economyState.scMax} (${scPercent}%)`;
+    // SC (보급 차지) - 게이지 바 형태
+    if (typeof economyState === 'object') {
+      const scBarProgress = document.getElementById('scBarProgress');
+      const scText = document.getElementById('scText');
+      const scResource = document.querySelector('.sc-resource');
+
+      const currentSC = Math.floor(economyState.sc);
+      const maxSC = economyState.scMax;
+      const scFractional = economyState.scFractional || 0;
+
+      // Progress bar: 다음 1 SC까지의 진행도 (0~100%)
+      const progressPercent = scFractional * 100;
+
+      // Store previous SC for animation trigger
+      const prevSC = scBarProgress?.dataset.prevSc ? parseInt(scBarProgress.dataset.prevSc) : currentSC;
+      const isInitialized = scBarProgress?.dataset.initialized === 'true';
+
+      if (scBarProgress) {
+        scBarProgress.style.width = `${Math.min(progressPercent, 100)}%`;
+
+        // Mark as initialized
+        if (!isInitialized) {
+          scBarProgress.dataset.initialized = 'true';
+          scBarProgress.dataset.prevSc = currentSC;
+        }
+
+        // SC가 1 증가했을 때 (진행도가 100%에 도달하여 리셋됨)
+        if (isInitialized && currentSC > prevSC) {
+          // Full effect (100% 도달)
+          scBarProgress.classList.add('full');
+          scBarProgress.classList.add('pulse');
+
+          setTimeout(() => {
+            scBarProgress.classList.remove('full');
+            scBarProgress.classList.remove('pulse');
+          }, 500);
+
+          scBarProgress.dataset.prevSc = currentSC;
+        }
+      }
+
+      if (scText) {
+        scText.textContent = `${currentSC}/${maxSC}`;
+
+        // Add increase animation if SC increased (only after initialization)
+        if (isInitialized && currentSC > prevSC) {
+          scText.classList.add('increase');
+          setTimeout(() => scText.classList.remove('increase'), 400);
+        }
+      }
+
+      // Add particle effect if SC increased
+      if (scResource && isInitialized && currentSC > prevSC) {
+        scResource.classList.add('show-particle');
+        setTimeout(() => scResource.classList.remove('show-particle'), 800);
+      }
     }
+  }
+
+  /**
+   * Animate number change with count-up effect
+   */
+  _animateNumberChange(element, from, to) {
+    if (from === to) {
+      element.textContent = to;
+      return;
+    }
+
+    const duration = 300; // ms
+    const steps = 10;
+    const stepValue = (to - from) / steps;
+    const stepDuration = duration / steps;
+
+    let current = from;
+    let step = 0;
+
+    const interval = setInterval(() => {
+      step++;
+      current += stepValue;
+
+      if (step >= steps) {
+        element.textContent = to;
+        clearInterval(interval);
+      } else {
+        element.textContent = Math.floor(current);
+      }
+    }, stepDuration);
   }
 
   /**
@@ -1119,6 +1346,11 @@ export class UIController {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
 
+        // Prevent rapid clicking
+        if (btn.disabled) {
+          return;
+        }
+
         // Don't allow manual speed change when sheet is open (slow motion mode)
         if (this.isExpanded) {
           console.log('Cannot change speed while tower menu is open');
@@ -1127,13 +1359,47 @@ export class UIController {
 
         const speed = parseFloat(btn.getAttribute('data-speed'));
 
-        if (this.gameLoop) {
-          this.gameLoop.setTimeScale(speed);
-          this.previousTimeScale = speed;
+        // 1x is always free
+        if (speed === 1) {
+          if (this.gameLoop) {
+            this.gameLoop.setTimeScale(speed);
+            this.previousTimeScale = speed;
+          }
+          this.updateSpeedButtonDisplay(speed);
+          return;
         }
 
-        // Update button states
-        this.updateSpeedButtonDisplay(speed);
+        // 2x/3x require payment
+        if (this.gameLoop) {
+          const speedBoostSystem = this.gameLoop.getSpeedBoostSystem();
+          const economySystem = this.gameLoop.getEconomySystem();
+
+          if (!speedBoostSystem || !economySystem) {
+            console.error('[UIController] Missing system references');
+            return;
+          }
+
+          // Disable button during transaction
+          btn.disabled = true;
+
+          // Try to activate boost
+          const result = speedBoostSystem.activateBoost(speed, economySystem);
+
+          if (result.success) {
+            // Boost activated successfully
+            this.gameLoop.setTimeScale(speed);
+            this.previousTimeScale = speed;
+            this.updateSpeedButtonDisplay(speed);
+          } else {
+            // Show error feedback
+            this.showBoostError(result.reason);
+          }
+
+          // Re-enable button
+          setTimeout(() => {
+            btn.disabled = false;
+          }, 300);
+        }
       });
     });
   }
@@ -1149,19 +1415,131 @@ export class UIController {
       const btnSpeed = parseFloat(btn.getAttribute('data-speed'));
       btn.classList.remove('active', 'slow-motion');
 
+      // Find speed-text span
+      const speedTextSpan = btn.querySelector('.speed-text');
+
       if (speed === 0.5) {
         // Slow motion mode (when sheet is open)
         if (btnSpeed === 1) {
           btn.classList.add('slow-motion');
-          btn.textContent = '0.5x';
+          if (speedTextSpan) speedTextSpan.textContent = '0.5x';
         }
       } else if (btnSpeed === speed) {
         btn.classList.add('active');
         // Reset text to normal
-        if (btnSpeed === 1) btn.textContent = '1x';
+        if (btnSpeed === 1 && speedTextSpan) speedTextSpan.textContent = '1x';
       } else if (btnSpeed === 1) {
         // Reset 1x button text
-        btn.textContent = '1x';
+        if (speedTextSpan) speedTextSpan.textContent = '1x';
+      }
+    });
+  }
+
+  /**
+   * Show error feedback when boost purchase fails
+   * @param {string} reason - Error reason ('insufficient_sc', 'active_boost_exists', etc.)
+   */
+  showBoostError(reason) {
+    const scResource = document.querySelector('.sc-resource');
+
+    if (reason === 'insufficient_sc') {
+      // Shake animation on SC display
+      if (scResource) {
+        scResource.classList.add('insufficient-shake');
+        setTimeout(() => scResource.classList.remove('insufficient-shake'), 500);
+      }
+
+      console.log('[UIController] ⚡ Insufficient Supply Charge!');
+    } else if (reason === 'active_boost_exists') {
+      console.log('[UIController] ⏱️ Boost already active!');
+    } else {
+      console.warn(`[UIController] Boost activation failed: ${reason}`);
+    }
+  }
+
+  /**
+   * Update boost display (timer and button states)
+   * Called from main.js updateUIDisplays loop
+   */
+  updateBoostDisplay() {
+    const speedBoostSystem = this.gameLoop?.getSpeedBoostSystem();
+    if (!speedBoostSystem) return;
+
+    const activeBoost = speedBoostSystem.getActiveBoost();
+
+    if (activeBoost) {
+      // Update timer display
+      const timerContainer = document.getElementById('boostTimerContainer');
+      const timerElement = document.getElementById('boostTimer');
+      const labelElement = document.getElementById('boostLabel');
+
+      if (timerContainer && timerElement && labelElement) {
+        const timerText = speedBoostSystem.getFormattedRemainingTime();
+        timerElement.textContent = timerText;
+        labelElement.textContent = `${activeBoost.speed}x`;
+        timerContainer.style.display = 'flex';
+      }
+
+      // Update button states for active boost
+      this.updateSpeedButtonsForBoost(activeBoost.speed);
+    } else {
+      // No active boost - hide timer
+      const timerContainer = document.getElementById('boostTimerContainer');
+      if (timerContainer) {
+        timerContainer.style.display = 'none';
+      }
+
+      // Update button affordability
+      this.updateSpeedButtonAffordability();
+    }
+  }
+
+  /**
+   * Update button states when boost is active
+   * @param {number} activeSpeed - Currently active boost speed (2 or 3)
+   */
+  updateSpeedButtonsForBoost(activeSpeed) {
+    const buttons = document.querySelectorAll('.speed-btn');
+    buttons.forEach(btn => {
+      const speed = parseFloat(btn.getAttribute('data-speed'));
+
+      btn.classList.remove('active', 'boost-active', 'disabled');
+
+      if (speed === activeSpeed) {
+        btn.classList.add('boost-active');
+      } else if (speed !== 1) {
+        btn.classList.add('disabled'); // Can't buy another boost
+      } else if (speed === 1) {
+        // 1x is available but not active
+        btn.classList.remove('active');
+      }
+    });
+  }
+
+  /**
+   * Update button states based on SC affordability
+   */
+  updateSpeedButtonAffordability() {
+    const economySystem = this.gameLoop?.getEconomySystem();
+    if (!economySystem) return;
+
+    const buttons = document.querySelectorAll('.speed-btn');
+    buttons.forEach(btn => {
+      const speed = parseFloat(btn.getAttribute('data-speed'));
+
+      if (speed === 1) {
+        // 1x always available
+        btn.classList.remove('disabled');
+        return;
+      }
+
+      const costKey = speed === 2 ? 'speed2x10m' : 'speed3x10m';
+      const cost = COST_RATIOS[costKey];
+
+      if (economySystem.canAffordSC(cost)) {
+        btn.classList.remove('disabled');
+      } else {
+        btn.classList.add('disabled');
       }
     });
   }
