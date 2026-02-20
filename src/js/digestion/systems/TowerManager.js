@@ -1,12 +1,12 @@
 import { TOWER_DEFINITIONS } from '../data/towerDefinitions.js';
-import { EnzymeTower } from '../towers/EnzymeTower.js';
-import { AcidTower } from '../towers/AcidTower.js';
-import { BileTower } from '../towers/BileTower.js';
+import { AcidRailTower } from '../towers/AcidRailTower.js';
+import { EnzymeChargeCannon } from '../towers/EnzymeChargeCannon.js';
+import { PierceBoltTower } from '../towers/PierceBoltTower.js';
 
 const TOWER_CLASSES = {
-  enzyme: EnzymeTower,
-  acid: AcidTower,
-  bile: BileTower
+  acidRail: AcidRailTower,
+  enzymeCharge: EnzymeChargeCannon,
+  pierceBolt: PierceBoltTower
 };
 
 export class TowerManager {
