@@ -24,7 +24,7 @@ export class BaseTower {
     this.xp = 0;                    // 현재 XP
     this.level = 1;                 // 현재 레벨
     this.star = 1;                  // 성급 (1~12)
-    this.upgradePoints = 5;         // 업그레이드 포인트 (초기 5, 레벨업마다 +1)
+    this.upgradePoints = 1;         // 업그레이드 포인트 (레벨과 동일, 레벨업마다 +1)
 
     // Star bonuses (승급 스탯 누적)
     this.starBonuses = {
@@ -45,7 +45,7 @@ export class BaseTower {
     this.particleSystem = particleSystem;
 
     // Upgrade system
-    this.upgradeTree = definition.upgradeTree ? new UpgradeTree(definition.upgradeTree) : null;
+    this.upgradeTree = definition.upgradeTree ? new UpgradeTree(definition.upgradeTree, this) : null;
 
     // Module tracking
     this.lastTarget = null;

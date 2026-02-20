@@ -32,11 +32,23 @@ export class UpgradeNode {
  * 타워의 업그레이드 트리 관리
  */
 export class UpgradeTree {
-  constructor(nodes = []) {
+  constructor(nodes = [], tower = null) {
     this.nodes = nodes; // UpgradeNode 배열
     this.activeNodes = []; // 활성화된 노드
-    this.availablePoints = 5; // 사용 가능한 업그레이드 포인트
+    this.tower = tower; // 타워 참조 (동적 포인트 계산용)
     this.usedPoints = 0;
+  }
+
+  /**
+   * Get available upgrade points from tower
+   */
+  get availablePoints() {
+    // 타워 참조가 있으면 타워의 upgradePoints 사용
+    if (this.tower) {
+      return this.tower.upgradePoints || this.tower.level || 5;
+    }
+    // 타워 참조가 없으면 기본값 5
+    return 5;
   }
 
   /**
