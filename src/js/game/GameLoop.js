@@ -36,6 +36,11 @@ export class GameLoop {
 
     this.isRunning = false;
 
+    // Game speed control
+    this.timeScale = 1.0; // 1x = normal, 2x = fast, 0.5x = slow
+    this.targetTimeScale = 1.0; // Target time scale for smooth transitions
+    this.timeScaleTransitionSpeed = 5.0; // How fast to transition between speeds
+
     // Initialize digestion systems
     this.towerManager = new TowerManager();
     this.supplySystem = new SupplySystem();
@@ -70,26 +75,40 @@ export class GameLoop {
    * @param {number} dt - Delta time in seconds
    */
   update(dt) {
-    this.time += dt;
-    this.currentTime += dt;
+    // Smoothly transition timeScale
+    if (this.timeScale !== this.targetTimeScale) {
+      const diff = this.targetTimeScale - this.timeScale;
+      const step = Math.sign(diff) * this.timeScaleTransitionSpeed * dt;
+      if (Math.abs(diff) < Math.abs(step)) {
+        this.timeScale = this.targetTimeScale;
+      } else {
+        this.timeScale += step;
+      }
+    }
+
+    // Apply time scale to delta time
+    const scaledDt = dt * this.timeScale;
+
+    this.time += scaledDt;
+    this.currentTime += scaledDt;
 
     // Spawn food
-    this.foodSpawner.update(dt);
+    this.foodSpawner.update(scaledDt);
 
     // Update digestion systems BEFORE path movement
     const foodList = this.multiPathSystem.getObjects();
-    this.towerManager.update(dt, foodList, this.multiPathSystem, this.currentTime);
-    this.supplySystem.update(dt);
-    this.troubleSystem.update(dt, foodList, this.multiPathSystem);
+    this.towerManager.update(scaledDt, foodList, this.multiPathSystem, this.currentTime);
+    this.supplySystem.update(scaledDt);
+    this.troubleSystem.update(scaledDt, foodList, this.multiPathSystem);
 
     // NEW: Update bullet system
-    this.bulletSystem.update(dt, this.multiPathSystem);
+    this.bulletSystem.update(scaledDt, this.multiPathSystem);
 
     // NEW: Update particle system
-    this.particleSystem.update(dt);
+    this.particleSystem.update(scaledDt);
 
     // Update multi-path system
-    this.multiPathSystem.update(dt, (completed) => {
+    this.multiPathSystem.update(scaledDt, (completed) => {
       // Earn nutrition based on zone
       const reward = this.economySystem.earnFromFood(completed, completed.currentPath);
       this.score += reward;
@@ -408,5 +427,33 @@ export class GameLoop {
    */
   getParticleSystem() {
     return this.particleSystem;
+  }
+
+  /**
+   * Set game speed (time scale)
+   * @param {number} scale - Time scale (1.0 = normal, 2.0 = 2x speed, 0.5 = slow motion)
+   * @param {boolean} instant - If true, change instantly without transition
+   */
+  setTimeScale(scale, instant = false) {
+    this.targetTimeScale = Math.max(0.1, Math.min(3.0, scale)); // Clamp between 0.1x and 3x
+    if (instant) {
+      this.timeScale = this.targetTimeScale;
+    }
+  }
+
+  /**
+   * Get current time scale
+   * @returns {number} Current time scale
+   */
+  getTimeScale() {
+    return this.timeScale;
+  }
+
+  /**
+   * Get target time scale
+   * @returns {number} Target time scale
+   */
+  getTargetTimeScale() {
+    return this.targetTimeScale;
   }
 }

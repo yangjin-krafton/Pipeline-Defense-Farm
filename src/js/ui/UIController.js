@@ -17,6 +17,9 @@ export class UIController {
     this.gameLoop = null; // Will be set by main.js
     this.selectedSlot = null;
 
+    // Speed control state
+    this.previousTimeScale = 1.0; // Store previous speed before slow motion
+
     this.init();
   }
 
@@ -44,6 +47,7 @@ export class UIController {
     }
 
     this.setupBottomSheet();
+    this.setupSpeedControls();
     // Note: Tower interactions will be handled via WebGL2 rendering, not DOM events
   }
 
@@ -147,6 +151,13 @@ export class UIController {
       this.isExpanded = true;
       this.bottomSheet.classList.add('expanded');
 
+      // Slow down game when sheet opens (0.5x speed)
+      if (this.gameLoop) {
+        this.previousTimeScale = this.gameLoop.getTargetTimeScale();
+        this.gameLoop.setTimeScale(0.5);
+        this.updateSpeedButtonDisplay(0.5);
+      }
+
       // Trigger callback after sheet animation completes (0.3s transition)
       if (this.onSheetOpenCallback) {
         setTimeout(() => {
@@ -164,6 +175,12 @@ export class UIController {
       this.isExpanded = false;
       this.bottomSheet.classList.remove('expanded');
       this.selectedTowerSlot = null;
+
+      // Restore previous game speed
+      if (this.gameLoop) {
+        this.gameLoop.setTimeScale(this.previousTimeScale);
+        this.updateSpeedButtonDisplay(this.previousTimeScale);
+      }
 
       // Remove supply button if it exists
       const supplyBtn = document.getElementById('supplyBtn');
@@ -295,7 +312,7 @@ export class UIController {
       subtitleElement.textContent = `Lv ${towerData.level} • ${towerData.description}`;
     }
 
-    // 스탯 업데이트
+    // 스탯 업데이트 (새로운 구조 우선, 레거시 구조도 지원)
     const statFills = detailSection.querySelectorAll('.stat-fill');
     const statNumbers = detailSection.querySelectorAll('.stat-number');
 
@@ -509,5 +526,62 @@ export class UIController {
     if (resources[2]) {
       resources[2].textContent = `🦠 ${Math.round(congestion)}/${Math.round(acidity)}`;
     }
+  }
+
+  /**
+   * Setup speed control buttons
+   */
+  setupSpeedControls() {
+    const speedButtons = document.querySelectorAll('.speed-btn');
+
+    speedButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+
+        // Don't allow manual speed change when sheet is open (slow motion mode)
+        if (this.isExpanded) {
+          console.log('Cannot change speed while tower menu is open');
+          return;
+        }
+
+        const speed = parseFloat(btn.getAttribute('data-speed'));
+
+        if (this.gameLoop) {
+          this.gameLoop.setTimeScale(speed);
+          this.previousTimeScale = speed;
+        }
+
+        // Update button states
+        this.updateSpeedButtonDisplay(speed);
+      });
+    });
+  }
+
+  /**
+   * Update speed button display
+   * @param {number} speed - Current speed (0.5, 1, 2, 3)
+   */
+  updateSpeedButtonDisplay(speed) {
+    const speedButtons = document.querySelectorAll('.speed-btn');
+
+    speedButtons.forEach(btn => {
+      const btnSpeed = parseFloat(btn.getAttribute('data-speed'));
+      btn.classList.remove('active', 'slow-motion');
+
+      if (speed === 0.5) {
+        // Slow motion mode (when sheet is open)
+        if (btnSpeed === 1) {
+          btn.classList.add('slow-motion');
+          btn.textContent = '0.5x';
+        }
+      } else if (btnSpeed === speed) {
+        btn.classList.add('active');
+        // Reset text to normal
+        if (btnSpeed === 1) btn.textContent = '1x';
+      } else if (btnSpeed === 1) {
+        // Reset 1x button text
+        btn.textContent = '1x';
+      }
+    });
   }
 }

@@ -54,4 +54,84 @@
               0 8px 25px rgba(255, 215, 0, 0.6);
 }
 
+/* 컨트롤 그룹 (속도 + 음악) */
+.controls-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 속도 조절 버튼 */
+.speed-controls {
+  display: flex;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 4px;
+  border: 3px solid var(--splat-dark);
+  box-shadow: 0 3px 0 var(--splat-dark);
+}
+
+.speed-btn {
+  width: 42px;
+  height: 32px;
+  border: 3px solid var(--splat-dark);
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Arial Black', sans-serif;
+  background: white;
+  color: var(--splat-dark);
+  box-shadow: 0 2px 0 var(--splat-dark);
+  position: relative;
+  top: 0;
+}
+
+.speed-btn:hover {
+  transform: scale(1.1);
+  background: var(--splat-yellow);
+}
+
+.speed-btn:active {
+  top: 1px;
+  box-shadow: 0 1px 0 var(--splat-dark);
+}
+
+.speed-btn.active {
+  background: var(--splat-cyan);
+  color: white;
+  box-shadow: 0 0 0 2px white,
+              0 0 0 4px var(--splat-dark),
+              0 2px 0 var(--splat-dark),
+              0 0 15px rgba(0, 217, 255, 0.6);
+}
+
+.speed-btn.active:hover {
+  background: var(--splat-cyan);
+}
+
+/* 슬로우 모션 표시 (0.5x) */
+.speed-btn.slow-motion {
+  background: var(--splat-pink);
+  color: white;
+  animation: slow-motion-pulse 1.5s infinite;
+}
+
+@keyframes slow-motion-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px white,
+                0 0 0 4px var(--splat-dark),
+                0 2px 0 var(--splat-dark),
+                0 0 15px rgba(233, 69, 96, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 2px white,
+                0 0 0 4px var(--splat-dark),
+                0 2px 0 var(--splat-dark),
+                0 0 25px rgba(233, 69, 96, 0.9);
+  }
+}
+
 /* 고정 레이아웃 - 반응형 불필요 (스케일링으로 처리) */

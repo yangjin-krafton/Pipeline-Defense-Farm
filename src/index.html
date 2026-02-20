@@ -28,8 +28,15 @@
           <span class="resource">⚡ 85</span>
           <span class="resource">🦠 42</span>
         </div>
-        <div class="music-controls">
-          <button class="music-btn" id="musicToggle" title="Play/Pause Music">⏸️</button>
+        <div class="controls-group">
+          <div class="speed-controls">
+            <button class="speed-btn active" data-speed="1" title="Normal Speed">1x</button>
+            <button class="speed-btn" data-speed="2" title="2x Speed">2x</button>
+            <button class="speed-btn" data-speed="3" title="3x Speed">3x</button>
+          </div>
+          <div class="music-controls">
+            <button class="music-btn" id="musicToggle" title="Play/Pause Music">⏸️</button>
+          </div>
         </div>
       </header>
 
@@ -48,52 +55,59 @@
 
         <!-- 타워 상세 정보 (설치된 타워) -->
         <div class="sheet-content hidden" id="tower-detail">
-          <div class="detail-header">
-            <div class="tower-icon-large">🧪</div>
-            <div class="tower-title">
-              <h2>효소 분사기</h2>
-              <p class="tower-subtitle">Lv 3 • 탄수화물 분해 특화</p>
+          <!-- 타워 정보 블록 (헤더 + 스탯 통합) -->
+          <div class="tower-info-block">
+            <div class="tower-header">
+              <div class="tower-icon-large">🧪</div>
+              <div class="tower-title">
+                <h2>효소 분사기</h2>
+                <p class="tower-subtitle">Lv 3 • 탄수화물 분해 특화</p>
+              </div>
+            </div>
+            <div class="tower-stats">
+              <div class="stat-row">
+                <span class="stat-icon">⚔️</span>
+                <span class="stat-name">공격력</span>
+                <span class="stat-bar">
+                  <span class="stat-fill" style="width: 60%"></span>
+                </span>
+                <span class="stat-number">45</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-icon">⚡</span>
+                <span class="stat-name">공격속도</span>
+                <span class="stat-bar">
+                  <span class="stat-fill" style="width: 80%"></span>
+                </span>
+                <span class="stat-number">1.2초</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-icon">📍</span>
+                <span class="stat-name">범위</span>
+                <span class="stat-bar">
+                  <span class="stat-fill" style="width: 40%"></span>
+                </span>
+                <span class="stat-number">2타일</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-icon">✨</span>
+                <span class="stat-name">분해효과</span>
+                <span class="stat-bar special">
+                  <span class="stat-fill" style="width: 75%"></span>
+                </span>
+                <span class="stat-number">+15%</span>
+              </div>
             </div>
           </div>
 
-          <div class="stats-list">
-            <div class="stat-row">
-              <span class="stat-icon">⚔️</span>
-              <span class="stat-name">공격력</span>
-              <span class="stat-bar">
-                <span class="stat-fill" style="width: 60%"></span>
-              </span>
-              <span class="stat-number">45</span>
+          <!-- 업그레이드 트리 블록 -->
+          <div class="upgrade-block">
+            <div class="upgrade-header">
+              <h3>💥 업그레이드 트리</h3>
             </div>
-            <div class="stat-row">
-              <span class="stat-icon">⚡</span>
-              <span class="stat-name">공격속도</span>
-              <span class="stat-bar">
-                <span class="stat-fill" style="width: 80%"></span>
-              </span>
-              <span class="stat-number">1.2초</span>
+            <div class="upgrade-content">
+              <!-- 업그레이드 트리가 여기에 동적으로 추가됨 -->
             </div>
-            <div class="stat-row">
-              <span class="stat-icon">📍</span>
-              <span class="stat-name">범위</span>
-              <span class="stat-bar">
-                <span class="stat-fill" style="width: 40%"></span>
-              </span>
-              <span class="stat-number">2타일</span>
-            </div>
-            <div class="stat-row">
-              <span class="stat-icon">✨</span>
-              <span class="stat-name">분해효과</span>
-              <span class="stat-bar special">
-                <span class="stat-fill" style="width: 75%"></span>
-              </span>
-              <span class="stat-number">+15%</span>
-            </div>
-          </div>
-
-          <div class="action-section">
-            <h3>💥 업그레이드 트리</h3>
-            <!-- TODO: 업그레이드 트리 구현 -->
           </div>
 
           <div class="action-buttons">

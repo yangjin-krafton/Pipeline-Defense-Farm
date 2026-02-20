@@ -1,0 +1,204 @@
+/**
+ * upgrade-tree.css
+ * 업그레이드 트리 UI 스타일 (Splatoon Style)
+ */
+
+/* 업그레이드 스킬 트리 */
+.skill-tree-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: rgba(255, 255, 255, 0.95);
+  border: 5px solid #1a1a2e;
+  border-radius: 18px;
+  padding: 15px;
+  box-shadow:
+    0 0 0 3px #ffd700,
+    0 8px 0 #1a1a2e;
+}
+
+/* upgrade-content 안에 있을 때는 외곽선 제거 (이미 블록에 있음) */
+.upgrade-content .skill-tree-scroll {
+  border: 3px solid #1a1a2e;
+  box-shadow: 0 4px 0 #1a1a2e;
+}
+
+.skill-tree-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+
+.skill-tree-scroll::-webkit-scrollbar-track {
+  background: #e0e0e0;
+  border-radius: 5px;
+  border: 2px solid #1a1a2e;
+}
+
+.skill-tree-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, #e94560, #00d9ff);
+  border-radius: 5px;
+  border: 2px solid #1a1a2e;
+}
+
+.skill-tree {
+  position: relative;
+  width: 600px;
+  height: 160px;
+  min-width: 600px;
+}
+
+/* 연결선 */
+.skill-connections {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.connection {
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.connection.unlocked {
+  stroke: #00d9ff;
+  filter: drop-shadow(0 0 5px #00d9ff);
+}
+
+.connection.available {
+  stroke: #ffd700;
+  stroke-dasharray: 10, 10;
+  animation: splat-dash 1s linear infinite;
+  filter: drop-shadow(0 0 8px #ffd700);
+}
+
+@keyframes splat-dash {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.connection.locked {
+  stroke: #666;
+  stroke-dasharray: 6, 6;
+  opacity: 0.4;
+}
+
+/* 스킬 노드 */
+.skill-node {
+  position: absolute;
+  width: 85px;
+  height: 85px;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.skill-node::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 75px;
+  height: 75px;
+  border-radius: 50%;
+  border: 5px solid;
+  background: radial-gradient(circle at 30% 30%, #fff, #f0f0f0);
+  box-shadow: 0 6px 0 #1a1a2e;
+  transition: all 0.2s;
+}
+
+.skill-node:active::before {
+  transform: translate(-50%, -48%);
+  box-shadow: 0 3px 0 #1a1a2e;
+}
+
+/* 잠금 해제됨 */
+.skill-node.unlocked::before {
+  border-color: #00d9ff;
+  box-shadow:
+    0 0 0 3px #1a1a2e,
+    0 6px 0 #1a1a2e,
+    0 0 20px rgba(0, 217, 255, 0.5);
+}
+
+/* 현재 레벨 */
+.skill-node.current::before {
+  border-color: #ffd700;
+  animation: splat-glow 1.5s infinite;
+}
+
+@keyframes splat-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 0 3px #1a1a2e,
+      0 6px 0 #1a1a2e,
+      0 0 25px rgba(255, 215, 0, 0.6);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px #1a1a2e,
+      0 6px 0 #1a1a2e,
+      0 0 40px rgba(255, 215, 0, 0.9);
+  }
+}
+
+/* 연구 가능 */
+.skill-node.available::before {
+  border-color: #e94560;
+  box-shadow:
+    0 0 0 3px #1a1a2e,
+    0 6px 0 #1a1a2e,
+    0 0 20px rgba(233, 69, 96, 0.5);
+}
+
+.skill-node.available:hover::before {
+  transform: translate(-50%, -50%) scale(1.15) rotate(-10deg);
+}
+
+/* 잠김 */
+.skill-node.locked::before {
+  border-color: #666;
+  background: #ccc;
+  opacity: 0.5;
+}
+
+.node-icon {
+  position: relative;
+  font-size: 32px;
+  text-align: center;
+  line-height: 44px;
+  z-index: 1;
+  filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.2));
+}
+
+.node-name {
+  position: relative;
+  font-size: 11px;
+  font-weight: 900;
+  color: #1a1a2e;
+  text-align: center;
+  margin-top: -4px;
+  z-index: 1;
+}
+
+.node-cost {
+  position: relative;
+  font-size: 10px;
+  font-weight: 900;
+  color: #e94560;
+  text-align: center;
+  margin-top: 2px;
+  z-index: 1;
+}
+
+.node-status {
+  position: relative;
+  font-size: 18px;
+  text-align: center;
+  margin-top: -6px;
+  z-index: 1;
+}
+
+.skill-node.locked {
+  cursor: not-allowed;
+}

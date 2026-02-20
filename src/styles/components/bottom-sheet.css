@@ -72,22 +72,29 @@
   border: 2px solid var(--splat-dark);
 }
 
-/* 타워 상세 헤더 */
-.detail-header {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  margin-bottom: 25px;
-  padding: 25px;
+/* ===== 타워 정보 블록 (헤더 + 스탯 통합) ===== */
+.tower-info-block {
+  margin-bottom: 20px;
   background: radial-gradient(circle at top left, rgba(233, 69, 96, 0.3), transparent),
               radial-gradient(circle at bottom right, rgba(0, 217, 255, 0.3), transparent),
               white;
   border: 5px solid var(--splat-dark);
   border-radius: 20px;
+  padding: 25px;
   box-shadow: 0 0 0 3px var(--splat-cyan),
               0 8px 0 var(--splat-dark),
               0 12px 30px rgba(0, 217, 255, 0.4);
   transform: skewY(-1deg);
+}
+
+/* 타워 헤더 */
+.tower-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 3px solid var(--splat-dark);
 }
 
 .tower-icon-large {
@@ -111,7 +118,31 @@
   font-weight: bold;
 }
 
-/* 스탯 리스트 */
+/* 타워 스탯 */
+.tower-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 하위 호환성을 위한 레거시 클래스 유지 */
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 25px;
+  padding: 25px;
+  background: radial-gradient(circle at top left, rgba(233, 69, 96, 0.3), transparent),
+              radial-gradient(circle at bottom right, rgba(0, 217, 255, 0.3), transparent),
+              white;
+  border: 5px solid var(--splat-dark);
+  border-radius: 20px;
+  box-shadow: 0 0 0 3px var(--splat-cyan),
+              0 8px 0 var(--splat-dark),
+              0 12px 30px rgba(0, 217, 255, 0.4);
+  transform: skewY(-1deg);
+}
+
 .stats-list {
   display: flex;
   flex-direction: column;
@@ -191,7 +222,32 @@
   text-align: right;
 }
 
-/* 액션 섹션 */
+/* ===== 업그레이드 블록 ===== */
+.upgrade-block {
+  margin-bottom: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 5px solid var(--splat-dark);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 0 0 3px var(--splat-yellow),
+              0 8px 0 var(--splat-dark),
+              0 12px 30px rgba(255, 215, 0, 0.4);
+}
+
+.upgrade-header h3 {
+  font-size: 20px;
+  color: white;
+  margin-bottom: 15px;
+  font-weight: 900;
+  text-shadow: 2px 2px 0 var(--splat-pink),
+               -1px -1px 0 var(--splat-cyan);
+}
+
+.upgrade-content {
+  /* 업그레이드 트리가 여기에 삽입됨 */
+}
+
+/* 레거시 액션 섹션 (하위 호환성) */
 .action-section {
   margin-bottom: 25px;
 }
