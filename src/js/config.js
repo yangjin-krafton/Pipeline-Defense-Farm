@@ -379,7 +379,7 @@ export const TOWER_SLOTS = [
  * Base stat table for each food (tower-defense ready data).
  * Values are the baseline used at spawn before temporary effects.
  */
-export const FOOD_STAT_TABLE = {
+const RAW_FOOD_STAT_TABLE = {
   rice_stomach: [
     { id: "burger", name: "버거", emoji: "🍔", category: "fat", tags: ["fat", "protein", "carb"], hp: 178, armor: 14, speed: 84, size: 35, mass: 1.18, threat: 17, reward: 18, digestionNeed: 128 },
     { id: "pizza", name: "피자", emoji: "🍕", category: "fat", tags: ["fat", "carb", "dairy"], hp: 168, armor: 11, speed: 87, size: 34, mass: 1.1, threat: 15, reward: 17, digestionNeed: 122 },
@@ -453,6 +453,85 @@ export const FOOD_STAT_TABLE = {
   small_intestine: [],
   large_intestine: []
 };
+
+const TAG_ALIASES = {
+  spice: "spicy",
+  carbonated: "soda",
+  sparkling: "soda",
+};
+
+function normalizeFoodTags(tags = [], category = "") {
+  const normalized = tags.map((tag) => TAG_ALIASES[tag] || tag);
+  if (category === "dairy" && !normalized.includes("dairy")) normalized.push("dairy");
+  if (category === "alcohol" && !normalized.includes("alcohol")) normalized.push("alcohol");
+  if (category === "protein" && !normalized.includes("protein")) normalized.push("protein");
+  return [...new Set(normalized)];
+}
+
+function inferMaterialClass(food) {
+  const tags = food.tags || [];
+  if (tags.includes("dairy") || food.category === "dairy") return "dairy";
+  if (tags.includes("alcohol") || food.category === "alcohol") return "alcohol";
+  if (food.category === "protein") return "meat";
+  if (tags.includes("seafood")) return "seafood";
+  if (tags.includes("sugar") || food.category === "sugar") return "sugar";
+  if (tags.includes("carb") || food.category === "carb") return "carb";
+  if (tags.includes("fermented") || food.category === "fermented") return "fermented";
+  if (tags.includes("caffeine") || food.category === "caffeine") return "caffeine";
+  return "mixed";
+}
+
+function inferStrengthTier(food) {
+  if (food.threat >= 16 || food.digestionNeed >= 121) return "elite";
+  if (food.threat >= 11 || food.digestionNeed >= 95) return "strong";
+  return "normal";
+}
+
+function buildResist(tags, tier) {
+  const byTier = {
+    normal: { acid: 0.04, slow: 0.03, stun: 0.02, mark: 0.02 },
+    strong: { acid: 0.08, slow: 0.06, stun: 0.05, mark: 0.04 },
+    elite: { acid: 0.13, slow: 0.1, stun: 0.08, mark: 0.06 },
+  };
+  const resist = { ...byTier[tier] };
+
+  if (tags.includes("fat")) resist.slow += 0.03;
+  if (tags.includes("dairy")) resist.acid += 0.03;
+  if (tags.includes("sugar")) resist.stun -= 0.01;
+  if (tags.includes("alcohol")) resist.mark -= 0.01;
+  if (tags.includes("spicy") || tags.includes("acidic")) resist.acid += 0.02;
+  if (tags.includes("fermented")) resist.stun += 0.02;
+
+  // Clamp to schema safe range.
+  for (const key of Object.keys(resist)) {
+    resist[key] = Math.max(0, Math.min(0.9, Number(resist[key].toFixed(2))));
+  }
+  return resist;
+}
+
+/**
+ * Runtime-ready table:
+ * - tag normalization (spicy/soda aliases)
+ * - material class for real-world grouping (dairy/meat/etc)
+ * - strength tier per representative food
+ * - default resist profile
+ */
+export const FOOD_STAT_TABLE = Object.fromEntries(
+  Object.entries(RAW_FOOD_STAT_TABLE).map(([pathKey, foods]) => [
+    pathKey,
+    foods.map((food) => {
+      const tags = normalizeFoodTags(food.tags, food.category);
+      const strengthTier = inferStrengthTier(food);
+      return {
+        ...food,
+        tags,
+        materialClass: inferMaterialClass({ ...food, tags }),
+        strengthTier,
+        resist: buildResist(tags, strengthTier),
+      };
+    }),
+  ])
+);
 
 export const FOOD_BY_PATH = Object.fromEntries(
   Object.entries(FOOD_STAT_TABLE).map(([pathKey, foods]) => [

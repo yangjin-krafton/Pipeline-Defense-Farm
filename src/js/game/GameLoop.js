@@ -5,11 +5,11 @@ import { FOOD_SPAWN_MS, BASE_SPEED, PATHS, PATH_RENDER_SETTINGS } from '../confi
 import { FoodSpawner } from './FoodSpawner.js';
 import { hexToRgba } from '../utils/geometry.js';
 import { TowerManager } from '../digestion/systems/TowerManager.js';
-import { SupplySystem } from '../digestion/systems/SupplySystem.js';
 import { EconomySystem } from '../digestion/systems/EconomySystem.js';
-import { TroubleSystem } from '../digestion/systems/TroubleSystem.js';
 import { BulletSystem } from '../digestion/systems/BulletSystem.js';
 import { ParticleSystem } from '../digestion/systems/ParticleSystem.js';
+import { TimeTrackingSystem } from '../digestion/systems/TimeTrackingSystem.js';
+import { TowerGrowthSystem } from '../digestion/systems/TowerGrowthSystem.js';
 import { BulletRenderer } from '../renderer/BulletRenderer.js';
 import { HPBarRenderer } from '../renderer/HPBarRenderer.js';
 import { ParticleRenderer } from '../renderer/ParticleRenderer.js';
@@ -43,9 +43,11 @@ export class GameLoop {
 
     // Initialize digestion systems
     this.towerManager = new TowerManager();
-    this.supplySystem = new SupplySystem();
     this.economySystem = new EconomySystem();
-    this.troubleSystem = new TroubleSystem();
+
+    // Initialize new growth systems
+    this.timeTrackingSystem = new TimeTrackingSystem();
+    this.towerGrowthSystem = new TowerGrowthSystem(this.economySystem);
 
     // NEW: Initialize bullet and particle systems
     this.bulletSystem = new BulletSystem();
@@ -97,9 +99,14 @@ export class GameLoop {
 
     // Update digestion systems BEFORE path movement
     const foodList = this.multiPathSystem.getObjects();
+
+    // Update new systems
+    this.timeTrackingSystem.update(scaledDt, this.economySystem);
+    this.towerGrowthSystem.update(scaledDt, this.towerManager.getAllTowers());
+    this.economySystem.update(scaledDt);  // Time-based NC/SC income
+
+    // Update existing systems
     this.towerManager.update(scaledDt, foodList, this.multiPathSystem, this.currentTime);
-    this.supplySystem.update(scaledDt);
-    this.troubleSystem.update(scaledDt, foodList, this.multiPathSystem);
 
     // NEW: Update bullet system
     this.bulletSystem.update(scaledDt, this.multiPathSystem);
@@ -390,14 +397,6 @@ export class GameLoop {
   }
 
   /**
-   * Get supply system
-   * @returns {SupplySystem} Supply system
-   */
-  getSupplySystem() {
-    return this.supplySystem;
-  }
-
-  /**
    * Get economy system
    * @returns {EconomySystem} Economy system
    */
@@ -406,11 +405,19 @@ export class GameLoop {
   }
 
   /**
-   * Get trouble system
-   * @returns {TroubleSystem} Trouble system
+   * Get time tracking system
+   * @returns {TimeTrackingSystem} Time tracking system
    */
-  getTroubleSystem() {
-    return this.troubleSystem;
+  getTimeTrackingSystem() {
+    return this.timeTrackingSystem;
+  }
+
+  /**
+   * Get tower growth system
+   * @returns {TowerGrowthSystem} Tower growth system
+   */
+  getTowerGrowthSystem() {
+    return this.towerGrowthSystem;
   }
 
   /**

@@ -1,4 +1,3 @@
-import { EfficiencyState, EFFICIENCY_MULTIPLIERS } from './EfficiencyState.js';
 import { TargetingPolicy } from './TargetingPolicy.js';
 import { UpgradeTree } from './UpgradeNode.js';
 
@@ -20,14 +19,23 @@ export class BaseTower {
     // State
     this.currentTarget = null;
     this.attackCooldown = 0;
-    this.efficiencyState = EfficiencyState.NORMAL;
-    this.efficiencyEndTime = 0;
 
-    // Nutrition tracking
-    this.nutrition = 100; // Start at full
-    this.maxNutrition = 100;
-    this.lastSupplyTime = 0;
-    this.supplyCount = 0;
+    // Growth system (타워 성장)
+    this.xp = 0;                    // 현재 XP
+    this.level = 1;                 // 현재 레벨
+    this.star = 1;                  // 성급 (1~12)
+    this.upgradePoints = 5;         // 업그레이드 포인트 (초기 5, 레벨업마다 +1)
+
+    // Star bonuses (승급 스탯 누적)
+    this.starBonuses = {
+      damageMultiplier: 1.0,
+      attackSpeedMultiplier: 1.0,
+      rangeMultiplier: 1.0,
+      statusSuccessRate: 0.0
+    };
+
+    // Imprints (각인, 향후 ImprintSystem에서 관리)
+    this.imprints = [];
 
     // Targeting
     this.targetingPolicy = TargetingPolicy.FIRST;
@@ -53,9 +61,6 @@ export class BaseTower {
   }
 
   update(dt, foodList, multiPathSystem, currentTime) {
-    // Update efficiency state
-    this._updateEfficiencyState(currentTime);
-
     // Cooldown
     this.attackCooldown = Math.max(0, this.attackCooldown - dt);
 
@@ -107,11 +112,14 @@ export class BaseTower {
   }
 
   attack(food, currentTime = 0) {
+    // Calculate effective damage with star bonuses
+    const effectiveDamage = this.damage * this.starBonuses.damageMultiplier * this.auraBonuses.damage;
+
     // Create attack context
     let context = {
       tower: this,
       food: food,
-      damage: this.damage * EFFICIENCY_MULTIPLIERS[this.efficiencyState] * this.auraBonuses.damage,
+      damage: effectiveDamage,
       currentTime: currentTime,
       isCritical: false,
       critChance: 0,
@@ -233,33 +241,15 @@ export class BaseTower {
     }
   }
 
-  receiveSupply(amount, currentTime) {
-    this.nutrition = Math.min(this.maxNutrition, this.nutrition + amount);
-    this.lastSupplyTime = currentTime;
-    this.supplyCount++;
-
-    // Determine efficiency state
-    if (this.nutrition >= 75) {
-      this.efficiencyState = EfficiencyState.OVERCHARGED;
-      this.efficiencyEndTime = currentTime + 6; // 6 seconds
-    } else {
-      this.efficiencyState = EfficiencyState.BOOSTED;
-      this.efficiencyEndTime = currentTime + 20; // 20 seconds
-    }
-  }
-
-  _updateEfficiencyState(currentTime) {
-    // Check if boost expired
-    if (this.efficiencyEndTime > 0 && currentTime >= this.efficiencyEndTime) {
-      this.efficiencyState = EfficiencyState.NORMAL;
-      this.efficiencyEndTime = 0;
-    }
-
-    // Natural nutrition decay
-    // (Future: implement nutrition decay over time)
-  }
-
-  getEfficiencyMultiplier() {
-    return EFFICIENCY_MULTIPLIERS[this.efficiencyState];
+  /**
+   * Get effective stats with star bonuses applied
+   */
+  getEffectiveStats() {
+    return {
+      damage: this.damage * this.starBonuses.damageMultiplier,
+      attackSpeed: this.attackSpeed * this.starBonuses.attackSpeedMultiplier,
+      range: this.range * this.starBonuses.rangeMultiplier,
+      statusSuccessRate: this.starBonuses.statusSuccessRate
+    };
   }
 }

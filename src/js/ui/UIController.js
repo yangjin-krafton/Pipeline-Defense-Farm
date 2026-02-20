@@ -344,32 +344,9 @@ export class UIController {
    * Setup supply button for existing tower
    */
   _setupSupplyButton(tower) {
-    // Add supply button to action buttons section (in tower-detail)
-    const actionButtons = document.querySelector('#tower-detail .action-buttons');
-    if (!actionButtons) return;
-
-    // Check if supply button already exists
-    let supplyBtn = document.getElementById('supplyBtn');
-    if (!supplyBtn) {
-      supplyBtn = document.createElement('button');
-      supplyBtn.id = 'supplyBtn';
-      supplyBtn.className = 'action-btn primary';
-      actionButtons.insertBefore(supplyBtn, actionButtons.firstChild);
-    }
-
-    const supplySystem = this.gameLoop.getSupplySystem();
-    const apState = supplySystem.getAPState();
-    supplyBtn.textContent = `⚡ 영양 보급 (AP: ${apState.current}/${apState.max})`;
-    supplyBtn.disabled = !supplySystem.canSupply();
-
-    supplyBtn.onclick = (e) => {
-      e.stopPropagation();
-      if (supplySystem.supplyTower(tower, this.gameLoop.currentTime)) {
-        console.log('Tower supplied successfully');
-        // Refresh display
-        this.selectTowerSlot(this.selectedSlot);
-      }
-    };
+    // DEPRECATED: SupplySystem has been removed in favor of NC/SC currency system
+    // This method is kept as a stub for compatibility but does nothing
+    return;
   }
 
   /**
@@ -391,7 +368,7 @@ export class UIController {
     this.updateTowerInfo({
       icon: tower.definition.emoji,
       name: tower.definition.name,
-      level: 1,
+      level: tower.level || 1,
       description: tower.definition.description,
       stats: {
         attack: {
@@ -407,14 +384,11 @@ export class UIController {
           value: tower.range
         },
         special: {
-          percentage: tower.getEfficiencyMultiplier() * 50,
-          value: tower.efficiencyState
+          percentage: ((tower.star || 1) / 12) * 100,
+          value: `${tower.star || 1}성`
         }
       }
     });
-
-    // Show supply button
-    this._setupSupplyButton(tower);
 
     // Show upgrade tree
     this._showUpgradeTree(tower);
@@ -1047,7 +1021,7 @@ export class UIController {
     console.log(`Tower sold for ${refund} nutrition`);
 
     // Update nutrition display
-    this.updateNutritionDisplay(economySystem.getBalance());
+    this.updateNutritionDisplay(economySystem.getState());
 
     // Close sheet
     this.closeSheet();
@@ -1087,24 +1061,38 @@ export class UIController {
           towerManager.buildTower(towerType, this.selectedSlot);
           this.closeSheet();
           // Update nutrition display
-          this.updateNutritionDisplay(economySystem.getBalance());
+          this.updateNutritionDisplay(economySystem.getState());
         }
       };
     });
   }
 
   /**
-   * Update nutrition display in resource bar
+   * Update nutrition display in resource bar (NC/SC 2종 재화)
    */
-  updateNutritionDisplay(balance) {
+  updateNutritionDisplay(economyState) {
     const resources = document.querySelectorAll('.resource');
+
+    // NC (영양 크레딧) - 첫 번째 자원
     if (resources[0]) {
-      resources[0].textContent = `🍎 ${balance}`;
+      if (typeof economyState === 'number') {
+        // 레거시 호환: 숫자가 전달되면 NC로 간주
+        resources[0].textContent = `🍎 ${economyState}`;
+      } else {
+        // 새 형식: economyState 객체
+        resources[0].textContent = `🍎 ${Math.floor(economyState.nc)}`;
+      }
+    }
+
+    // SC (보급 차지) - 두 번째 자원
+    if (resources[1] && typeof economyState === 'object') {
+      const scPercent = Math.floor(economyState.scPercent);
+      resources[1].textContent = `⚡ ${Math.floor(economyState.sc)}/${economyState.scMax} (${scPercent}%)`;
     }
   }
 
   /**
-   * Update AP display in resource bar
+   * Update AP display in resource bar (Deprecated - use updateNutritionDisplay with economyState instead)
    */
   updateAPDisplay(current, max) {
     const resources = document.querySelectorAll('.resource');
@@ -1114,13 +1102,11 @@ export class UIController {
   }
 
   /**
-   * Update trouble display in resource bar
+   * Update trouble display in resource bar (DEPRECATED - Trouble System removed)
    */
   updateTroubleDisplay(congestion, acidity) {
-    const resources = document.querySelectorAll('.resource');
-    if (resources[2]) {
-      resources[2].textContent = `🦠 ${Math.round(congestion)}/${Math.round(acidity)}`;
-    }
+    // Trouble System has been removed from the game design
+    // This method is kept for backward compatibility but does nothing
   }
 
   /**

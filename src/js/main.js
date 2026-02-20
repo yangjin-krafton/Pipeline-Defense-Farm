@@ -496,16 +496,9 @@ async function init() {
   // NEW: Update UI displays every frame
   const updateUIDisplays = () => {
     const economySystem = gameLoop.getEconomySystem();
-    const supplySystem = gameLoop.getSupplySystem();
-    const troubleSystem = gameLoop.getTroubleSystem();
 
-    uiController.updateNutritionDisplay(economySystem.getBalance());
-
-    const apState = supplySystem.getAPState();
-    uiController.updateAPDisplay(apState.current, apState.max);
-
-    const troubleState = troubleSystem.getState();
-    uiController.updateTroubleDisplay(troubleState.congestion, troubleState.acidity);
+    // Update NC/SC display
+    uiController.updateNutritionDisplay(economySystem.getState());
 
     requestAnimationFrame(updateUIDisplays);
   };
