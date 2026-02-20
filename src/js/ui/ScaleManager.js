@@ -31,6 +31,7 @@ export class ScaleManager {
 
   /**
    * 화면 크기에 맞춰 비율 유지하며 스케일 조정
+   * 가로/세로 모두 반응형으로 작동
    */
   adjustScale() {
     const containerWidth = this.scaleContainer.clientWidth;
@@ -41,12 +42,14 @@ export class ScaleManager {
     const scaleY = containerHeight / this.DESIGN_HEIGHT;
 
     // 비율을 유지하면서 화면에 맞추기 (작은 쪽 기준)
+    // 가로로 넓어져도, 세로로 길어져도 자동 스케일
     const scale = Math.min(scaleX, scaleY);
 
-    // 스케일 적용
-    this.gameScreen.style.transform = `scale(${scale})`;
+    // 최소 스케일 보장 (너무 작아지지 않도록)
+    const finalScale = Math.max(scale, 0.3);
 
-    // Removed: console.log - too verbose
+    // 스케일 적용
+    this.gameScreen.style.transform = `scale(${finalScale})`;
   }
 
   /**
@@ -57,7 +60,8 @@ export class ScaleManager {
     const containerHeight = this.scaleContainer.clientHeight;
     const scaleX = containerWidth / this.DESIGN_WIDTH;
     const scaleY = containerHeight / this.DESIGN_HEIGHT;
-    return Math.min(scaleX, scaleY);
+    const scale = Math.min(scaleX, scaleY);
+    return Math.max(scale, 0.3); // 최소 스케일 보장
   }
 
   /**

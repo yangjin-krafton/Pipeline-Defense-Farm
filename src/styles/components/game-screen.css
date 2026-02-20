@@ -3,17 +3,21 @@
  * 640x1138 고정 화면, 비율 유지 스케일링
  */
 
-/* 스케일 컨테이너 */
+/* 스케일 컨테이너 - 전체 화면 차지 */
 #scale-container {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100vw;
   height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
   overflow: hidden;
+  background: #0a0a1e;
 }
 
-/* 게임 화면: 640x1138 고정 */
+/* 게임 화면: 640x1138 기준 디자인 (스케일로 조정됨) */
 #game-screen {
   position: relative;
   width: 640px;
@@ -25,6 +29,7 @@
   box-shadow: 0 0 0 4px var(--splat-pink),
               0 0 0 8px var(--splat-cyan),
               0 0 60px rgba(0, 217, 255, 0.6);
+  flex-shrink: 0; /* 컨테이너가 작아져도 고정 크기 유지 */
 }
 
 /* 게임 영역 (캔버스 + 타워들) */

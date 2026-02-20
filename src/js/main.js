@@ -43,13 +43,14 @@ function initCanvas() {
 }
 
 /**
- * Fit canvas to game area (fixed 640x1063 space)
+ * Fit canvas to game area (responsive to container size)
  * Game uses 360x640 virtual coordinates
+ * Scales dynamically based on actual container dimensions
  */
 function fitCanvas(pathCanvas, emojiCanvas, container, gl) {
-  // Fixed game area dimensions (set in CSS)
-  const gameAreaWidth = 640;
-  const gameAreaHeight = 1063;
+  // Get actual game area dimensions (respects CSS and ScaleManager)
+  const gameAreaWidth = container.clientWidth || 640;
+  const gameAreaHeight = container.clientHeight || 1063;
 
   // Calculate scale to fit virtual dimensions in game area
   const scale = Math.min(gameAreaWidth / VIRTUAL_W, gameAreaHeight / VIRTUAL_H);
@@ -464,6 +465,11 @@ async function init() {
 
   // Initialize Scale Manager
   const scaleManager = new ScaleManager();
+
+  // Re-fit canvas on window resize for responsive scaling
+  window.addEventListener('resize', () => {
+    fitCanvas(pathCanvas, emojiCanvas, container, gl);
+  });
 
   // Initialize Camera Controller
   const canvasContainer = document.querySelector('.canvas-container');
