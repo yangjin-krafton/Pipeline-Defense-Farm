@@ -410,6 +410,132 @@ export class UIController {
 
     // Show supply button
     this._setupSupplyButton(tower);
+
+    // Show upgrade tree
+    this._showUpgradeTree(tower);
+  }
+
+  /**
+   * Show upgrade tree for tower
+   */
+  _showUpgradeTree(tower) {
+    const upgradeContent = document.querySelector('.upgrade-content');
+    if (!upgradeContent) return;
+
+    // Clear existing content
+    upgradeContent.innerHTML = '';
+
+    // Check if tower has upgrade tree
+    if (!tower.upgradeTree || !tower.upgradeTree.nodes || tower.upgradeTree.nodes.length === 0) {
+      upgradeContent.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">이 타워는 아직 업그레이드를 지원하지 않습니다.</p>';
+      return;
+    }
+
+    const tree = tower.upgradeTree;
+
+    // Create upgrade points display
+    const pointsDisplay = document.createElement('div');
+    pointsDisplay.className = 'upgrade-points';
+    pointsDisplay.style.cssText = 'margin-bottom: 15px; padding: 10px; background: #f0f0f0; border-radius: 8px; text-align: center; font-weight: bold;';
+    pointsDisplay.innerHTML = `
+      <span style="color: #e94560;">업그레이드 포인트: ${tree.usedPoints} / ${tree.availablePoints}</span>
+    `;
+    upgradeContent.appendChild(pointsDisplay);
+
+    // Group nodes by position
+    const nodesByPosition = {
+      branch: [],
+      mid: [],
+      end: []
+    };
+
+    for (const node of tree.nodes) {
+      nodesByPosition[node.position].push(node);
+    }
+
+    // Render each section
+    for (const [position, nodes] of Object.entries(nodesByPosition)) {
+      if (nodes.length === 0) continue;
+
+      const section = document.createElement('div');
+      section.className = 'upgrade-section';
+      section.style.cssText = 'margin-bottom: 20px;';
+
+      const sectionTitle = document.createElement('h4');
+      sectionTitle.style.cssText = 'color: #1a1a2e; margin-bottom: 10px; font-size: 14px;';
+      const positionNames = {
+        branch: '🌱 초기 분기',
+        mid: '🔧 중간 강화',
+        end: '⭐ 최종 특성'
+      };
+      sectionTitle.textContent = positionNames[position];
+      section.appendChild(sectionTitle);
+
+      // Create nodes grid
+      const nodesGrid = document.createElement('div');
+      nodesGrid.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;';
+
+      for (const node of nodes) {
+        const nodeCard = this._createUpgradeNodeCard(node, tree, tower);
+        nodesGrid.appendChild(nodeCard);
+      }
+
+      section.appendChild(nodesGrid);
+      upgradeContent.appendChild(section);
+    }
+  }
+
+  /**
+   * Create upgrade node card
+   */
+  _createUpgradeNodeCard(node, tree, tower) {
+    const card = document.createElement('div');
+    const isActive = tree.activeNodes.includes(node);
+    const canActivate = node.canActivate(tree.activeNodes) && tree.usedPoints + node.cost <= tree.availablePoints;
+
+    card.className = 'upgrade-node-card';
+    card.style.cssText = `
+      padding: 12px;
+      background: ${isActive ? '#d4f1f4' : canActivate ? '#fff' : '#f5f5f5'};
+      border: 2px solid ${isActive ? '#0fb9b1' : canActivate ? '#e94560' : '#ccc'};
+      border-radius: 8px;
+      cursor: ${canActivate && !isActive ? 'pointer' : 'default'};
+      transition: all 0.2s;
+      opacity: ${isActive || canActivate ? '1' : '0.6'};
+    `;
+
+    card.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <strong style="color: #1a1a2e; font-size: 13px;">${node.nodeNumber}. ${node.name}</strong>
+        ${isActive ? '<span style="color: #0fb9b1;">✓</span>' : ''}
+      </div>
+      <p style="color: #666; font-size: 11px; margin-bottom: 8px; line-height: 1.4;">${node.effect}</p>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="color: #e94560; font-size: 11px; font-weight: bold;">비용: ${node.cost}P</span>
+        ${node.prerequisites.length > 0 ? `<span style="color: #999; font-size: 10px;">선행: ${node.prerequisites.join(', ')}</span>` : ''}
+      </div>
+    `;
+
+    // Add click handler
+    if (canActivate && !isActive) {
+      card.style.cursor = 'pointer';
+      card.onmouseenter = () => {
+        card.style.transform = 'translateY(-2px)';
+        card.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+      };
+      card.onmouseleave = () => {
+        card.style.transform = 'translateY(0)';
+        card.style.boxShadow = 'none';
+      };
+      card.onclick = () => {
+        if (tree.activateNode(node.nodeNumber)) {
+          console.log(`Activated upgrade node ${node.nodeNumber}: ${node.name}`);
+          this._showUpgradeTree(tower); // Refresh UI
+        }
+      };
+    }
+
+    return card;
   }
 
   /**
