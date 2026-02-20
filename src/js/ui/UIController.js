@@ -4,6 +4,7 @@
  */
 
 import { TOWER_DEFINITIONS } from '../digestion/data/towerDefinitions.js';
+import { dragManager } from '../core/DragManager.js';
 
 export class UIController {
   constructor() {
@@ -16,6 +17,10 @@ export class UIController {
 
     this.gameLoop = null; // Will be set by main.js
     this.selectedSlot = null;
+
+    // Drag manager
+    this.dragManager = dragManager;
+    this.currentScrollContainer = null;
 
     // Speed control state
     this.previousTimeScale = 1.0; // Store previous speed before slow motion
@@ -416,7 +421,7 @@ export class UIController {
   }
 
   /**
-   * Show upgrade tree for tower
+   * Show upgrade tree for tower (Civilization-style horizontal scroll)
    */
   _showUpgradeTree(tower) {
     const upgradeContent = document.querySelector('.upgrade-content');
@@ -433,109 +438,573 @@ export class UIController {
 
     const tree = tower.upgradeTree;
 
-    // Create upgrade points display
+    // Create upgrade points display (Splatoon style)
     const pointsDisplay = document.createElement('div');
     pointsDisplay.className = 'upgrade-points';
-    pointsDisplay.style.cssText = 'margin-bottom: 15px; padding: 10px; background: #f0f0f0; border-radius: 8px; text-align: center; font-weight: bold;';
+    pointsDisplay.style.cssText = `
+      margin-bottom: 10px;
+      padding: 10px 18px;
+      background: linear-gradient(135deg, #e94560 0%, #ff6b9d 100%);
+      border: 5px solid #1a1a2e;
+      border-radius: 20px;
+      text-align: center;
+      font-weight: 900;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      font-size: 18px;
+      color: #fff;
+      text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
+      box-shadow:
+        0 0 0 3px #ffd700,
+        0 6px 0 #1a1a2e,
+        0 8px 20px rgba(255, 215, 0, 0.5);
+      letter-spacing: 1px;
+    `;
     pointsDisplay.innerHTML = `
-      <span style="color: #e94560;">업그레이드 포인트: ${tree.usedPoints} / ${tree.availablePoints}</span>
+      💎 업그레이드 포인트: <span style="color: #ffd700; font-size: 22px; text-shadow: 2px 2px 0 rgba(0,0,0,0.5);">${tree.usedPoints}</span> / ${tree.availablePoints}
     `;
     upgradeContent.appendChild(pointsDisplay);
 
-    // Group nodes by position
-    const nodesByPosition = {
-      branch: [],
-      mid: [],
-      end: []
-    };
+    // Create horizontal scroll container (Splatoon style)
+    const scrollContainer = document.createElement('div');
+    scrollContainer.className = 'upgrade-tree-scroll';
+    scrollContainer.style.cssText = `
+      overflow: auto;
+      padding: 20px 15px;
+      position: relative;
+      background:
+        repeating-linear-gradient(
+          45deg,
+          rgba(233, 69, 96, 0.08),
+          rgba(233, 69, 96, 0.08) 15px,
+          rgba(0, 217, 255, 0.08) 15px,
+          rgba(0, 217, 255, 0.08) 30px
+        ),
+        linear-gradient(135deg, rgba(248, 249, 250, 0.95) 0%, rgba(233, 236, 239, 0.95) 100%);
+      border-radius: 15px;
+      border: 5px solid #1a1a2e;
+      min-height: 340px;
+      max-height: 470px;
+      box-shadow:
+        inset 0 3px 10px rgba(0, 0, 0, 0.15),
+        inset 0 -2px 5px rgba(255, 255, 255, 0.1),
+        0 0 0 2px rgba(233, 69, 96, 0.3);
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    `;
 
+    // Create tree canvas (SVG for connections + nodes)
+    const treeWrapper = document.createElement('div');
+    treeWrapper.style.cssText = 'position: relative; min-width: max-content; min-height: 250px;';
+
+    // Calculate node positions (column-based layout)
+    const nodePositions = this._calculateNodePositions(tree.nodes);
+    const maxColumn = Math.max(...Object.values(nodePositions).map(p => p.column));
+    const maxRow = Math.max(...Object.values(nodePositions).map(p => p.row));
+
+    const nodeWidth = 200; // Increased from 180
+    const nodeHeight = 140; // Increased from 120
+    const columnGap = 120; // Increased from 100
+    const rowGap = 40; // Increased from 30 for better spacing
+
+    const totalWidth = (maxColumn + 1) * (nodeWidth + columnGap);
+    const totalHeight = Math.max((maxRow + 1) * (nodeHeight + rowGap), 320); // Ensure minimum height (increased from 250)
+
+    // Set wrapper height
+    treeWrapper.style.height = `${totalHeight}px`;
+    treeWrapper.style.minHeight = '320px';
+
+    // Create SVG for connection lines
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', totalWidth);
+    svg.setAttribute('height', totalHeight);
+    svg.style.cssText = 'position: absolute; top: 0; left: 0; pointer-events: none; z-index: 0;';
+
+    // Draw connection lines
     for (const node of tree.nodes) {
-      nodesByPosition[node.position].push(node);
-    }
+      const nodePos = nodePositions[node.nodeNumber];
+      const nodeX = nodePos.column * (nodeWidth + columnGap) + nodeWidth / 2;
+      const nodeY = nodePos.row * (nodeHeight + rowGap) + nodeHeight / 2;
 
-    // Render each section
-    for (const [position, nodes] of Object.entries(nodesByPosition)) {
-      if (nodes.length === 0) continue;
+      // Draw lines to prerequisites
+      for (const prereqNum of node.prerequisites) {
+        const prereqPos = nodePositions[prereqNum];
+        if (!prereqPos) continue;
 
-      const section = document.createElement('div');
-      section.className = 'upgrade-section';
-      section.style.cssText = 'margin-bottom: 20px;';
+        const prereqX = prereqPos.column * (nodeWidth + columnGap) + nodeWidth / 2;
+        const prereqY = prereqPos.row * (nodeHeight + rowGap) + nodeHeight / 2;
 
-      const sectionTitle = document.createElement('h4');
-      sectionTitle.style.cssText = 'color: #1a1a2e; margin-bottom: 10px; font-size: 14px;';
-      const positionNames = {
-        branch: '🌱 초기 분기',
-        mid: '🔧 중간 강화',
-        end: '⭐ 최종 특성'
-      };
-      sectionTitle.textContent = positionNames[position];
-      section.appendChild(sectionTitle);
+        // Splatoon-style connection lines
+        const isPrereqActive = tree.activeNodes.some(n => n.nodeNumber === prereqNum);
+        const isBothActive = isPrereqActive && tree.activeNodes.some(n => n.nodeNumber === node.nodeNumber);
 
-      // Create nodes grid
-      const nodesGrid = document.createElement('div');
-      nodesGrid.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;';
+        // Create outer glow line
+        const glowLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const midX = (prereqX + nodeX) / 2;
+        const d = `M ${prereqX} ${prereqY} C ${midX} ${prereqY}, ${midX} ${nodeY}, ${nodeX} ${nodeY}`;
 
-      for (const node of nodes) {
-        const nodeCard = this._createUpgradeNodeCard(node, tree, tower);
-        nodesGrid.appendChild(nodeCard);
+        glowLine.setAttribute('d', d);
+        glowLine.setAttribute('stroke', isBothActive ? '#00d9ff' : isPrereqActive ? '#ffd700' : 'rgba(26, 26, 46, 0.3)');
+        glowLine.setAttribute('stroke-width', isBothActive ? '10' : '8');
+        glowLine.setAttribute('fill', 'none');
+        glowLine.setAttribute('opacity', isBothActive ? '0.4' : '0.2');
+        glowLine.setAttribute('stroke-linecap', 'round');
+        svg.appendChild(glowLine);
+
+        // Create main line
+        const mainLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        mainLine.setAttribute('d', d);
+        mainLine.setAttribute('stroke', isBothActive ? '#00d9ff' : isPrereqActive ? '#ffd700' : '#999');
+        mainLine.setAttribute('stroke-width', isBothActive ? '6' : '5');
+        mainLine.setAttribute('fill', 'none');
+        mainLine.setAttribute('stroke-dasharray', isBothActive ? '0' : isPrereqActive ? '12,8' : '8,6');
+        mainLine.setAttribute('stroke-linecap', 'round');
+
+        if (!isBothActive && isPrereqActive) {
+          // Animated dashing for available paths
+          const animate = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
+          animate.setAttribute('attributeName', 'stroke-dashoffset');
+          animate.setAttribute('from', '0');
+          animate.setAttribute('to', '20');
+          animate.setAttribute('dur', '1s');
+          animate.setAttribute('repeatCount', 'indefinite');
+          mainLine.appendChild(animate);
+        }
+
+        svg.appendChild(mainLine);
+
+        // Add border to main line
+        const borderLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        borderLine.setAttribute('d', d);
+        borderLine.setAttribute('stroke', '#1a1a2e');
+        borderLine.setAttribute('stroke-width', isBothActive ? '8' : '7');
+        borderLine.setAttribute('fill', 'none');
+        borderLine.setAttribute('stroke-dasharray', isBothActive ? '0' : isPrereqActive ? '12,8' : '8,6');
+        borderLine.setAttribute('stroke-linecap', 'round');
+        borderLine.setAttribute('opacity', '0.5');
+        svg.insertBefore(borderLine, glowLine);
       }
-
-      section.appendChild(nodesGrid);
-      upgradeContent.appendChild(section);
     }
+
+    treeWrapper.appendChild(svg);
+
+    // Create nodes
+    for (const node of tree.nodes) {
+      const nodePos = nodePositions[node.nodeNumber];
+      const nodeCard = this._createUpgradeNodeCard(node, tree, tower);
+
+      nodeCard.style.position = 'absolute';
+      nodeCard.style.left = `${nodePos.column * (nodeWidth + columnGap)}px`;
+      nodeCard.style.top = `${nodePos.row * (nodeHeight + rowGap)}px`;
+      nodeCard.style.width = `${nodeWidth}px`;
+      nodeCard.style.height = `${nodeHeight}px`;
+      nodeCard.style.display = 'flex';
+      nodeCard.style.flexDirection = 'column';
+      nodeCard.style.justifyContent = 'space-between';
+      nodeCard.style.zIndex = '1';
+      nodeCard.style.pointerEvents = 'auto'; // 노드는 클릭 가능
+
+      treeWrapper.appendChild(nodeCard);
+    }
+
+    // SVG는 클릭 불가
+    svg.style.pointerEvents = 'none';
+
+    scrollContainer.appendChild(treeWrapper);
+    upgradeContent.appendChild(scrollContainer);
+
+    // 드래그 스크롤 등록
+    this._setupDragScroll(scrollContainer);
   }
 
   /**
-   * Create upgrade node card
+   * 드래그 스크롤 설정 (모바일 지도 방식)
+   */
+  _setupDragScroll(container) {
+    // 이전 등록 해제
+    if (this.currentScrollContainer) {
+      this.dragManager.unregisterDraggable(this.currentScrollContainer);
+    }
+
+    this.currentScrollContainer = container;
+
+    let scrollStartX = 0;
+    let scrollStartY = 0;
+    let isDragging = false;
+    let velocity = { x: 0, y: 0 };
+    let lastDragTime = 0;
+    let animationFrame = null;
+
+    this.dragManager.registerDraggable(container, {
+      onDragStart: (e) => {
+        isDragging = true;
+        scrollStartX = container.scrollLeft;
+        scrollStartY = container.scrollTop;
+        lastDragTime = Date.now();
+        velocity = { x: 0, y: 0 };
+
+        // 관성 애니메이션 중지
+        if (animationFrame) {
+          cancelAnimationFrame(animationFrame);
+          animationFrame = null;
+        }
+
+        // 커서 변경
+        container.style.cursor = 'grabbing';
+      },
+
+      onDrag: (e) => {
+        if (!isDragging) return;
+
+        // 드래그 방향 반대로 스크롤 (지도처럼)
+        container.scrollLeft = scrollStartX - e.totalDeltaX;
+        container.scrollTop = scrollStartY - e.totalDeltaY;
+
+        // 속도 계산 (관성 스크롤용)
+        const now = Date.now();
+        const dt = (now - lastDragTime) / 1000;
+        if (dt > 0) {
+          velocity.x = e.deltaX / dt;
+          velocity.y = e.deltaY / dt;
+        }
+        lastDragTime = now;
+      },
+
+      onDragEnd: (e) => {
+        isDragging = false;
+        container.style.cursor = 'grab';
+
+        // 관성 스크롤 시작
+        const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+        if (speed > 100) { // 최소 속도 임계값
+          this._applyInertiaScroll(container, velocity);
+        }
+      }
+    });
+
+    // 초기 커서 설정
+    container.style.cursor = 'grab';
+  }
+
+  /**
+   * 관성 스크롤 적용
+   */
+  _applyInertiaScroll(container, velocity) {
+    const friction = 0.95; // 마찰 계수
+    const minVelocity = 10; // 최소 속도
+
+    const animate = () => {
+      // 속도 감소
+      velocity.x *= friction;
+      velocity.y *= friction;
+
+      // 스크롤 적용 (방향 반대)
+      container.scrollLeft -= velocity.x * 0.016; // 약 60fps
+      container.scrollTop -= velocity.y * 0.016;
+
+      // 속도가 임계값 이하면 중지
+      const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+      if (speed > minVelocity) {
+        requestAnimationFrame(animate);
+      }
+    };
+
+    animate();
+  }
+
+  /**
+   * Calculate node positions in a column-based layout
+   */
+  _calculateNodePositions(nodes) {
+    const positions = {};
+    const columnMap = {}; // Track which nodes are in which column
+
+    // Sort nodes by nodeNumber
+    const sortedNodes = [...nodes].sort((a, b) => a.nodeNumber - b.nodeNumber);
+
+    // Assign columns based on prerequisites
+    for (const node of sortedNodes) {
+      if (node.prerequisites.length === 0) {
+        // Root nodes go in column 0
+        positions[node.nodeNumber] = { column: 0, row: 0 };
+      } else {
+        // Find the max column of prerequisites and place this node one column after
+        const maxPrereqColumn = Math.max(...node.prerequisites.map(prereq =>
+          positions[prereq]?.column ?? -1
+        ));
+        positions[node.nodeNumber] = { column: maxPrereqColumn + 1, row: 0 };
+      }
+    }
+
+    // Assign rows to avoid overlaps in the same column
+    for (const node of sortedNodes) {
+      const pos = positions[node.nodeNumber];
+      const column = pos.column;
+
+      if (!columnMap[column]) {
+        columnMap[column] = [];
+      }
+
+      columnMap[column].push(node.nodeNumber);
+    }
+
+    // Distribute rows within each column
+    for (const [column, nodeNumbers] of Object.entries(columnMap)) {
+      nodeNumbers.forEach((nodeNum, index) => {
+        positions[nodeNum].row = index;
+      });
+    }
+
+    return positions;
+  }
+
+  /**
+   * Create upgrade node card (Splatoon style)
    */
   _createUpgradeNodeCard(node, tree, tower) {
     const card = document.createElement('div');
     const isActive = tree.activeNodes.includes(node);
     const canActivate = node.canActivate(tree.activeNodes) && tree.usedPoints + node.cost <= tree.availablePoints;
 
-    card.className = 'upgrade-node-card';
+    card.className = 'upgrade-node-card splatoon-node';
+
+    // Splatoon-style colors
+    const bgColor = isActive
+      ? 'linear-gradient(135deg, #00d9ff 0%, #0fb9b1 100%)'
+      : canActivate
+        ? '#fff'
+        : '#e0e0e0';
+
+    const borderColor = isActive ? '#00d9ff' : canActivate ? '#e94560' : '#999';
+    const shadowColor = isActive ? '#00d9ff' : canActivate ? '#e94560' : '#666';
+
     card.style.cssText = `
-      padding: 12px;
-      background: ${isActive ? '#d4f1f4' : canActivate ? '#fff' : '#f5f5f5'};
-      border: 2px solid ${isActive ? '#0fb9b1' : canActivate ? '#e94560' : '#ccc'};
-      border-radius: 8px;
+      padding: 16px;
+      background: ${bgColor};
+      border: 5px solid #1a1a2e;
+      border-radius: 18px;
       cursor: ${canActivate && !isActive ? 'pointer' : 'default'};
-      transition: all 0.2s;
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
       opacity: ${isActive || canActivate ? '1' : '0.6'};
+      box-shadow:
+        0 0 0 3px ${borderColor},
+        0 6px 0 #1a1a2e,
+        0 8px 20px rgba(0, 0, 0, 0.3);
+      position: relative;
+      overflow: visible;
+      pointer-events: auto;
+      touch-action: auto;
+      transform-origin: center;
+      box-sizing: border-box;
     `;
 
-    card.innerHTML = `
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-        <strong style="color: #1a1a2e; font-size: 13px;">${node.nodeNumber}. ${node.name}</strong>
-        ${isActive ? '<span style="color: #0fb9b1;">✓</span>' : ''}
+    const content = document.createElement('div');
+    content.style.cssText = `
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      pointer-events: none;
+    `;
+    content.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="
+            background: ${isActive ? '#ffd700' : canActivate ? '#e94560' : '#999'};
+            color: #1a1a2e;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 900;
+            border: 4px solid #1a1a2e;
+            box-shadow: 0 4px 0 #1a1a2e;
+            flex-shrink: 0;
+          ">${node.nodeNumber}</span>
+          <strong style="
+            color: ${isActive ? '#fff' : '#1a1a2e'};
+            font-size: 16px;
+            font-weight: 900;
+            text-shadow: ${isActive ? '2px 2px 0 rgba(0,0,0,0.3)' : 'none'};
+            line-height: 1.2;
+          ">${node.name}</strong>
+        </div>
+        ${isActive ? '<span style="color: #ffd700; font-size: 32px; filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.3)); flex-shrink: 0;">✓</span>' : ''}
       </div>
-      <p style="color: #666; font-size: 11px; margin-bottom: 8px; line-height: 1.4;">${node.effect}</p>
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span style="color: #e94560; font-size: 11px; font-weight: bold;">비용: ${node.cost}P</span>
-        ${node.prerequisites.length > 0 ? `<span style="color: #999; font-size: 10px;">선행: ${node.prerequisites.join(', ')}</span>` : ''}
+      <p style="
+        color: ${isActive ? '#fff' : '#1a1a2e'};
+        font-size: 14px;
+        line-height: 1.4;
+        flex: 1;
+        display: flex;
+        align-items: center;
+        margin: 8px 0;
+        font-weight: ${isActive ? '700' : '600'};
+        text-shadow: ${isActive ? '1px 1px 0 rgba(0,0,0,0.2)' : 'none'};
+      ">${node.effect}</p>
+      <div style="
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 8px;
+        border-top: 3px solid ${isActive ? 'rgba(255,255,255,0.3)' : '#1a1a2e'};
+      ">
+        <span style="
+          color: #fff;
+          background: linear-gradient(90deg, #e94560, #ff6b9d);
+          font-size: 15px;
+          font-weight: 900;
+          padding: 7px 16px;
+          border-radius: 18px;
+          border: 3px solid #1a1a2e;
+          box-shadow: 0 3px 0 #1a1a2e;
+        ">💎 ${node.cost}P</span>
+        ${node.prerequisites.length > 0
+          ? `<span style="
+              color: ${isActive ? '#fff' : '#666'};
+              font-size: 12px;
+              font-weight: 700;
+              background: rgba(0,0,0,0.1);
+              padding: 5px 10px;
+              border-radius: 10px;
+            ">← ${node.prerequisites.join(', ')}</span>`
+          : `<span style="
+              color: #ffd700;
+              font-size: 13px;
+              font-weight: 900;
+              text-shadow: 2px 2px 0 rgba(0,0,0,0.2);
+            ">🌟 시작</span>`}
       </div>
     `;
+    card.appendChild(content);
 
-    // Add click handler
+    // Add hover and click handlers (Splatoon style)
     if (canActivate && !isActive) {
       card.style.cursor = 'pointer';
-      card.onmouseenter = () => {
-        card.style.transform = 'translateY(-2px)';
-        card.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+
+      let touchStartTime = 0;
+      let touchMoved = false;
+
+      // 터치/마우스 시작
+      const handlePointerDown = (e) => {
+        touchStartTime = Date.now();
+        touchMoved = false;
+        card.style.transform = 'translateY(3px) rotate(0deg) scale(0.98)';
+        card.style.boxShadow = `
+          0 0 0 3px ${borderColor},
+          0 3px 0 #1a1a2e,
+          0 5px 10px rgba(0, 0, 0, 0.3)
+        `;
       };
-      card.onmouseleave = () => {
-        card.style.transform = 'translateY(0)';
-        card.style.boxShadow = 'none';
+
+      // 터치/마우스 이동 (드래그 감지)
+      const handlePointerMove = (e) => {
+        touchMoved = true;
       };
-      card.onclick = () => {
-        if (tree.activateNode(node.nodeNumber)) {
-          console.log(`Activated upgrade node ${node.nodeNumber}: ${node.name}`);
-          this._showUpgradeTree(tower); // Refresh UI
+
+      // 터치/마우스 종료
+      const handlePointerUp = (e) => {
+        const touchDuration = Date.now() - touchStartTime;
+
+        // 드래그가 아니고 빠른 탭/클릭인 경우만 활성화
+        if (!touchMoved && touchDuration < 300) {
+          e.stopPropagation();
+          e.preventDefault();
+
+          if (tree.activateNode(node.nodeNumber)) {
+            console.log(`Activated upgrade node ${node.nodeNumber}: ${node.name}`);
+
+            // Ink splash effect
+            this._createInkSplash(card, '#00d9ff');
+
+            setTimeout(() => {
+              this._showUpgradeTree(tower); // Refresh UI
+            }, 200);
+          }
         }
+
+        // 원래 상태로 복구
+        card.style.transform = 'translateY(0) rotate(0deg) scale(1)';
+        card.style.boxShadow = `
+          0 0 0 3px ${borderColor},
+          0 6px 0 #1a1a2e,
+          0 8px 20px rgba(0, 0, 0, 0.3)
+        `;
       };
+
+      // 데스크톱 호버 (터치 디바이스가 아닌 경우만)
+      if (!('ontouchstart' in window)) {
+        card.onmouseenter = () => {
+          card.style.transform = 'translateY(-6px) rotate(-2deg) scale(1.05)';
+          card.style.boxShadow = `
+            0 0 0 3px #ff6b81,
+            0 10px 0 #1a1a2e,
+            0 12px 30px rgba(233, 69, 96, 0.6)
+          `;
+        };
+        card.onmouseleave = () => {
+          card.style.transform = 'translateY(0) rotate(0deg) scale(1)';
+          card.style.boxShadow = `
+            0 0 0 3px ${borderColor},
+            0 6px 0 #1a1a2e,
+            0 8px 20px rgba(0, 0, 0, 0.3)
+          `;
+        };
+      }
+
+      // 이벤트 리스너 등록
+      card.addEventListener('touchstart', handlePointerDown, { passive: true });
+      card.addEventListener('touchmove', handlePointerMove, { passive: true });
+      card.addEventListener('touchend', handlePointerUp, { passive: false });
+      card.addEventListener('mousedown', handlePointerDown);
+      card.addEventListener('mousemove', handlePointerMove);
+      card.addEventListener('mouseup', handlePointerUp);
+
+    } else if (isActive) {
+      // Gentle pulsing animation for active nodes
+      card.style.animation = 'splat-glow-subtle 3s ease-in-out infinite';
     }
 
     return card;
+  }
+
+  /**
+   * Create ink splash effect (Splatoon style)
+   */
+  _createInkSplash(element, color) {
+    const splash = document.createElement('div');
+    splash.style.cssText = `
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 20px;
+      height: 20px;
+      background: ${color};
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 1000;
+    `;
+    element.appendChild(splash);
+
+    // Animate splash
+    splash.animate([
+      { transform: 'translate(-50%, -50%) scale(0) rotate(0deg)', opacity: 1 },
+      { transform: 'translate(-50%, -50%) scale(8) rotate(180deg)', opacity: 0 }
+    ], {
+      duration: 600,
+      easing: 'ease-out'
+    });
+
+    setTimeout(() => splash.remove(), 600);
   }
 
   /**

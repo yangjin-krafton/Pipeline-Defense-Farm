@@ -202,3 +202,93 @@
 .skill-node.locked {
   cursor: not-allowed;
 }
+
+/* ===== Splatoon-Style Upgrade Tree Animations ===== */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes splat-glow-subtle {
+  0%, 100% {
+    box-shadow:
+      0 0 0 3px #00d9ff,
+      0 6px 0 #1a1a2e,
+      0 8px 20px rgba(0, 217, 255, 0.4);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px #00d9ff,
+      0 6px 0 #1a1a2e,
+      0 8px 25px rgba(0, 217, 255, 0.7);
+  }
+}
+
+@keyframes node-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.8) rotate(-10deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes ink-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.upgrade-node-card {
+  animation: node-appear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 스크롤바 숨김 (드래그 스크롤 사용) */
+.upgrade-tree-scroll {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.upgrade-tree-scroll::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Opera */
+}
+
+/* 드래그 스크롤 지원 */
+.upgrade-tree-scroll {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  touch-action: none;
+}
+
+.upgrade-tree-scroll:active {
+  cursor: grabbing;
+}
+
+/* 노드 카드는 드래그 중에도 클릭 가능 */
+.upgrade-node-card {
+  pointer-events: auto;
+  touch-action: auto;
+}
+
+.upgrade-node-card * {
+  pointer-events: none; /* 자식 요소는 이벤트 전파 방지 */
+}
