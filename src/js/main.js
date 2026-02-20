@@ -409,7 +409,40 @@ function setupTowerSlotClicks(pathCanvas, uiController, scaleManager, cameraCont
     // Check if click is on a tower slot
     const slot = checkTowerSlotClick(virtualX, virtualY);
     if (slot) {
-      uiController.selectTowerSlot(slot);
+      // Check if in relocation mode
+      if (uiController.relocatingTower) {
+        const tower = uiController.relocatingTower;
+        const costs = uiController.relocationCosts;
+        const towerManager = gameLoop.getTowerManager();
+        const economySystem = gameLoop.getEconomySystem();
+
+        // Check if slot is empty
+        if (towerManager.getTowerAtSlot(slot)) {
+          uiController._showToast('이미 타워가 있는 슬롯입니다', 'error');
+          return;
+        }
+
+        // Spend cost and relocate
+        if (economySystem.spendBoth(costs.nc, costs.sc)) {
+          if (towerManager.relocateTower(tower, slot, uiController.relocationIsEmergency)) {
+            uiController._showToast('타워 재배치 완료', 'success');
+            uiController.updateNutritionDisplay(economySystem.getState());
+          } else {
+            // Refund if relocation failed
+            economySystem.earnNC(costs.nc);
+            economySystem.earnSC(costs.sc);
+            uiController._showToast('재배치 실패', 'error');
+          }
+        }
+
+        // Exit relocation mode
+        uiController.relocatingTower = null;
+        uiController.relocationIsEmergency = false;
+        uiController.relocationCosts = null;
+      } else {
+        // Normal tower selection
+        uiController.selectTowerSlot(slot);
+      }
     }
   });
 }

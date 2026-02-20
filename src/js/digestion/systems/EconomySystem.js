@@ -15,7 +15,6 @@ export class EconomySystem {
     this.scMax = SC_CONFIG.maxCap;
 
     // 시간 기반 수급 누적기
-    this.ncAccumulator = 0;  // NC 수급 시간 누적 (초)
     this.scAccumulator = 0;  // SC 수급 시간 누적 (초)
     this.scFractional = 0;   // SC 소수점 누적 (정수 1이 되면 실제 SC 증가)
 
@@ -128,17 +127,6 @@ export class EconomySystem {
    * @param {number} dt - delta time (초)
    */
   update(dt) {
-    // NC 수급 (온라인 140 NC/h)
-    const ncPerSecond = NC_CONFIG.onlineEarnPerHour / 3600;
-    this.ncAccumulator += dt;
-
-    if (this.ncAccumulator >= 1.0) {
-      const seconds = Math.floor(this.ncAccumulator);
-      const ncGain = Math.floor(ncPerSecond * seconds);
-      this.earnNC(ncGain);
-      this.ncAccumulator -= seconds;
-    }
-
     // SC 수급 (정수 단위로 1씩 증가)
     const scPerSecond = SC_CONFIG.passiveRegenPerHour / 3600;
     this.scFractional += scPerSecond * dt;

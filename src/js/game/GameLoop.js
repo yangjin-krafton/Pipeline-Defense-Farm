@@ -110,7 +110,7 @@ export class GameLoop {
     // Update new systems
     this.timeTrackingSystem.update(scaledDt, this.economySystem);
     this.towerGrowthSystem.update(scaledDt, this.towerManager.getAllTowers());
-    this.economySystem.update(scaledDt);  // Time-based NC/SC income
+    this.economySystem.update(scaledDt);  // Time-based SC income
 
     // Update existing systems
     this.towerManager.update(scaledDt, foodList, this.multiPathSystem, this.currentTime);
@@ -122,12 +122,7 @@ export class GameLoop {
     this.particleSystem.update(scaledDt);
 
     // Update multi-path system
-    this.multiPathSystem.update(scaledDt, (completed) => {
-      // Earn nutrition based on zone
-      const reward = this.economySystem.earnFromFood(completed, completed.currentPath);
-      this.score += reward;
-      this.scoreDirty = true;
-    });
+    this.multiPathSystem.update(scaledDt, () => {});
 
     // Handle food deaths (HP <= 0)
     this._processFoodDeaths();

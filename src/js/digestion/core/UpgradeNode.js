@@ -41,8 +41,12 @@ export class UpgradeTree {
 
   /**
    * 노드 활성화
+   * @param {number} nodeNumber - 활성화할 노드 번호
+   * @param {EconomySystem} economySystem - 경제 시스템 (NC/SC 관리)
+   * @param {number} towerBaseCost - 타워 기본 설치 비용
+   * @returns {boolean} 활성화 성공 여부
    */
-  activateNode(nodeNumber) {
+  activateNode(nodeNumber, economySystem, towerBaseCost) {
     const node = this.nodes.find(n => n.nodeNumber === nodeNumber);
     if (!node) return false;
 
@@ -54,6 +58,15 @@ export class UpgradeTree {
 
     // 포인트 체크
     if (this.usedPoints + node.cost > this.availablePoints) return false;
+
+    // NC 비용 체크 (설치비의 12%)
+    if (economySystem && towerBaseCost) {
+      const ncCost = Math.floor(towerBaseCost * 0.12);
+      if (!economySystem.canAffordNC(ncCost)) return false;
+
+      // NC 차감
+      economySystem.spendNC(ncCost);
+    }
 
     // 활성화
     this.activeNodes.push(node);

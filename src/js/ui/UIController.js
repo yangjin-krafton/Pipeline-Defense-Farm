@@ -424,8 +424,11 @@ export class UIController {
   _updateTowerActionButtons(tower) {
     const economySystem = this.gameLoop?.getEconomySystem();
     const towerGrowthSystem = this.gameLoop?.getTowerGrowthSystem();
+    const towerManager = this.gameLoop?.getTowerManager();
 
-    if (!economySystem || !towerGrowthSystem) return;
+    if (!economySystem || !towerGrowthSystem || !towerManager) return;
+
+    const towerBaseCost = tower.definition.cost;
 
     // Upgrade star button
     const upgradeStarBtn = document.getElementById('upgradeStarBtn');
@@ -450,20 +453,88 @@ export class UIController {
       }
     }
 
-    // Reroll stats button
-    const rerollStatsBtn = document.getElementById('rerollStatsBtn');
-    if (rerollStatsBtn) {
-      const canAfford = economySystem.canAffordSC(20);
-      rerollStatsBtn.disabled = !canAfford || tower.star < 2; // Must be at least 2-star to reroll
+    // Add relocate button if it doesn't exist
+    let relocateBtn = document.getElementById('relocateBtn');
+    if (!relocateBtn) {
+      const actionButtons = document.querySelector('.action-buttons');
+      const sellBtn = document.getElementById('sellBtn');
 
-      rerollStatsBtn.onclick = (e) => {
+      if (actionButtons && sellBtn) {
+        relocateBtn = document.createElement('button');
+        relocateBtn.id = 'relocateBtn';
+        relocateBtn.className = 'action-btn primary';
+        actionButtons.insertBefore(relocateBtn, sellBtn);
+      }
+    }
+
+    // Relocate button
+    if (relocateBtn) {
+      const relocateNCCost = Math.floor(towerBaseCost * 0.20);
+      const relocateSCCost = 8;
+      const canAffordRelocate = economySystem.canAffordBoth(relocateNCCost, relocateSCCost);
+
+      relocateBtn.textContent = `📍 재배치 (🍎 ${relocateNCCost}, ⚡ ${relocateSCCost})`;
+      relocateBtn.disabled = !canAffordRelocate;
+
+      relocateBtn.onclick = (e) => {
         e.stopPropagation();
-        if (towerGrowthSystem.rerollStats(tower, economySystem)) {
-          console.log('Tower stats rerolled');
-          this.selectTowerSlot(this.selectedSlot); // Refresh UI
-        }
+        this._startTowerRelocation(tower, false);
       };
     }
+
+    // Sell button
+    const sellBtn = document.getElementById('sellBtn');
+    if (sellBtn) {
+      const refundAmount = Math.floor(towerBaseCost * 0.6);
+
+      sellBtn.textContent = `💰 판매 (+🍎 ${refundAmount})`;
+
+      sellBtn.onclick = (e) => {
+        e.stopPropagation();
+
+        this._showConfirmDialog({
+          title: '타워 판매',
+          message: `이 타워를 판매하여 🍎 ${refundAmount} NC를 받습니다.`,
+          onConfirm: () => {
+            const refund = towerManager.sellTower(tower, 0.6);
+            economySystem.earnNC(refund);
+            this._showToast(`타워 판매: +🍎 ${refund}`, 'success');
+            this.updateNutritionDisplay(economySystem.getState());
+            this.closeSheet();
+          }
+        });
+      };
+    }
+  }
+
+  /**
+   * Start tower relocation mode
+   * @param {Tower} tower - Tower to relocate
+   * @param {boolean} isEmergency - Emergency relocation flag
+   */
+  _startTowerRelocation(tower, isEmergency) {
+    const economySystem = this.gameLoop?.getEconomySystem();
+    if (!economySystem) return;
+
+    const towerBaseCost = tower.definition.cost;
+    const ncCost = Math.floor(towerBaseCost * (isEmergency ? 0.35 : 0.20));
+    const scCost = isEmergency ? 12 : 8;
+
+    // Check affordability
+    if (!economySystem.canAffordBoth(ncCost, scCost)) {
+      this._showToast('비용 부족', 'error');
+      return;
+    }
+
+    // Activate relocation mode
+    this.relocatingTower = tower;
+    this.relocationIsEmergency = isEmergency;
+    this.relocationCosts = { nc: ncCost, sc: scCost };
+
+    this.closeSheet();
+    this._showToast('새 위치를 선택하세요', 'info');
+
+    // TODO: Highlight empty slots (will be implemented in rendering code)
   }
 
   /**
@@ -555,21 +626,34 @@ export class UIController {
     }
 
     const tree = tower.upgradeTree;
+    const economySystem = this.gameLoop?.getEconomySystem();
+    if (!economySystem) return;
+
+    // Create upgrade tree header with points display and reset button
+    const headerContainer = document.createElement('div');
+    headerContainer.className = 'upgrade-tree-header';
+    headerContainer.style.cssText = `
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    `;
 
     // Create upgrade points display (Splatoon style)
     const pointsDisplay = document.createElement('div');
     pointsDisplay.className = 'upgrade-points';
     pointsDisplay.style.cssText = `
-      margin-bottom: 10px;
+      flex: 1;
       padding: 10px 18px;
       background: linear-gradient(135deg, #e94560 0%, #ff6b9d 100%);
       border: 5px solid #1a1a2e;
       border-radius: 20px;
       text-align: center;
       font-weight: 900;
-      position: sticky;
-      top: 0;
-      z-index: 10;
       font-size: 18px;
       color: #fff;
       text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
@@ -582,7 +666,93 @@ export class UIController {
     pointsDisplay.innerHTML = `
       💎 업그레이드 포인트: <span style="color: #ffd700; font-size: 22px; text-shadow: 2px 2px 0 rgba(0,0,0,0.5);">${tree.usedPoints}</span> / ${tree.availablePoints}
     `;
-    upgradeContent.appendChild(pointsDisplay);
+
+    // Create reset button
+    const resetButton = document.createElement('button');
+    resetButton.className = 'upgrade-reset-button';
+
+    const towerBaseCost = tower.definition.cost;
+    const resetNCCost = Math.floor(towerBaseCost * 0.35);
+    const resetSCCost = 12;
+
+    const canAffordReset = economySystem.canAffordBoth(resetNCCost, resetSCCost);
+    const hasActiveNodes = tree.activeNodes.length > 0;
+
+    resetButton.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: linear-gradient(135deg, #ff006e 0%, #ff4d8f 100%);
+      border: 5px solid #1a1a2e;
+      border-radius: 18px;
+      color: white;
+      font-weight: 900;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow:
+        0 0 0 3px ${canAffordReset && hasActiveNodes ? '#ff006e' : '#666'},
+        0 6px 0 #1a1a2e,
+        0 8px 20px rgba(255, 0, 110, ${canAffordReset && hasActiveNodes ? '0.5' : '0.2'});
+      opacity: ${canAffordReset && hasActiveNodes ? '1' : '0.5'};
+      pointer-events: ${canAffordReset && hasActiveNodes ? 'auto' : 'none'};
+      white-space: nowrap;
+    `;
+
+    resetButton.innerHTML = `
+      <span style="font-size: 20px;">🔄</span>
+      <span>리셋</span>
+      <span style="font-size: 14px; opacity: 0.9;">🍎${resetNCCost} ⚡${resetSCCost}</span>
+    `;
+
+    resetButton.addEventListener('click', () => {
+      if (!canAffordReset) {
+        this._showToast('비용 부족', 'error');
+        return;
+      }
+
+      if (!hasActiveNodes) {
+        this._showToast('활성화된 노드가 없습니다', 'error');
+        return;
+      }
+
+      // Show confirmation dialog
+      this._showConfirmDialog({
+        title: '스킬트리 리셋',
+        message: `🍎 ${resetNCCost} NC와 ⚡ ${resetSCCost} SC를 소비하여 모든 노드를 비활성화합니다.`,
+        onConfirm: () => {
+          economySystem.spendBoth(resetNCCost, resetSCCost);
+          tower.upgradeTree.reset();
+          this._showToast('스킬트리 리셋 완료', 'success');
+          this.updateNutritionDisplay(economySystem.getState());
+          this._showUpgradeTree(tower);
+        }
+      });
+    });
+
+    if (canAffordReset && hasActiveNodes) {
+      resetButton.onmouseenter = () => {
+        resetButton.style.transform = 'translateY(-3px) scale(1.05)';
+        resetButton.style.boxShadow = `
+          0 0 0 3px #ff006e,
+          0 10px 0 #1a1a2e,
+          0 12px 30px rgba(255, 0, 110, 0.7)
+        `;
+      };
+      resetButton.onmouseleave = () => {
+        resetButton.style.transform = 'translateY(0) scale(1)';
+        resetButton.style.boxShadow = `
+          0 0 0 3px #ff006e,
+          0 6px 0 #1a1a2e,
+          0 8px 20px rgba(255, 0, 110, 0.5)
+        `;
+      };
+    }
+
+    headerContainer.appendChild(pointsDisplay);
+    headerContainer.appendChild(resetButton);
+    upgradeContent.appendChild(headerContainer);
 
     // Create horizontal scroll container (Splatoon style)
     const scrollContainer = document.createElement('div');
@@ -712,7 +882,7 @@ export class UIController {
     // Create nodes
     for (const node of tree.nodes) {
       const nodePos = nodePositions[node.nodeNumber];
-      const nodeCard = this._createUpgradeNodeCard(node, tree, tower);
+      const nodeCard = this._createUpgradeNodeCard(node, tree, tower, economySystem);
 
       nodeCard.style.position = 'absolute';
       nodeCard.style.left = `${nodePos.column * (nodeWidth + columnGap)}px`;
@@ -882,10 +1052,17 @@ export class UIController {
   /**
    * Create upgrade node card (Splatoon style)
    */
-  _createUpgradeNodeCard(node, tree, tower) {
+  _createUpgradeNodeCard(node, tree, tower, economySystem) {
+    const self = this; // Store this reference for event handlers
     const card = document.createElement('div');
     const isActive = tree.activeNodes.includes(node);
-    const canActivate = node.canActivate(tree.activeNodes) && tree.usedPoints + node.cost <= tree.availablePoints;
+
+    // NC 비용 계산 (설치비의 12%)
+    const towerBaseCost = tower.definition.cost;
+    const ncCost = Math.floor(towerBaseCost * 0.12);
+    const canAffordNC = economySystem.canAffordNC(ncCost);
+    const canAffordPoints = tree.usedPoints + node.cost <= tree.availablePoints;
+    const canActivate = node.canActivate(tree.activeNodes) && canAffordPoints && canAffordNC;
 
     card.className = 'upgrade-node-card splatoon-node';
 
@@ -975,16 +1152,29 @@ export class UIController {
         padding-top: 8px;
         border-top: 3px solid ${isActive ? 'rgba(255,255,255,0.3)' : '#1a1a2e'};
       ">
-        <span style="
-          color: #fff;
-          background: linear-gradient(90deg, #e94560, #ff6b9d);
-          font-size: 15px;
-          font-weight: 900;
-          padding: 7px 16px;
-          border-radius: 18px;
-          border: 3px solid #1a1a2e;
-          box-shadow: 0 3px 0 #1a1a2e;
-        ">💎 ${node.cost}P</span>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <span style="
+            color: #fff;
+            background: linear-gradient(90deg, #e94560, #ff6b9d);
+            font-size: 14px;
+            font-weight: 900;
+            padding: 6px 12px;
+            border-radius: 15px;
+            border: 3px solid #1a1a2e;
+            box-shadow: 0 3px 0 #1a1a2e;
+          ">💎 ${node.cost}P</span>
+          <span style="
+            color: #fff;
+            background: linear-gradient(90deg, #00d9ff, #0fb9b1);
+            font-size: 14px;
+            font-weight: 900;
+            padding: 6px 12px;
+            border-radius: 15px;
+            border: 3px solid #1a1a2e;
+            box-shadow: 0 3px 0 #1a1a2e;
+            opacity: ${canAffordNC ? '1' : '0.5'};
+          ">🍎 ${ncCost}</span>
+        </div>
         ${node.prerequisites.length > 0
           ? `<span style="
               color: ${isActive ? '#fff' : '#666'};
@@ -1037,14 +1227,31 @@ export class UIController {
           e.stopPropagation();
           e.preventDefault();
 
-          if (tree.activateNode(node.nodeNumber)) {
-            console.log(`Activated upgrade node ${node.nodeNumber}: ${node.name}`);
+          // NC 비용 체크
+          if (!canAffordNC) {
+            self._showToast(`비용 부족: 🍎 ${ncCost} NC 필요`, 'error');
+            return;
+          }
+
+          if (!canAffordPoints) {
+            self._showToast(`업그레이드 포인트 부족`, 'error');
+            return;
+          }
+
+          if (tree.activateNode(node.nodeNumber, economySystem, towerBaseCost)) {
+            console.log(`Activated upgrade node ${node.nodeNumber}: ${node.name} (Cost: ${ncCost} NC, ${node.cost} Points)`);
 
             // Ink splash effect
-            this._createInkSplash(card, '#00d9ff');
+            self._createInkSplash(card, '#00d9ff');
+
+            // Show toast with cost
+            self._showToast(`노드 활성화: -🍎 ${ncCost} NC`, 'success');
+
+            // Update currency display
+            self.updateNutritionDisplay(economySystem.getState());
 
             setTimeout(() => {
-              this._showUpgradeTree(tower); // Refresh UI
+              self._showUpgradeTree(tower); // Refresh UI
             }, 200);
           }
         }
@@ -1540,6 +1747,120 @@ export class UIController {
         btn.classList.remove('disabled');
       } else {
         btn.classList.add('disabled');
+      }
+    });
+  }
+
+  /**
+   * Show toast notification
+   * @param {string} message - Toast message
+   * @param {string} type - Toast type ('success', 'error', 'info', 'warning')
+   */
+  _showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+
+    const icons = {
+      success: '✓',
+      error: '✕',
+      info: 'ℹ',
+      warning: '⚠'
+    };
+
+    const colors = {
+      success: '#00d9ff',
+      error: '#ff006e',
+      info: '#ffd700',
+      warning: '#ff6b00'
+    };
+
+    toast.style.cssText = `
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-100px);
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 12px;
+      border: 3px solid ${colors[type]};
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 12px ${colors[type]}80;
+      font-weight: bold;
+      font-size: 14px;
+      z-index: 10001;
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    `;
+
+    toast.innerHTML = `
+      <span style="font-size: 18px;">${icons[type]}</span>
+      <span>${message}</span>
+    `;
+
+    document.body.appendChild(toast);
+
+    // Animate in
+    setTimeout(() => {
+      toast.style.transform = 'translateX(-50%) translateY(0)';
+      toast.style.opacity = '1';
+    }, 10);
+
+    // Animate out and remove
+    setTimeout(() => {
+      toast.style.transform = 'translateX(-50%) translateY(-100px)';
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, 2000);
+  }
+
+  /**
+   * Show confirmation dialog
+   * @param {Object} options - Dialog options
+   * @param {string} options.title - Dialog title
+   * @param {string} options.message - Dialog message
+   * @param {Function} options.onConfirm - Callback when confirmed
+   * @param {Function} options.onCancel - Callback when cancelled
+   */
+  _showConfirmDialog({ title, message, onConfirm, onCancel }) {
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-dialog-overlay';
+
+    const dialog = document.createElement('div');
+    dialog.className = 'confirm-dialog';
+
+    dialog.innerHTML = `
+      <div class="dialog-title">${title}</div>
+      <div class="dialog-message">${message}</div>
+      <div class="dialog-buttons">
+        <button class="dialog-button cancel">취소</button>
+        <button class="dialog-button confirm">확인</button>
+      </div>
+    `;
+
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+
+    const confirmBtn = dialog.querySelector('.confirm');
+    const cancelBtn = dialog.querySelector('.cancel');
+
+    confirmBtn.addEventListener('click', () => {
+      overlay.remove();
+      if (onConfirm) onConfirm();
+    });
+
+    cancelBtn.addEventListener('click', () => {
+      overlay.remove();
+      if (onCancel) onCancel();
+    });
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        overlay.remove();
+        if (onCancel) onCancel();
       }
     });
   }

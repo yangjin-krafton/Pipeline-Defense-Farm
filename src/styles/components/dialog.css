@@ -1,0 +1,103 @@
+/* Confirmation Dialog Styles (Splatoon-inspired) */
+
+.confirm-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s;
+}
+
+.confirm-dialog {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 3px solid #00d9ff;
+  border-radius: 16px;
+  padding: 24px;
+  min-width: 300px;
+  max-width: 400px;
+  box-shadow: 0 8px 32px rgba(0, 217, 255, 0.3);
+  animation: scaleIn 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.dialog-title {
+  font-size: 1.4em;
+  font-weight: bold;
+  color: #00d9ff;
+  margin-bottom: 12px;
+  text-align: center;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+.dialog-message {
+  color: white;
+  margin-bottom: 20px;
+  line-height: 1.5;
+  text-align: center;
+  font-size: 1em;
+}
+
+.dialog-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.dialog-button {
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: 2px solid;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 1em;
+}
+
+.dialog-button.cancel {
+  background: transparent;
+  border-color: #888;
+  color: #888;
+}
+
+.dialog-button.cancel:hover {
+  background: #888;
+  color: white;
+  transform: translateY(-2px);
+}
+
+.dialog-button.confirm {
+  background: linear-gradient(135deg, #00d9ff 0%, #00a8cc 100%);
+  border-color: #00d9ff;
+  color: white;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.3);
+}
+
+.dialog-button.confirm:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 0 12px rgba(0, 217, 255, 0.6);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
