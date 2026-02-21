@@ -738,7 +738,7 @@ export class UIController {
     const maxRow = Math.max(...Object.values(nodePositions).map(p => p.row));
 
     // 3-row compact layout sizing
-    const nodeWidth = 180;
+    const nodeWidth = 216; // Increased by 20% from 180
     const nodeHeight = 110; // Reduced for 3-row layout
     const columnGap = 100;
     const rowGap = 20; // Reduced to fit 3 rows on screen
@@ -1060,81 +1060,54 @@ export class UIController {
       justify-content: space-between;
       pointer-events: none;
     `;
+    // Calculate dynamic font sizes based on text length
+    const nameFontSize = node.name.length > 10 ? '12px' : node.name.length > 7 ? '13px' : '14px';
+    const effectFontSize = node.effect.length > 40 ? '11px' : node.effect.length > 25 ? '12px' : '13px';
+
     content.innerHTML = `
-      <div style="display: flex; align-items: center; justify-content: space-between;">
-        <div style="display: flex; align-items: center; gap: 8px;">
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 4px;">
+        <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
           <span style="
-            background: ${isActive ? '#ffd700' : canActivate ? '#e94560' : '#999'};
-            color: #1a1a2e;
-            width: 36px;
+            background: linear-gradient(90deg, #00d9ff, #0fb9b1);
+            color: #fff;
+            min-width: 70px;
             height: 36px;
-            border-radius: 50%;
+            border-radius: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            font-size: 14px;
             font-weight: 900;
             border: 4px solid #1a1a2e;
             box-shadow: 0 4px 0 #1a1a2e;
             flex-shrink: 0;
-          ">${node.nodeNumber}</span>
+            padding: 0 10px;
+            opacity: ${canAffordNC ? '1' : '0.5'};
+          ">🍎 ${ncCost}</span>
           <strong style="
             color: ${isActive ? '#fff' : '#1a1a2e'};
-            font-size: 16px;
+            font-size: ${nameFontSize};
             font-weight: 900;
             text-shadow: ${isActive ? '2px 2px 0 rgba(0,0,0,0.3)' : 'none'};
             line-height: 1.2;
+            word-break: keep-all;
+            overflow-wrap: break-word;
+            min-width: 0;
           ">${node.name}</strong>
         </div>
-        ${isActive ? '<span style="color: #ffd700; font-size: 32px; filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.3)); flex-shrink: 0;">✓</span>' : ''}
+        ${isActive ? '<span style="color: #ffd700; font-size: 24px; filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.3)); flex-shrink: 0; margin-top: 4px;">✓</span>' : ''}
       </div>
       <p style="
         color: ${isActive ? '#fff' : '#1a1a2e'};
-        font-size: 14px;
-        line-height: 1.4;
+        font-size: ${effectFontSize};
+        line-height: 1.3;
         flex: 1;
-        display: flex;
-        align-items: center;
-        margin: 8px 0;
+        margin: 6px 0 0 0;
         font-weight: ${isActive ? '700' : '600'};
         text-shadow: ${isActive ? '1px 1px 0 rgba(0,0,0,0.2)' : 'none'};
+        word-break: keep-all;
+        overflow-wrap: break-word;
       ">${node.effect}</p>
-      <div style="
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding-top: 8px;
-        border-top: 3px solid ${isActive ? 'rgba(255,255,255,0.3)' : '#1a1a2e'};
-      ">
-        <div style="display: flex; gap: 6px; align-items: center;">
-          <span style="
-            color: #fff;
-            background: linear-gradient(90deg, #00d9ff, #0fb9b1);
-            font-size: 16px;
-            font-weight: 900;
-            padding: 8px 16px;
-            border-radius: 15px;
-            border: 3px solid #1a1a2e;
-            box-shadow: 0 3px 0 #1a1a2e;
-            opacity: ${canAffordNC ? '1' : '0.5'};
-          ">🍎 ${ncCost} NC</span>
-        </div>
-        ${node.prerequisites.length > 0
-          ? `<span style="
-              color: ${isActive ? '#fff' : '#666'};
-              font-size: 12px;
-              font-weight: 700;
-              background: rgba(0,0,0,0.1);
-              padding: 5px 10px;
-              border-radius: 10px;
-            ">← ${this.formatPrerequisites(node.prerequisites)}</span>`
-          : `<span style="
-              color: #ffd700;
-              font-size: 13px;
-              font-weight: 900;
-              text-shadow: 2px 2px 0 rgba(0,0,0,0.2);
-            ">🌟 시작</span>`}
-      </div>
     `;
     card.appendChild(content);
 

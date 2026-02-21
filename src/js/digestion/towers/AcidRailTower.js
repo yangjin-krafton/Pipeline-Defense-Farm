@@ -37,10 +37,10 @@ export function createAcidRailUpgradeNodes() {
       name: '선두 적 포커스',
       modules: [
         new TargetingModule({
-          priority: 'first' // 위에 있는 적(선두 적) 우선 타겟팅
+          priority: 'first' // 위장에 있는 적(선두 적) 우선 타겟팅
         })
       ],
-      effect: '위에 있는 적 우선 타겟팅 활성',
+      effect: '위장에 있는 적 우선 타겟팅 활성',
       prerequisites: [],
       ncCostMultiplier: 0.08
     }),
