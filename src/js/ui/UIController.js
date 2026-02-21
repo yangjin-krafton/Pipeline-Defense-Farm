@@ -72,6 +72,11 @@ export class UIController {
       if (this.isExpanded) {
         this.closeSheet();
       } else {
+        // 타워가 선택되지 않았으면 시트를 열지 않음
+        if (!this.selectedTowerSlot && !this.selectedSlot) {
+          console.log('[UIController] No tower selected, cannot open sheet');
+          return;
+        }
         this.openSheet();
       }
     };
@@ -135,6 +140,12 @@ export class UIController {
           // 아래로 드래그 -> 닫기
           this.closeSheet();
         } else if (deltaY < 0 && !this.isExpanded) {
+          // 타워가 선택되지 않았으면 시트를 열지 않음
+          if (!this.selectedTowerSlot && !this.selectedSlot) {
+            console.log('[UIController] No tower selected, cannot open sheet via drag');
+            isDragging = false;
+            return;
+          }
           // 위로 드래그 -> 열기
           this.openSheet();
         }
@@ -160,6 +171,12 @@ export class UIController {
    * Open bottom sheet (can be called from external tower system)
    */
   openSheet() {
+    // 타워가 선택되지 않았으면 열지 않음
+    if (!this.selectedTowerSlot && !this.selectedSlot) {
+      console.warn('[UIController] Cannot open sheet: No tower selected');
+      return;
+    }
+
     if (!this.isExpanded) {
       this._playUISfx('ui_click', { volume: 0.55 });
       this.isExpanded = true;
@@ -196,6 +213,7 @@ export class UIController {
       this.isExpanded = false;
       this.bottomSheet.classList.remove('expanded');
       this.selectedTowerSlot = null;
+      this.selectedSlot = null;  // 슬롯 선택도 초기화
 
       // Restore previous game speed
       if (this.gameLoop) {
