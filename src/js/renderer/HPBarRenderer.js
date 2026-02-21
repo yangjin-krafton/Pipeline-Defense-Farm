@@ -51,16 +51,19 @@ export class HPBarRenderer extends InstancedRenderer {
 
       void main() {
         vec2 size = aInstanceSize;
+        vec2 centerPos = aInstancePos;
 
-        // 전경은 HP 비율만큼만 렌더
+        // 전경은 HP 비율만큼만 렌더하고 왼쪽 정렬
         if (uLayer == 1) {
+          float originalWidth = aInstanceSize.x;
           size.x *= aHpPercent;
+          // 왼쪽 정렬: 중심을 왼쪽으로 이동
+          centerPos.x -= (originalWidth - size.x) * 0.5;
         }
 
-        // 사각형 정점을 크기에 맞게 스케일
-        // aQuadPos는 0~1 범위이므로 -0.5 ~ 0.5로 변환 (중심 기준)
+        // 사각형 정점을 크기에 맞게 스케일 (중앙 기준)
         vec2 vertexOffset = (aQuadPos - 0.5) * size;
-        vec2 worldPos = aInstancePos + vertexOffset;
+        vec2 worldPos = centerPos + vertexOffset;
 
         // 가상 해상도를 클립 공간으로 변환
         vec2 clip = (worldPos / uResolution) * 2.0 - 1.0;
@@ -200,59 +203,97 @@ export class HPBarRenderer extends InstancedRenderer {
       this.tempBgColors[i * 4 + 2] = 0.0;
       this.tempBgColors[i * 4 + 3] = 0.8;
 
-      // 전경 색상 (HP에 따라 초록 → 노랑 → 빨강)
-      if (hpPercent > 0.6) {
-        // 초록
-        this.tempFgColors[i * 4] = 0.2;
-        this.tempFgColors[i * 4 + 1] = 1.0;
-        this.tempFgColors[i * 4 + 2] = 0.2;
-      } else if (hpPercent > 0.3) {
-        // 노랑
-        this.tempFgColors[i * 4] = 1.0;
-        this.tempFgColors[i * 4 + 1] = 1.0;
-        this.tempFgColors[i * 4 + 2] = 0.0;
-      } else {
-        // 빨강
-        this.tempFgColors[i * 4] = 1.0;
-        this.tempFgColors[i * 4 + 1] = 0.2;
-        this.tempFgColors[i * 4 + 2] = 0.2;
-      }
-      this.tempFgColors[i * 4 + 3] = 1.0;
+      // 전경 색상: 기본 빨간색 (상태 이상에 따라 변경 가능)
+      const barColor = this._getBarColor(food, hpPercent);
+      this.tempFgColors[i * 4] = barColor[0];
+      this.tempFgColors[i * 4 + 1] = barColor[1];
+      this.tempFgColors[i * 4 + 2] = barColor[2];
+      this.tempFgColors[i * 4 + 3] = barColor[3];
     }
 
     // GPU로 데이터 전송
     this.updateInstanceBuffer('position', this.tempPositions, count);
     this.updateInstanceBuffer('size', this.tempSizes, count);
     this.updateInstanceBuffer('hpPercent', this.tempHpPercents, count);
-
-    // 배경 렌더링
-    this.gl.useProgram(this.program);
-    this.gl.uniform1i(this.uniformLocations.uLayer, 0); // 배경 레이어
     this.updateInstanceBuffer('bgColor', this.tempBgColors, count);
-
-    // bgColor를 aColor attribute에 바인딩
-    const gl = this.gl;
-    gl.bindVertexArray(this.vao);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.instanceBuffers.bgColor.buffer);
-    gl.enableVertexAttribArray(this.attribLocations.aColor);
-    gl.vertexAttribPointer(this.attribLocations.aColor, 4, gl.FLOAT, false, 0, 0);
-    gl.vertexAttribDivisor(this.attribLocations.aColor, 1);
-
-    this.render(count);
-
-    // 전경 렌더링
-    gl.uniform1i(this.uniformLocations.uLayer, 1); // 전경 레이어
     this.updateInstanceBuffer('fgColor', this.tempFgColors, count);
 
-    // fgColor를 aColor attribute에 바인딩
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.instanceBuffers.fgColor.buffer);
-    gl.enableVertexAttribArray(this.attribLocations.aColor);
-    gl.vertexAttribPointer(this.attribLocations.aColor, 4, gl.FLOAT, false, 0, 0);
-    gl.vertexAttribDivisor(this.attribLocations.aColor, 1);
+    const gl = this.gl;
+    gl.useProgram(this.program);
+    gl.bindVertexArray(this.vao);
 
-    this.render(count);
+    // 배경 렌더링 (layer 0)
+    gl.uniform1i(this.uniformLocations.uLayer, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.instanceBuffers.bgColor.buffer);
+    gl.vertexAttribPointer(this.attribLocations.aColor, 4, gl.FLOAT, false, 0, 0);
+    gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, count);
+
+    // 전경 렌더링 (layer 1)
+    gl.uniform1i(this.uniformLocations.uLayer, 1);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.instanceBuffers.fgColor.buffer);
+    gl.vertexAttribPointer(this.attribLocations.aColor, 4, gl.FLOAT, false, 0, 0);
+    gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, count);
 
     gl.bindVertexArray(null);
+  }
+
+  /**
+   * HP 바 색상을 결정합니다.
+   * 기본: 빨간색
+   * 상태 이상에 따라 색상 변경 가능 (확장 지점)
+   *
+   * @param {Object} food - 음식 객체
+   * @param {number} hpPercent - HP 비율 (0~1)
+   * @returns {number[]} RGBA 색상 [r, g, b, a] (0~1 범위)
+   */
+  _getBarColor(food, hpPercent) {
+    // 기본 색상: 빨간색
+    const defaultColor = [1.0, 0.3, 0.3, 1.0];
+
+    // 상태 이상이 있으면 색상 변경 (확장 지점)
+    if (food.statusEffects && food.statusEffects.length > 0) {
+      // 우선순위: corrode(산성) > shock(감전) > expose(취약) > mark(표식)
+      const activeEffects = this._getActiveStatusEffects(food.statusEffects);
+
+      for (const effect of activeEffects) {
+        switch (effect.type) {
+          case 'corrode':
+            // 산성 부식: 초록색
+            return [0.3, 1.0, 0.3, 1.0];
+          case 'shock':
+            // 감전: 노란색
+            return [1.0, 1.0, 0.3, 1.0];
+          case 'expose':
+            // 취약: 주황색
+            return [1.0, 0.6, 0.2, 1.0];
+          case 'mark':
+            // 표식: 보라색
+            return [0.8, 0.3, 1.0, 1.0];
+          case 'clustered':
+            // 군집: 하늘색
+            return [0.3, 0.8, 1.0, 1.0];
+          case 'stun':
+            // 기절: 회색
+            return [0.6, 0.6, 0.6, 1.0];
+        }
+      }
+    }
+
+    // 상태 이상이 없으면 기본 빨간색
+    return defaultColor;
+  }
+
+  /**
+   * 활성 상태 이상 필터링 (만료되지 않은 것만)
+   * @private
+   */
+  _getActiveStatusEffects(statusEffects) {
+    const currentTime = Date.now();
+    return statusEffects.filter(effect => {
+      if (!effect.appliedTime || !effect.duration) return false;
+      const elapsed = (currentTime - effect.appliedTime) / 1000; // 초 단위
+      return elapsed < effect.duration;
+    });
   }
 
   /**

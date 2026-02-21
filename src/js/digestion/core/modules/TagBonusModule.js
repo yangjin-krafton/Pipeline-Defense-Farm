@@ -48,21 +48,82 @@ export class TagBonusModule extends BaseModule {
 
     switch (effect.type) {
       case 'armorReduction':
-        // 방어력 감소
+        // 방어력 감소 → corrode (산성 부식 상태)로 매핑
         if (!context.statusEffects) context.statusEffects = [];
         context.statusEffects.push({
-          type: 'armorReduction',
+          type: 'corrode',
           value: effect.value,
           duration: effect.duration || 3
         });
         break;
 
       case 'slow':
-        // 이동 속도 감소
+        // 이동 속도 감소 → shock (연동 교란 자극)로 매핑
         if (!context.statusEffects) context.statusEffects = [];
         context.statusEffects.push({
-          type: 'slow',
+          type: 'shock',
           value: effect.value,
+          duration: effect.duration || 1.5
+        });
+        break;
+
+      // 문서 기준 5가지 상태 이상 직접 지원
+      case 'expose':
+        // 점막 취약 노출: 소화 피해 +8% (최대 3중첩, +24%)
+        if (!context.statusEffects) context.statusEffects = [];
+        context.statusEffects.push({
+          type: 'expose',
+          value: effect.value || 0.08,
+          duration: effect.duration || 3
+        });
+        break;
+
+      case 'corrode':
+        // 산성 부식 상태: 소화 저항 -6% (최대 2중첩)
+        if (!context.statusEffects) context.statusEffects = [];
+        context.statusEffects.push({
+          type: 'corrode',
+          value: effect.value || 0.06,
+          duration: effect.duration || 3
+        });
+        break;
+
+      case 'shock':
+        // 연동 교란 자극: 장운동 속도 -10% (감속 합산 캡 -35%)
+        if (!context.statusEffects) context.statusEffects = [];
+        context.statusEffects.push({
+          type: 'shock',
+          value: effect.value || 0.10,
+          duration: effect.duration || 2
+        });
+        break;
+
+      case 'mark':
+        // 분해 표식: 치명 보정 +8%p
+        if (!context.statusEffects) context.statusEffects = [];
+        context.statusEffects.push({
+          type: 'mark',
+          value: effect.value || 0.08,
+          duration: effect.duration || 4
+        });
+        break;
+
+      case 'clustered':
+        // 정체 군집 상태: 군집 대상 범위 +10%
+        if (!context.statusEffects) context.statusEffects = [];
+        context.statusEffects.push({
+          type: 'clustered',
+          value: effect.value || 0.10,
+          duration: effect.duration || 3
+        });
+        break;
+
+      case 'stun':
+        // 기절: 행동 불가 상태
+        if (!context.statusEffects) context.statusEffects = [];
+        context.statusEffects.push({
+          type: 'stun',
+          value: effect.value || 1.0,
           duration: effect.duration || 1.5
         });
         break;

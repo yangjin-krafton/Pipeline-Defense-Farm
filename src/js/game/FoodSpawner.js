@@ -23,6 +23,15 @@ const STAGE_MULTIPLIERS = {
   S5: { hp: 1.7, armor: 1.38, digestionNeed: 1.7 },
 };
 
+const STAGE_THREAT_BONUS = {
+  S0: 0,
+  S1: 2,
+  S2: 4,
+  S3: 6,
+  S4: 8,
+  S5: 10,
+};
+
 // docs/food-enemy-spawn-design.md "3) 난이도 요구 테이블" 기반 상한/하한
 const STAGE_TARGET_BAND = {
   S0: { threatMin: 8, threatMax: 10, digestionMin: 75, digestionMax: 90 },
@@ -102,7 +111,7 @@ export class FoodSpawner {
     // Difficulty state (docs/food-enemy-spawn-design.md 기반)
     this.baseStageIndex = 0;      // S0..S5
     this.dynamicOffset = 0;       // D(-2..+2)
-    this.combatWindowSec = 20;
+    this.combatWindowSec = 10;
     this.combatWindowTimer = 0;
     this.windowKills = 0;
     this.windowLeaks = 0;
@@ -281,19 +290,44 @@ export class FoodSpawner {
     if (!band) return pool;
 
     const strict = pool.filter((food) => {
-      const threat = food.threat || 0;
-      const need = food.digestionNeed || 0;
-      return threat <= band.threatMax && need <= band.digestionMax;
+      const scaled = this._previewScaledFoodForStage(food, stageKey);
+      const threat = scaled.threat || 0;
+      const need = scaled.digestionNeed || 0;
+      return (
+        threat >= band.threatMin &&
+        threat <= band.threatMax &&
+        need >= band.digestionMin &&
+        need <= band.digestionMax
+      );
     });
     if (strict.length > 0) return strict;
 
+    const upperBoundOnly = pool.filter((food) => {
+      const scaled = this._previewScaledFoodForStage(food, stageKey);
+      const threat = scaled.threat || 0;
+      const need = scaled.digestionNeed || 0;
+      return threat <= band.threatMax && need <= band.digestionMax;
+    });
+    if (upperBoundOnly.length > 0) return upperBoundOnly;
+
     // Fallback: choose easier side of pool by threat + digestionNeed score.
     const scored = [...pool].sort((a, b) => {
-      const sa = (a.threat || 0) * 10 + (a.digestionNeed || 0);
-      const sb = (b.threat || 0) * 10 + (b.digestionNeed || 0);
+      const saScaled = this._previewScaledFoodForStage(a, stageKey);
+      const sbScaled = this._previewScaledFoodForStage(b, stageKey);
+      const sa = (saScaled.threat || 0) * 10 + (saScaled.digestionNeed || 0);
+      const sb = (sbScaled.threat || 0) * 10 + (sbScaled.digestionNeed || 0);
       return sa - sb;
     });
     return scored.slice(0, Math.max(1, Math.ceil(scored.length * 0.4)));
+  }
+
+  _previewScaledFoodForStage(food, stageKey) {
+    const m = STAGE_MULTIPLIERS[stageKey] || STAGE_MULTIPLIERS.S0;
+    const threatBonus = STAGE_THREAT_BONUS[stageKey] ?? 0;
+    return {
+      threat: Math.max(0, Math.round((food.threat || 0) + threatBonus)),
+      digestionNeed: Math.max(1, Math.round((food.digestionNeed || 1) * m.digestionNeed)),
+    };
   }
 
   /**
@@ -304,6 +338,7 @@ export class FoodSpawner {
    */
   _applyStageMultiplier(food, stageKey) {
     const m = STAGE_MULTIPLIERS[stageKey] || STAGE_MULTIPLIERS.S0;
+    const threatBonus = STAGE_THREAT_BONUS[stageKey] ?? 0;
     const maxHp = Math.max(1, Math.round(food.hp * m.hp));
 
     return {
@@ -311,6 +346,7 @@ export class FoodSpawner {
       hp: maxHp,
       maxHp,
       armor: Math.max(0, Math.round((food.armor || 0) * m.armor)),
+      threat: Math.max(0, Math.round((food.threat || 0) + threatBonus)),
       digestionNeed: Math.max(1, Math.round((food.digestionNeed || 1) * m.digestionNeed)),
       reward: Math.max(1, Math.round(food.reward || 1)),
       spawnStage: stageKey,
@@ -489,11 +525,11 @@ export class FoodSpawner {
     const total = Math.max(1, kills + leaks);
     const leakRate = leaks / total;
     const avgTTK = this.windowTTKCount > 0 ? this.windowTTKSum / this.windowTTKCount : Infinity;
-    const hasEnoughSamples = (kills + leaks) >= 8;
+    const hasEnoughSamples = (kills + leaks) >= 6;
 
     let nextOffset = this.dynamicOffset;
-    const isStrong = hasEnoughSamples && kills >= 12 && leakRate <= 0.08 && avgTTK <= 6.5;
-    const isWeak = hasEnoughSamples && (leakRate >= 0.22 || kills <= 5 || avgTTK >= 12);
+    const isStrong = hasEnoughSamples && kills >= 9 && leakRate <= 0.1 && avgTTK <= 8.0;
+    const isWeak = hasEnoughSamples && (leakRate >= 0.25 || kills <= 3 || avgTTK >= 13);
 
     if (isStrong) nextOffset += 1;
     else if (isWeak) nextOffset -= 1;
