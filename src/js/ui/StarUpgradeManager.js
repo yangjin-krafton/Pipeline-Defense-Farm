@@ -3,6 +3,10 @@
  * 타워 승급 시스템 전용 관리 모듈
  */
 
+import { StatRollingAnimation } from './StatRollingAnimation.js';
+import { UIParticleSystem } from './UIParticleSystem.js';
+import { UpgradeCelebration } from './UpgradeCelebration.js';
+
 export class StarUpgradeManager {
   constructor(gameLoop, uiController) {
     this.gameLoop = gameLoop;
@@ -11,6 +15,11 @@ export class StarUpgradeManager {
     // Upgrade state
     this.isUpgrading = false; // Prevent sheet close during upgrade
     this.starUpgradeState = null; // Current upgrade state
+
+    // Animation systems
+    this.rollingAnimation = new StatRollingAnimation();
+    this.uiParticleSystem = new UIParticleSystem();
+    this.upgradeCelebration = null; // Lazy initialization
   }
 
   /**
@@ -19,6 +28,11 @@ export class StarUpgradeManager {
    */
   isCurrentlyUpgrading() {
     return this.isUpgrading;
+  }
+
+  _playUpgradeSfx(eventName, volume = 0.7) {
+    if (!this.uiController || typeof this.uiController._playUISfx !== 'function') return;
+    this.uiController._playUISfx(eventName, { volume });
   }
 
   /**
@@ -33,6 +47,7 @@ export class StarUpgradeManager {
 
     // 게임 정지
     this.gameLoop.pause();
+    this._playUpgradeSfx('tower_upgrade', 0.72);
 
     // 현재 타워 상태 저장 (취소 시 복원용)
     this.starUpgradeState = {
@@ -49,8 +64,8 @@ export class StarUpgradeManager {
     // 승급 비용 계산
     const upgradeCost = towerGrowthSystem.getUpgradeCost(tower.star);
 
-    // 초기 스탯 롤
-    this.starUpgradeState.currentStatRoll = towerGrowthSystem._rollStatGains();
+    // 초기 스탯 롤 (등급 정보 포함)
+    this.starUpgradeState.currentStatRoll = towerGrowthSystem._rollStatGainsWithGrades();
 
     // 각인 옵션 생성 (1개)
     this._generateImprintOptions(tower, 1);
@@ -68,10 +83,30 @@ export class StarUpgradeManager {
     }
     if (starUpgradeUI) {
       starUpgradeUI.classList.remove('hidden');
+
+      // Initialize particle system
+      this.uiParticleSystem.init(starUpgradeUI);
     }
 
     // Update UI
     this._updateStarUpgradeUI();
+
+    // Initial stat rolling animation (처음 열 때 스탯 롤링)
+    setTimeout(() => {
+      this._playUpgradeSfx('shot', 0.5);
+      const statElements = document.querySelectorAll('.stat-comparison-values .new-value');
+      const stats = [
+        { element: statElements[0], value: this.starUpgradeState.currentStatRoll.damageMultiplier, min: 0.07, max: 0.11, grade: this.starUpgradeState.currentStatRoll.damageGrade },
+        { element: statElements[1], value: this.starUpgradeState.currentStatRoll.attackSpeedMultiplier, min: 0.02, max: 0.04, grade: this.starUpgradeState.currentStatRoll.attackSpeedGrade },
+        { element: statElements[2], value: this.starUpgradeState.currentStatRoll.rangeMultiplier, min: 0.01, max: 0.03, grade: this.starUpgradeState.currentStatRoll.rangeGrade },
+        { element: statElements[3], value: this.starUpgradeState.currentStatRoll.statusSuccessRate, min: 0.015, max: 0.03, grade: this.starUpgradeState.currentStatRoll.statusGrade }
+      ];
+
+      this.rollingAnimation.startRolling(stats, () => {
+        this._playUpgradeSfx('crit', 0.54);
+        console.log('[StarUpgradeManager] Initial stat rolling complete');
+      });
+    }, 100);
 
     // Prevent sheet close
     this.isUpgrading = true;
@@ -153,7 +188,7 @@ export class StarUpgradeManager {
     const rerollCountInfo = document.getElementById('rerollCountInfo');
 
     if (rerollCostDisplay) rerollCostDisplay.textContent = `⚡ ${rerollCost}`;
-    if (rerollCountInfo) rerollCountInfo.textContent = `리롤 횟수: ${state.rerollCount}회`;
+    if (rerollCountInfo) rerollCountInfo.textContent = `${state.rerollCount}회`;
 
     if (rerollBtn) {
       const canAffordReroll = economySystem.canAffordSC(rerollCost);
@@ -161,21 +196,51 @@ export class StarUpgradeManager {
       rerollBtn.style.opacity = canAffordReroll ? '1' : '0.5';
       rerollBtn.style.cursor = canAffordReroll ? 'pointer' : 'not-allowed';
 
-      rerollBtn.onclick = () => {
+      rerollBtn.onclick = async () => {
+        this._playUpgradeSfx('ui_click', 0.62);
         if (!canAffordReroll) {
           this.uiController._showToast('⚡ SC 부족', 'error');
           return;
         }
 
+        // 롤링 중에는 버튼 비활성화
+        if (this.rollingAnimation.isRolling) return;
+
         economySystem.spendSC(rerollCost);
         state.rerollCount++;
+        this._playUpgradeSfx('tower_upgrade', 0.66);
 
-        // Re-roll stats
-        state.currentStatRoll = towerGrowthSystem._rollStatGains();
+        // Re-roll stats (등급 정보 포함)
+        state.currentStatRoll = towerGrowthSystem._rollStatGainsWithGrades();
 
         this.uiController._showToast(`스탯 리롤 (${state.rerollCount}회)`, 'success');
         this.uiController.updateNutritionDisplay(economySystem.getState());
-        this._updateStarUpgradeUI();
+
+        // Particle effect on reroll
+        const btnRect = rerollBtn.getBoundingClientRect();
+        const containerRect = document.getElementById('tower-star-upgrade').getBoundingClientRect();
+        this.uiParticleSystem.emitBurst(
+          btnRect.left + btnRect.width / 2 - containerRect.left,
+          btnRect.top + btnRect.height / 2 - containerRect.top,
+          '#ff006e',
+          30
+        );
+
+        // 스탯 롤링 애니메이션 시작
+        const statElements = document.querySelectorAll('.stat-comparison-values .new-value');
+        const stats = [
+          { element: statElements[0], value: state.currentStatRoll.damageMultiplier, min: 0.07, max: 0.11, grade: state.currentStatRoll.damageGrade },
+          { element: statElements[1], value: state.currentStatRoll.attackSpeedMultiplier, min: 0.02, max: 0.04, grade: state.currentStatRoll.attackSpeedGrade },
+          { element: statElements[2], value: state.currentStatRoll.rangeMultiplier, min: 0.01, max: 0.03, grade: state.currentStatRoll.rangeGrade },
+          { element: statElements[3], value: state.currentStatRoll.statusSuccessRate, min: 0.015, max: 0.03, grade: state.currentStatRoll.statusGrade }
+        ];
+
+        this._playUpgradeSfx('shot', 0.52);
+        await this.rollingAnimation.startRolling(stats, () => {
+          // 롤링 완료 후 UI 업데이트
+          this._playUpgradeSfx('crit', 0.58);
+          this._updateStarUpgradeUI();
+        });
       };
     }
 
@@ -187,7 +252,7 @@ export class StarUpgradeManager {
     const expandBtn = document.getElementById('expandChoiceBtn');
     const expandCountInfo = document.getElementById('expandCountInfo');
 
-    if (expandCountInfo) expandCountInfo.textContent = `추가 선택지: ${state.expandCount}/2`;
+    if (expandCountInfo) expandCountInfo.textContent = `${state.expandCount}/2`;
 
     if (expandBtn) {
       const canExpand = state.expandCount < 2;
@@ -199,6 +264,7 @@ export class StarUpgradeManager {
       expandBtn.style.cursor = canUseExpand ? 'pointer' : 'not-allowed';
 
       expandBtn.onclick = () => {
+        this._playUpgradeSfx('ui_click', 0.6);
         if (!canUseExpand) {
           if (!canExpand) {
             this.uiController._showToast('최대 2개까지 추가 가능', 'error');
@@ -210,6 +276,7 @@ export class StarUpgradeManager {
 
         economySystem.spendSC(expandCost);
         state.expandCount++;
+        this._playUpgradeSfx('tower_upgrade', 0.62);
 
         // Generate 1 more imprint option
         this._generateImprintOptions(tower, 1);
@@ -239,6 +306,7 @@ export class StarUpgradeManager {
         icon: '⚔️',
         oldValue: oldBonuses.damageMultiplier,
         newGain: newGains.damageMultiplier,
+        newGrade: newGains.damageGrade,
         isMultiplier: true
       },
       {
@@ -246,6 +314,7 @@ export class StarUpgradeManager {
         icon: '⚡',
         oldValue: oldBonuses.attackSpeedMultiplier,
         newGain: newGains.attackSpeedMultiplier,
+        newGrade: newGains.attackSpeedGrade,
         isMultiplier: true
       },
       {
@@ -253,6 +322,7 @@ export class StarUpgradeManager {
         icon: '📍',
         oldValue: oldBonuses.rangeMultiplier,
         newGain: newGains.rangeMultiplier,
+        newGrade: newGains.rangeGrade,
         isMultiplier: true
       },
       {
@@ -260,6 +330,7 @@ export class StarUpgradeManager {
         icon: '✨',
         oldValue: oldBonuses.statusSuccessRate,
         newGain: newGains.statusSuccessRate,
+        newGrade: newGains.statusGrade,
         isMultiplier: false
       }
     ];
@@ -284,6 +355,10 @@ export class StarUpgradeManager {
           <span class="arrow">→</span>
           <span class="new-value">+${newTotalPercent.toFixed(1)}%</span>
           <span class="gain">(+${newGainPercent.toFixed(1)}%)</span>
+          <div class="stat-grade-badge" style="background: ${stat.newGrade.color}">
+            <span class="grade-emoji">${stat.newGrade.emoji}</span>
+            <span class="grade-text">${stat.newGrade.grade}</span>
+          </div>
         </div>
       `;
       statComparisonGrid.appendChild(statRow);
@@ -307,28 +382,40 @@ export class StarUpgradeManager {
         card.classList.add('selected');
       }
 
-      // Get module info for display
-      let modulesInfo = '';
-      if (option.imprintedNode && option.imprintedNode.modules) {
-        const moduleNames = option.imprintedNode.modules.map(m => {
-          return m.constructor.name.replace('Module', '');
-        });
-        if (moduleNames.length > 0) {
-          modulesInfo = `<div class="imprint-modules-info">모듈: ${moduleNames.join(', ')}</div>`;
-        }
-      }
+      // 카드 입장 애니메이션 (순차 등장)
+      card.classList.add('appearing');
+      card.style.animationDelay = `${index * 100}ms`;
 
       card.innerHTML = `
-        <div class="imprint-card-header">
-          <span class="imprint-icon">✨</span>
-          <span class="imprint-name">${option.nodeName}</span>
+        <div class="imprint-card-inner">
+          <div class="imprint-card-header">
+            <span class="imprint-icon">✨</span>
+            <span class="imprint-name">${option.nodeName}</span>
+          </div>
+          <div class="imprint-card-content">
+            <p class="imprint-card-description">${option.nodeDescription}</p>
+          </div>
         </div>
-        <div class="imprint-card-description">${option.nodeDescription}</div>
-        ${modulesInfo}
       `;
 
       card.addEventListener('click', () => {
+        this._playUpgradeSfx('ui_click', 0.64);
+        // 선택 애니메이션
+        card.classList.add('selecting');
+        setTimeout(() => card.classList.remove('selecting'), 500);
+
         state.selectedImprint = index;
+
+        // Particle effect on card click
+        const rect = card.getBoundingClientRect();
+        const containerRect = document.getElementById('tower-star-upgrade').getBoundingClientRect();
+        this.uiParticleSystem.emitSparkles(
+          rect.left + rect.width / 2 - containerRect.left,
+          rect.top + rect.height / 2 - containerRect.top,
+          '#00d9ff',
+          20
+        );
+
         this._updateImprintCards();
         this._updateConfirmButton();
       });
@@ -354,6 +441,7 @@ export class StarUpgradeManager {
         <span class="confirm-text">승급 완료</span>
       `;
       confirmBtn.onclick = () => {
+        this._playUpgradeSfx('tower_upgrade', 0.74);
         this.completeStarUpgrade();
       };
     } else {
@@ -369,7 +457,7 @@ export class StarUpgradeManager {
   /**
    * Complete star upgrade (승급 완료 처리)
    */
-  completeStarUpgrade() {
+  async completeStarUpgrade() {
     const state = this.starUpgradeState;
     if (!state || state.selectedImprint === null) return;
 
@@ -377,12 +465,7 @@ export class StarUpgradeManager {
     const towerGrowthSystem = this.gameLoop.getTowerGrowthSystem();
     const economySystem = this.gameLoop.getEconomySystem();
 
-    // Pay upgrade cost
-    const upgradeCost = towerGrowthSystem.getUpgradeCost(state.originalStar);
-    if (!economySystem.spendBoth(upgradeCost.nc, upgradeCost.sc)) {
-      this.uiController._showToast('비용 부족', 'error');
-      return;
-    }
+    // 비용은 이미 upgrade-points 클릭 시 차감되었음
 
     // Apply star upgrade
     tower.star++;
@@ -425,15 +508,38 @@ export class StarUpgradeManager {
     console.log('[StarUpgradeManager] Imprint count for node', selectedImprint.nodeNumber, ':', currentCount + 1);
     console.log('[StarUpgradeManager] Total imprints:', tower.imprints.length);
 
-    // Show success toast
-    this.uiController._showToast(`⭐ ${state.originalStar}성 → ${tower.star}성 승급 완료!`, 'success');
-
     // Update currency display
     this.uiController.updateNutritionDisplay(economySystem.getState());
+
+    // 축하 연출 실행
+    if (!this.upgradeCelebration) {
+      this.upgradeCelebration = new UpgradeCelebration(
+        this.uiParticleSystem,
+        (eventName, volume) => this._playUpgradeSfx(eventName, volume)
+      );
+    }
+
+    this._playUpgradeSfx('wave_start', 0.8);
+    await this.upgradeCelebration.celebrate(
+      state.originalStar,
+      tower.star,
+      selectedImprint.nodeName,
+      () => {
+        // 축하 연출 완료 후 처리
+        console.log('[StarUpgradeManager] Celebration complete');
+      }
+    );
+    this._playUpgradeSfx('wave_clear', 0.88);
+
+    // Show success toast
+    this.uiController._showToast(`⭐ ${state.originalStar}성 → ${tower.star}성 승급 완료!`, 'success');
 
     // Resume game
     this.gameLoop.resume();
     this.isUpgrading = false;
+
+    // Destroy particle system
+    this.uiParticleSystem.destroy();
 
     // Close upgrade UI and show tower detail
     const starUpgradeUI = document.getElementById('tower-star-upgrade');

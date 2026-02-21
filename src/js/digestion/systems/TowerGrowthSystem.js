@@ -255,6 +255,57 @@ export class TowerGrowthSystem {
   }
 
   /**
+   * 스탯 등급 계산 (SSS ~ C)
+   * @param {number} value - 실제 스탯 값
+   * @param {number} min - 최소값 (하한)
+   * @param {number} max - 최대값 (상한)
+   * @returns {{grade: string, color: string, emoji: string}}
+   */
+  calculateStatGrade(value, min, max) {
+    // 정규화 (0~1 범위)
+    const normalized = (value - min) / (max - min);
+
+    // 등급 기준: SSS(95%↑), SS(85%↑), S(70%↑), A(50%↑), B(30%↑), C(그 외)
+    if (normalized >= 0.95) {
+      return { grade: 'SSS', color: '#ff6b9d', emoji: '💎' };  // 분홍 (다이아몬드)
+    } else if (normalized >= 0.85) {
+      return { grade: 'SS', color: '#ffd700', emoji: '⭐' };   // 금색 (별)
+    } else if (normalized >= 0.70) {
+      return { grade: 'S', color: '#00d9ff', emoji: '✨' };    // 하늘색 (반짝임)
+    } else if (normalized >= 0.50) {
+      return { grade: 'A', color: '#4caf50', emoji: '🟢' };    // 녹색 (초록 원)
+    } else if (normalized >= 0.30) {
+      return { grade: 'B', color: '#ff9800', emoji: '🟡' };    // 주황색 (노랑 원)
+    } else {
+      return { grade: 'C', color: '#9e9e9e', emoji: '⚪' };    // 회색 (하얀 원)
+    }
+  }
+
+  /**
+   * 스탯 롤 (등급 정보 포함)
+   * @returns {{damageMultiplier, damageGrade, attackSpeedMultiplier, attackSpeedGrade, rangeMultiplier, rangeGrade, statusSuccessRate, statusGrade}}
+   */
+  _rollStatGainsWithGrades() {
+    // 기존 스탯 롤 로직 호출
+    const gains = this._rollStatGains();
+
+    // 각 스탯에 등급 정보 추가
+    return {
+      damageMultiplier: gains.damageMultiplier,
+      damageGrade: this.calculateStatGrade(gains.damageMultiplier, 0.07, 0.11),
+
+      attackSpeedMultiplier: gains.attackSpeedMultiplier,
+      attackSpeedGrade: this.calculateStatGrade(gains.attackSpeedMultiplier, 0.02, 0.04),
+
+      rangeMultiplier: gains.rangeMultiplier,
+      rangeGrade: this.calculateStatGrade(gains.rangeMultiplier, 0.01, 0.03),
+
+      statusSuccessRate: gains.statusSuccessRate,
+      statusGrade: this.calculateStatGrade(gains.statusSuccessRate, 0.015, 0.03)
+    };
+  }
+
+  /**
    * 스탯 증가 적용
    */
   _applyStatGains(tower, gains) {

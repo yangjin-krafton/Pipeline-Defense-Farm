@@ -29,6 +29,7 @@ export class UIController {
 
     // Star upgrade manager (initialized when gameLoop is set)
     this.starUpgradeManager = null;
+    this.uiSfxSystem = null;
 
     this.init();
   }
@@ -161,6 +162,7 @@ export class UIController {
    */
   openSheet() {
     if (!this.isExpanded) {
+      this._playUISfx('ui_click', { volume: 0.55 });
       this.isExpanded = true;
       this.bottomSheet.classList.add('expanded');
 
@@ -191,6 +193,7 @@ export class UIController {
     }
 
     if (this.isExpanded) {
+      this._playUISfx('ui_click', { volume: 0.5 });
       this.isExpanded = false;
       this.bottomSheet.classList.remove('expanded');
       this.selectedTowerSlot = null;
@@ -232,6 +235,7 @@ export class UIController {
    * Select a tower slot and open the sheet
    */
   selectTowerSlot(slotData) {
+    this._playUISfx('ui_click', { volume: 0.65 });
     this.selectedTowerSlot = slotData;
     this.selectedSlot = slotData; // Store for supply actions
 
@@ -266,6 +270,15 @@ export class UIController {
    */
   setOnSheetClose(callback) {
     this.onSheetCloseCallback = callback;
+  }
+
+  setUISfxSystem(uiSfxSystem) {
+    this.uiSfxSystem = uiSfxSystem || null;
+  }
+
+  _playUISfx(eventName, options = {}) {
+    if (!this.uiSfxSystem) return;
+    this.uiSfxSystem.play(eventName, options);
   }
 
   /* REMOVED: Tower interactions moved to WebGL2 rendering
@@ -665,6 +678,19 @@ export class UIController {
 
       if (canAfford) {
         pointsDisplay.addEventListener('click', () => {
+          // 승급 비용 차감
+          const economySystem = this.gameLoop.getEconomySystem();
+          const towerGrowthSystem = this.gameLoop.getTowerGrowthSystem();
+          const upgradeCost = towerGrowthSystem.getUpgradeCost(tower.star);
+
+          if (!economySystem.spendBoth(upgradeCost.nc, upgradeCost.sc)) {
+            this._showToast('비용 부족', 'error');
+            return;
+          }
+
+          // 비용 차감 후 승급 UI 표시
+          this._playUISfx('tower_upgrade', { volume: 0.7 });
+          this.updateNutritionDisplay(economySystem.getState());
           this.starUpgradeManager.showStarUpgradeUI(tower);
         });
 
@@ -749,6 +775,7 @@ export class UIController {
     `;
 
     resetButton.addEventListener('click', () => {
+      this._playUISfx('ui_click', { volume: 0.6 });
       if (!canAffordReset) {
         this._showToast('비용 부족', 'error');
         return;
@@ -766,6 +793,7 @@ export class UIController {
         onConfirm: () => {
           economySystem.spendBoth(resetNCCost, resetSCCost);
           tower.upgradeTree.reset();
+          this._playUISfx('tower_upgrade', { volume: 0.8 });
           this._showToast('스킬트리 리셋 완료', 'success');
           this.updateNutritionDisplay(economySystem.getState());
           this._showUpgradeTree(tower);
@@ -1267,6 +1295,7 @@ export class UIController {
 
             // Ink splash effect
             self._createInkSplash(card, '#00d9ff');
+            self._playUISfx('tower_upgrade', { volume: 0.75 });
 
             // Show toast with cost
             self._showToast(`노드 활성화: -🍎 ${ncCost} NC`, 'success');
@@ -1428,12 +1457,14 @@ export class UIController {
         }
 
         if (!economySystem.canAfford(definition.cost)) {
+          this._playUISfx('ui_error', { volume: 0.78 });
           console.warn('Not enough nutrition to build tower');
           return;
         }
 
         if (economySystem.spend(definition.cost)) {
           towerManager.buildTower(towerType, this.selectedSlot);
+          this._playUISfx('tower_place', { volume: 0.85 });
           this.closeSheet();
           // Update nutrition display
           this.updateNutritionDisplay(economySystem.getState());
@@ -1576,6 +1607,7 @@ export class UIController {
     speedButtons.forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
+        this._playUISfx('ui_click', { volume: 0.6 });
 
         // Prevent rapid clicking
         if (btn.disabled) {
@@ -1596,6 +1628,7 @@ export class UIController {
             this.gameLoop.setTimeScale(speed);
             this.previousTimeScale = speed;
           }
+          this._playUISfx('ui_click', { volume: 0.62 });
           this.updateSpeedButtonDisplay(speed);
           return;
         }
@@ -1620,6 +1653,7 @@ export class UIController {
             // Boost activated successfully
             this.gameLoop.setTimeScale(speed);
             this.previousTimeScale = speed;
+            this._playUISfx('wave_start', { volume: 0.75 });
             this.updateSpeedButtonDisplay(speed);
           } else {
             // Show error feedback
@@ -1672,6 +1706,7 @@ export class UIController {
    */
   showBoostError(reason) {
     const scResource = document.querySelector('.sc-resource');
+    this._playUISfx('ui_error', { volume: 0.75 });
 
     if (reason === 'insufficient_sc') {
       // Shake animation on SC display
@@ -1781,6 +1816,12 @@ export class UIController {
    * @param {string} type - Toast type ('success', 'error', 'info', 'warning')
    */
   _showToast(message, type = 'info') {
+    if (type === 'error') {
+      this._playUISfx('ui_error', { volume: 0.68 });
+    } else if (type === 'success') {
+      this._playUISfx('ui_click', { volume: 0.55 });
+    }
+
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
 
@@ -1855,6 +1896,7 @@ export class UIController {
     }
 
     boostBtn.addEventListener('click', () => {
+      this._playUISfx('ui_click', { volume: 0.62 });
       if (!this.gameLoop) return;
 
       const towerGrowthSystem = this.gameLoop.getTowerGrowthSystem();
@@ -1862,6 +1904,7 @@ export class UIController {
       const currentTime = this.gameLoop.currentTime * 1000; // Convert to ms
 
       if (towerGrowthSystem.activateGrowthBoost(economySystem, currentTime)) {
+        this._playUISfx('wave_start', { volume: 0.82 });
         this._showToast('성장 가속 활성화! (+40% XP, 1시간)', 'success');
         this.updateNutritionDisplay(economySystem.getState());
 
@@ -1898,6 +1941,7 @@ export class UIController {
     }
 
     claimBtn.addEventListener('click', () => {
+      this._playUISfx('ui_click', { volume: 0.62 });
       if (!this.gameLoop) return;
 
       const timeTrackingSystem = this.gameLoop.getTimeTrackingSystem();
@@ -1906,6 +1950,7 @@ export class UIController {
       const result = timeTrackingSystem.claimHourlyReward(economySystem);
 
       if (result.success) {
+        this._playUISfx('wave_clear', { volume: 0.86 });
         this._showToast(`1시간 보상 수령! +${result.sc} SC`, 'success');
         this.updateNutritionDisplay(economySystem.getState());
         claimBtn.style.display = 'none';
@@ -1973,6 +2018,7 @@ export class UIController {
     }
 
     claimBtn.addEventListener('click', () => {
+      this._playUISfx('ui_click', { volume: 0.62 });
       if (!this.gameLoop) return;
 
       const timeTrackingSystem = this.gameLoop.getTimeTrackingSystem();
@@ -1981,6 +2027,7 @@ export class UIController {
       const result = timeTrackingSystem.claimSixHourReward(economySystem);
 
       if (result.success) {
+        this._playUISfx('wave_clear', { volume: 0.9 });
         this._showToast(`${result.timeSlot} 보상 수령! +${result.nc} NC, +${result.sc} SC`, 'success');
         this.updateNutritionDisplay(economySystem.getState());
         claimBtn.style.display = 'none';
@@ -2061,17 +2108,20 @@ export class UIController {
     const cancelBtn = dialog.querySelector('.cancel');
 
     confirmBtn.addEventListener('click', () => {
+      this._playUISfx('ui_click', { volume: 0.62 });
       overlay.remove();
       if (onConfirm) onConfirm();
     });
 
     cancelBtn.addEventListener('click', () => {
+      this._playUISfx('ui_click', { volume: 0.58 });
       overlay.remove();
       if (onCancel) onCancel();
     });
 
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
+        this._playUISfx('ui_click', { volume: 0.52 });
         overlay.remove();
         if (onCancel) onCancel();
       }

@@ -7,6 +7,7 @@ import { WebGLRenderer } from './renderer/WebGLRenderer.js';
 import { EmojiRenderer } from './renderer/EmojiRenderer.js';
 import { FlowSystem } from './systems/FlowSystem.js';
 import { AudioSystem } from './systems/AudioSystem.js';
+import { UISfxSystem } from './systems/UISfxSystem.js';
 import { GameLoop } from './game/GameLoop.js';
 import { UIController } from './ui/UIController.js';
 import { ScaleManager } from './ui/ScaleManager.js';
@@ -384,7 +385,7 @@ function setupDeveloperMenu(pathEditorToggle, towerSlotEditorToggle) {
 /**
  * Setup canvas click handler for tower slots
  */
-function setupTowerSlotClicks(pathCanvas, uiController, scaleManager, cameraController) {
+function setupTowerSlotClicks(pathCanvas, uiController, scaleManager, cameraController, uiSfxSystem = null) {
   pathCanvas.addEventListener('click', (e) => {
     // Ignore clicks when path editor is active
     if (window.isPathEditorActive && window.isPathEditorActive()) {
@@ -409,6 +410,9 @@ function setupTowerSlotClicks(pathCanvas, uiController, scaleManager, cameraCont
     // Check if click is on a tower slot
     const slot = checkTowerSlotClick(virtualX, virtualY);
     if (slot) {
+      if (uiSfxSystem) {
+        uiSfxSystem.play('ui_click', { volume: 0.75 });
+      }
       // Normal tower selection
       uiController.selectTowerSlot(slot);
     }
@@ -442,6 +446,16 @@ async function init() {
   audioSystem.setLoop(true);
   audioSystem.setVariationOptions({ gainRandomRange: 0.03, sectionDynamicsDepth: 0.2, fillBoostRange: 0.06 });
 
+  // Initialize UI SFX system (non-blocking fallback)
+  const uiSfxSystem = new UISfxSystem();
+  try {
+    await uiSfxSystem.init(audioSystem.audioContext);
+    await uiSfxSystem.loadFromManifest('./assets/sfx/sfx_manifest.json', './assets/sfx');
+    uiSfxSystem.setVolume(0.52);
+  } catch (error) {
+    console.warn('UI SFX loading failed:', error);
+  }
+
   // Create and start game loop
   const gameLoop = new GameLoop(
     multiPathSystem,
@@ -449,19 +463,21 @@ async function init() {
     emojiRenderer,
     staticMeshes,
     flowSystem,
-    audioSystem
+    audioSystem,
+    uiSfxSystem
   );
 
   gameLoop.start();
 
   // Setup music controls
-  setupMusicControls(audioSystem);
+  setupMusicControls(audioSystem, uiSfxSystem);
 
   // Setup start overlay
-  setupStartOverlay(audioSystem, gameLoop);
+  setupStartOverlay(audioSystem, gameLoop, uiSfxSystem);
 
   // Initialize UI Controller
   const uiController = new UIController();
+  uiController.setUISfxSystem(uiSfxSystem);
   uiController.setGameLoop(gameLoop); // NEW: Connect UI to game systems
 
   // Initialize Scale Manager
@@ -518,7 +534,7 @@ async function init() {
   updateUIDisplays();
 
   // Setup tower slot click detection on pathCanvas
-  setupTowerSlotClicks(pathCanvas, uiController, scaleManager, cameraController);
+  setupTowerSlotClicks(pathCanvas, uiController, scaleManager, cameraController, uiSfxSystem);
 
   // Setup path editor (dev mode)
   const pathEditorToggle = setupPathEditor(emojiCanvas, gameLoop, webglRenderer, staticMeshes);
@@ -532,6 +548,7 @@ async function init() {
   // Expose for debugging
   window.gameLoop = gameLoop;
   window.audioSystem = audioSystem;
+  window.uiSfxSystem = uiSfxSystem;
   window.uiController = uiController;
   window.scaleManager = scaleManager;
   window.cameraController = cameraController;
@@ -739,17 +756,23 @@ function setupDevCommands(gameLoop, uiController) {
 /**
  * Setup start overlay
  */
-function setupStartOverlay(audioSystem, gameLoop) {
+function setupStartOverlay(audioSystem, gameLoop, uiSfxSystem = null) {
   const overlay = document.getElementById('startOverlay');
   const startBtn = document.getElementById('startBtn');
 
   if (startBtn && overlay) {
     startBtn.addEventListener('click', () => {
+      if (uiSfxSystem) {
+        uiSfxSystem.play('ui_click', { volume: 0.85 });
+      }
       // Hide overlay
       overlay.classList.add('hidden');
 
       // Start music after a short delay
       setTimeout(() => {
+        if (uiSfxSystem) {
+          uiSfxSystem.play('wave_start', { volume: 0.8 });
+        }
         audioSystem.play();
         audioSystem.fadeIn(1.5);
         updateMusicButton(true);
@@ -766,11 +789,14 @@ function setupStartOverlay(audioSystem, gameLoop) {
 /**
  * Setup music control UI
  */
-function setupMusicControls(audioSystem) {
+function setupMusicControls(audioSystem, uiSfxSystem = null) {
   const toggleBtn = document.getElementById('musicToggle');
 
   if (toggleBtn) {
     toggleBtn.addEventListener('click', () => {
+      if (uiSfxSystem) {
+        uiSfxSystem.play('ui_click', { volume: 0.75 });
+      }
       audioSystem.toggle();
       updateMusicButton(audioSystem.isPlaying);
     });

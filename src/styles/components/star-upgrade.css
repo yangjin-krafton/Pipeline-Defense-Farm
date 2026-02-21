@@ -100,206 +100,315 @@
   font-weight: 700;
 }
 
-/* Reroll Section */
-.reroll-section {
-  padding: 20px;
-  background: linear-gradient(135deg, #ffe0e9 0%, #ffd0dd 100%);
-  border-bottom: 3px solid #1a1a2e;
+/* 각인 카드 컨테이너 (스탯 비교 섹션 안) */
+.stat-comparison-section .imprint-cards-container {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 3px solid #1a1a2e;
 }
 
-.reroll-header {
+/* 버튼 그룹 (한 줄로 배치) */
+.upgrade-actions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 3px solid #1a1a2e;
 }
 
-.reroll-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: #1a1a2e;
-}
-
-.reroll-cost {
-  font-size: 16px;
-  font-weight: 900;
-  color: #e94560;
-  padding: 4px 12px;
-  background: #fff;
-  border: 3px solid #1a1a2e;
-  border-radius: 12px;
-  box-shadow: 0 3px 0 #1a1a2e;
-}
-
-.reroll-btn {
-  width: 100%;
-  padding: 14px;
-  background: linear-gradient(135deg, #ff006e 0%, #ff4d8f 100%);
-  border: 5px solid #1a1a2e;
-  border-radius: 16px;
-  color: #fff;
-  font-weight: 900;
-  font-size: 16px;
+/* 액션 버튼 공통 스타일 (status-bar 스타일) */
+.action-btn {
+  flex: 1;
+  padding: 12px 14px;
+  border: 4px solid var(--splat-dark);
+  border-radius: 20px;
   cursor: pointer;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  box-shadow: 0 0 0 3px #ff006e, 0 6px 0 #1a1a2e, 0 8px 20px rgba(255, 0, 110, 0.5);
-  transition: all 0.2s;
+  flex-direction: column;
+  gap: 6px;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  font-family: 'Arial Black', sans-serif;
+  position: relative;
+  min-height: 75px;
 }
 
-.reroll-btn:hover:not(:disabled) {
-  transform: translateY(-3px);
-  box-shadow: 0 0 0 3px #ff006e, 0 10px 0 #1a1a2e, 0 12px 30px rgba(255, 0, 110, 0.7);
+/* 리롤 버튼 (핑크/빨강 그래디언트) */
+.action-btn.reroll-btn {
+  background: linear-gradient(135deg, #ff006e, #ff4d8f);
+  color: white;
+  box-shadow: 0 0 0 2px #ff85a1,
+              0 4px 0 var(--splat-dark),
+              0 6px 20px rgba(255, 0, 110, 0.6);
 }
 
-.reroll-btn:active:not(:disabled) {
-  transform: translateY(0);
-  box-shadow: 0 0 0 3px #ff006e, 0 3px 0 #1a1a2e, 0 5px 15px rgba(255, 0, 110, 0.5);
+.action-btn.reroll-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 0 0 2px #fbbf24,
+              0 6px 0 var(--splat-dark),
+              0 8px 30px rgba(255, 0, 110, 1);
 }
 
-.reroll-btn:disabled {
+.action-btn.reroll-btn:active:not(:disabled) {
+  transform: scale(1.02) translateY(2px);
+  box-shadow: 0 0 0 2px #ff85a1,
+              0 2px 0 var(--splat-dark),
+              0 4px 15px rgba(255, 0, 110, 0.8);
+}
+
+/* 선택지 추가 버튼 (보라색 그래디언트) */
+.action-btn.expand-btn {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+  box-shadow: 0 0 0 2px #a78bfa,
+              0 4px 0 var(--splat-dark),
+              0 6px 20px rgba(139, 92, 246, 0.6);
+}
+
+.action-btn.expand-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 0 0 2px #fbbf24,
+              0 6px 0 var(--splat-dark),
+              0 8px 30px rgba(139, 92, 246, 1);
+}
+
+.action-btn.expand-btn:active:not(:disabled) {
+  transform: scale(1.02) translateY(2px);
+  box-shadow: 0 0 0 2px #a78bfa,
+              0 2px 0 var(--splat-dark),
+              0 4px 15px rgba(139, 92, 246, 0.8);
+}
+
+/* 비활성 버튼 */
+.action-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  background: #9ca3af;
+  box-shadow: 0 0 0 2px #d1d5db,
+              0 4px 0 var(--splat-dark);
+  pointer-events: none;
 }
 
-.reroll-icon {
-  font-size: 20px;
+/* 버튼 상단: 아이콘 + 제목 */
+.btn-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
 }
 
-.reroll-count-info {
-  margin-top: 8px;
+.btn-icon {
+  font-size: 18px;
+}
+
+.btn-title {
+  font-size: 13px;
+  font-weight: 900;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* 버튼 하단: 비용 + 횟수 */
+.btn-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* 비용 배지 (status-bar의 speed-cost 스타일) */
+.btn-cost {
+  font-size: 10px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: white;
+  padding: 3px 6px;
+  border-radius: 8px;
+  border: 2px solid var(--splat-dark);
+  box-shadow: 0 1px 0 var(--splat-dark),
+              inset 0 0 8px rgba(255, 255, 255, 0.3);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  font-weight: 900;
+  min-width: 32px;
   text-align: center;
-  font-size: 12px;
-  font-weight: 600;
-  color: #666;
 }
 
-/* Imprint Section */
-.imprint-section {
-  padding: 20px;
-  background: linear-gradient(135deg, #e0f7ff 0%, #d0f0ff 100%);
-  border-bottom: 3px solid #1a1a2e;
+/* 횟수 표시 */
+.btn-count {
+  font-size: 11px;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.8);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
+
 
 .imprint-cards-container {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 15px;
   margin-bottom: 15px;
 }
 
+/* 각인 카드 (upgrade-node-card와 완전히 동일한 스타일) */
 .imprint-card {
   padding: 16px;
   background: #fff;
-  border: 4px solid #1a1a2e;
-  border-radius: 14px;
+  border: 5px solid #1a1a2e;
+  border-radius: 18px;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 4px 0 #1a1a2e;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow:
+    0 0 0 3px #e94560,
+    0 6px 0 #1a1a2e,
+    0 8px 20px rgba(0, 0, 0, 0.3);
+  position: relative;
+  overflow: visible;
+  width: 100%;
+  min-height: 110px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
 }
 
+/* hover 효과 */
 .imprint-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 0 #1a1a2e, 0 10px 20px rgba(0, 217, 255, 0.3);
+  box-shadow:
+    0 0 0 3px #e94560,
+    0 10px 0 #1a1a2e,
+    0 12px 30px rgba(233, 69, 96, 0.5);
 }
 
+/* active 효과 */
+.imprint-card:active {
+  transform: translateY(0);
+  box-shadow:
+    0 0 0 3px #e94560,
+    0 3px 0 #1a1a2e,
+    0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* selected 상태 (하늘색) */
 .imprint-card.selected {
-  border-color: #00d9ff;
-  background: linear-gradient(135deg, #e0f7ff 0%, #fff 100%);
-  box-shadow: 0 0 0 3px #00d9ff, 0 4px 0 #1a1a2e, 0 6px 20px rgba(0, 217, 255, 0.5);
+  box-shadow:
+    0 0 0 3px #00d9ff,
+    0 6px 0 #1a1a2e,
+    0 8px 20px rgba(0, 217, 255, 0.5);
 }
 
+.imprint-card.selected:hover {
+  box-shadow:
+    0 0 0 3px #00d9ff,
+    0 10px 0 #1a1a2e,
+    0 12px 30px rgba(0, 217, 255, 0.7);
+}
+
+/* 선택 애니메이션 */
+.imprint-card.selecting {
+  animation: card-bounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes card-bounce {
+  0% { transform: translateY(0) rotate(0deg) scale(1); }
+  50% { transform: translateY(-5px) rotate(2deg) scale(1.02); }
+  100% { transform: translateY(0) rotate(0deg) scale(1); }
+}
+
+/* 카드 입장 애니메이션 */
+.imprint-card.appearing {
+  animation: node-appear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes node-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.8) rotate(-10deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* 카드 내부 콘텐츠 컨테이너 */
+.imprint-card-inner {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+/* 상단: 아이콘 + 제목 */
 .imprint-card-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  min-width: 0;
+  flex: 1;
 }
 
+/* 아이콘 배지 (비용 배지 스타일) */
 .imprint-icon {
-  font-size: 20px;
-}
-
-.imprint-name {
-  font-size: 16px;
-  font-weight: 900;
-  color: #1a1a2e;
-}
-
-.imprint-card-description {
-  font-size: 13px;
-  color: #555;
-  line-height: 1.4;
-  margin-bottom: 6px;
-}
-
-.imprint-modules-info {
-  font-size: 11px;
-  font-weight: 700;
-  color: #00d9ff;
-  background: rgba(0, 217, 255, 0.1);
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 2px solid rgba(0, 217, 255, 0.3);
-}
-
-.imprint-expand-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.expand-choice-btn {
-  width: 100%;
-  padding: 12px;
-  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
-  border: 5px solid #1a1a2e;
-  border-radius: 14px;
-  color: #1a1a2e;
-  font-weight: 900;
-  font-size: 14px;
-  cursor: pointer;
+  background: linear-gradient(90deg, #00d9ff, #0fb9b1);
+  color: #fff;
+  min-width: 50px;
+  height: 36px;
+  border-radius: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  box-shadow: 0 0 0 3px #ffd700, 0 5px 0 #1a1a2e, 0 7px 15px rgba(255, 215, 0, 0.4);
-  transition: all 0.2s;
+  font-size: 20px;
+  font-weight: 900;
+  border: 4px solid #1a1a2e;
+  box-shadow: 0 4px 0 #1a1a2e;
+  flex-shrink: 0;
+  padding: 0 10px;
 }
 
-.expand-choice-btn:hover:not(:disabled) {
-  transform: translateY(-3px);
-  box-shadow: 0 0 0 3px #ffd700, 0 8px 0 #1a1a2e, 0 10px 20px rgba(255, 215, 0, 0.6);
+/* 노드 이름 */
+.imprint-name {
+  color: #1a1a2e;
+  font-size: 13px;
+  font-weight: 900;
+  text-shadow: none;
+  line-height: 1.2;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  min-width: 0;
 }
 
-.expand-choice-btn:active:not(:disabled) {
-  transform: translateY(0);
-  box-shadow: 0 0 0 3px #ffd700, 0 2px 0 #1a1a2e, 0 4px 10px rgba(255, 215, 0, 0.4);
+/* 하단: 설명 텍스트 */
+.imprint-card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
 }
 
-.expand-choice-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  background: #ccc;
-}
-
-.expand-icon {
-  font-size: 16px;
-}
-
-.expand-cost {
-  font-size: 12px;
-  opacity: 0.9;
-}
-
-.expand-count-info {
-  text-align: center;
-  font-size: 12px;
+.imprint-card-description {
+  color: #1a1a2e;
+  font-size: 10px;
+  line-height: 1.3;
   font-weight: 600;
-  color: #666;
+  text-shadow: none;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
+
+.imprint-modules-info {
+  font-size: 9px;
+  font-weight: 700;
+  color: #00d9ff;
+  background: rgba(0, 217, 255, 0.1);
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 2px solid rgba(0, 217, 255, 0.3);
+  display: inline-block;
+  align-self: flex-start;
+}
+
 
 /* Upgrade Confirm Section */
 .upgrade-confirm-section {
@@ -348,4 +457,171 @@
 
 .confirm-text {
   font-size: 18px;
+}
+
+/* Stat Grade Badge (등급 배지) */
+.stat-grade-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 3px solid #1a1a2e;
+  font-weight: 900;
+  box-shadow: 0 2px 0 #1a1a2e;
+  margin-left: 8px;
+  transition: transform 0.2s;
+}
+
+.stat-grade-badge:hover {
+  transform: scale(1.05);
+}
+
+.grade-emoji {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.grade-text {
+  font-size: 12px;
+  color: #1a1a2e;
+  line-height: 1;
+  text-shadow: none;
+}
+
+/* Stat Rolling Animation (스탯 롤링 애니메이션) */
+@keyframes stat-rolling {
+  0%, 100% {
+    transform: scale(1);
+    color: inherit;
+  }
+  50% {
+    transform: scale(1.15);
+    color: #ffd700;
+  }
+}
+
+.stat-comparison-values .new-value.rolling {
+  animation: stat-rolling 0.15s ease-in-out infinite;
+  font-weight: 900;
+}
+
+@keyframes stat-rolled-flash {
+  0% {
+    background: transparent;
+    transform: scale(1);
+  }
+  30% {
+    background: rgba(255, 215, 0, 0.3);
+    transform: scale(1.02);
+  }
+  100% {
+    background: transparent;
+    transform: scale(1);
+  }
+}
+
+.stat-comparison-row.stat-rolled {
+  animation: stat-rolled-flash 0.5s ease-out;
+}
+
+/* Upgrade Celebration Overlay (승급 축하 연출) */
+.upgrade-celebration-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+}
+
+.upgrade-celebration-overlay.visible {
+  opacity: 1;
+}
+
+.upgrade-celebration-overlay.fade-out {
+  opacity: 0;
+}
+
+.celebration-content {
+  text-align: center;
+  color: #fff;
+}
+
+.star-animation-container {
+  font-size: 48px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+}
+
+.star-from,
+.star-to {
+  display: inline-block;
+  opacity: 0;
+  transform: scale(0.5);
+}
+
+.star-from.animate {
+  animation: star-bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.star-to.animate {
+  animation: star-bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes star-bounce-in {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.star-arrow {
+  font-size: 36px;
+  color: #00d9ff;
+  font-weight: 900;
+}
+
+.celebration-text {
+  font-size: 36px;
+  font-weight: 900;
+  color: #ffd700;
+  text-shadow: 3px 3px 0 #1a1a2e, 0 0 20px rgba(255, 215, 0, 0.8);
+  margin-bottom: 15px;
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+.celebration-text.animate {
+  animation: celebration-text-appear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes celebration-text-appear {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.imprint-info {
+  font-size: 20px;
+  margin-top: 15px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  color: #00d9ff;
+  font-weight: 700;
+  text-shadow: 2px 2px 0 #1a1a2e;
+}
+
+.imprint-info.visible {
+  opacity: 1;
 }

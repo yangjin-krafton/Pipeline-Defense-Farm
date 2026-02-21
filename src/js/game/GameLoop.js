@@ -17,13 +17,14 @@ import { ParticleRenderer } from '../renderer/ParticleRenderer.js';
 import { StatusEffectRenderer } from '../renderer/StatusEffectRenderer.js';
 
 export class GameLoop {
-  constructor(multiPathSystem, webglRenderer, emojiRenderer, staticMeshes, flowSystem, audioSystem) {
+  constructor(multiPathSystem, webglRenderer, emojiRenderer, staticMeshes, flowSystem, audioSystem, uiSfxSystem = null) {
     this.multiPathSystem = multiPathSystem;
     this.webglRenderer = webglRenderer;
     this.emojiRenderer = emojiRenderer;
     this.staticMeshes = staticMeshes;
     this.flowSystem = flowSystem;
     this.audioSystem = audioSystem;
+    this.uiSfxSystem = uiSfxSystem;
     this.foodSpawner = new FoodSpawner(multiPathSystem);
 
     this.time = 0;
@@ -60,6 +61,7 @@ export class GameLoop {
 
     // Connect systems
     this.bulletSystem.setParticleSystem(this.particleSystem);
+    this.bulletSystem.setUISfxSystem(this.uiSfxSystem);
     this.towerManager.setBulletSystem(this.bulletSystem);
     this.towerManager.setParticleSystem(this.particleSystem);
 
@@ -89,6 +91,13 @@ export class GameLoop {
     this.enemyAliveEMA = null;
     this.difficultyRampValue = 0;      // slow monotonic ramp [0..5]
     this.difficultyRampPer10Sec = 1.0; // 1 stage per 10s
+
+    // Combat SFX state
+    this.combatWasActive = false;
+    this.lastWaveStartSfxTime = -999;
+    this.lastWaveClearSfxTime = -999;
+    this.lastKillSfxTime = -999;
+    this.lastBigKillSfxTime = -999;
   }
 
   /**
@@ -186,10 +195,16 @@ export class GameLoop {
         this.enemyLeakedInWindow
       );
       const combinedTarget = Math.max(rampStage, targetStageIndex);
+      const prevStage = this.enemyMetricStageIndex;
       this.enemyMetricStageIndex = this._stepStageIndex(this.enemyMetricStageIndex, combinedTarget, stepCap);
       this.foodSpawner.setBaseStageIndex(this.enemyMetricStageIndex);
+      if (this.enemyMetricStageIndex > prevStage) {
+        this._playBattleSfx('wave_start', 0.58, 2.8, 'lastWaveStartSfxTime');
+      }
       this._resetEnemyMetricWindow();
     }
+
+    this._updateCombatWaveSfx();
 
     // Update FPS
     this.frameCount++;
@@ -252,6 +267,29 @@ export class GameLoop {
     if (safeTarget > safeCurrent) return Math.min(5, safeCurrent + step);
     if (safeTarget < safeCurrent) return Math.max(0, safeCurrent - step);
     return safeCurrent;
+  }
+
+  _playBattleSfx(eventName, volume = 1, cooldownSec = 0, timerKey = '') {
+    if (!this.uiSfxSystem) return;
+    if (timerKey) {
+      const lastTime = this[timerKey] ?? -999;
+      if (this.currentTime - lastTime < cooldownSec) return;
+      this[timerKey] = this.currentTime;
+    }
+    this.uiSfxSystem.play(eventName, { volume });
+  }
+
+  _updateCombatWaveSfx() {
+    const aliveCount = this.multiPathSystem.getObjects().length;
+    const combatActive = aliveCount > 0;
+
+    if (combatActive && !this.combatWasActive) {
+      this._playBattleSfx('wave_start', 0.72, 2.4, 'lastWaveStartSfxTime');
+    } else if (!combatActive && this.combatWasActive) {
+      this._playBattleSfx('wave_clear', 0.76, 1.6, 'lastWaveClearSfxTime');
+    }
+
+    this.combatWasActive = combatActive;
   }
 
   /**
@@ -371,6 +409,13 @@ export class GameLoop {
       this.scoreDirty = true;
       console.log(`Food ${food.emoji} digested in ${food.currentPath}`);
 
+      const isEliteKill = (food.strengthTier === 'elite') || (food.threat >= 17);
+      if (isEliteKill) {
+        this._playBattleSfx('explosion_big', 0.62, 0.12, 'lastBigKillSfxTime');
+      } else {
+        this._playBattleSfx('explosion_small', 0.5, 0.05, 'lastKillSfxTime');
+      }
+
       // NEW: Emit death particle effect
       const pos = this.multiPathSystem.samplePath(food.currentPath, food.d);
       if (pos) {
@@ -472,6 +517,7 @@ export class GameLoop {
       const pathKey = spawnablePaths[i % spawnablePaths.length];
       this.foodSpawner.spawnFood(pathKey, i * 56);
     }
+    this._playBattleSfx('wave_start', 0.68, 0.4, 'lastWaveStartSfxTime');
 
     requestAnimationFrame((t) => this.frame(t));
   }
