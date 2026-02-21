@@ -319,4 +319,35 @@ export class TimeTrackingSystem {
     const s = Math.floor(seconds % 60);
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   }
+
+  /**
+   * 저장 데이터에서 상태 복원
+   * @param {Object} saveData - 저장된 시간 추적 데이터
+   */
+  loadFromSave(saveData) {
+    if (saveData.totalPlayTime !== undefined) {
+      this.totalPlaytime = saveData.totalPlayTime;
+    }
+
+    if (saveData.lastHourlyClaimTime !== undefined) {
+      this.lastHourlyClaimTime = saveData.lastHourlyClaimTime;
+    }
+
+    if (saveData.lastSixHourClaimTimes !== undefined) {
+      this.sixHourRewards.claimed = { ...saveData.lastSixHourClaimTimes };
+    }
+
+    // 세션 플레이타임은 0으로 시작
+    this.sessionPlaytime = 0;
+
+    console.log('[TimeTrackingSystem] State restored from save');
+  }
+
+  /**
+   * 총 플레이타임 조회
+   * @returns {number} 총 플레이타임 (초)
+   */
+  getTotalPlayTime() {
+    return this.totalPlaytime;
+  }
 }

@@ -19,6 +19,8 @@
 @import './components/star-upgrade.css';
 @import './components/dev-menu.css';
 @import './components/dialog.css';
+@import './components/offline-rewards.css';
+@import './components/offline-rewards.css';
 
 /* Global Reset & Base Layout */
 * {

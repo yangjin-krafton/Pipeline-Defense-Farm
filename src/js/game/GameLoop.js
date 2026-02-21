@@ -652,4 +652,54 @@ export class GameLoop {
   getTargetTimeScale() {
     return this.targetTimeScale;
   }
+
+  /**
+   * Load game state from save data
+   * @param {Object} saveData - Saved game state
+   * @param {Object} offlineRewards - Offline rewards to apply
+   */
+  loadGameState(saveData, offlineRewards) {
+    try {
+      console.log('[GameLoop] Loading game state...');
+
+      // 1. 경제 상태 복원
+      if (saveData.economy) {
+        this.economySystem.setState(saveData.economy);
+        console.log('[GameLoop] Economy restored:', saveData.economy);
+      }
+
+      // 2. 오프라인 보상 적용
+      if (offlineRewards) {
+        if (offlineRewards.ncGained > 0) {
+          this.economySystem.gainNC(offlineRewards.ncGained);
+        }
+        console.log('[GameLoop] Offline rewards applied:', offlineRewards);
+      }
+
+      // 3. 타워 복원
+      if (saveData.towers && saveData.towers.length > 0) {
+        for (const towerData of saveData.towers) {
+          this.towerManager.loadTowerFromSave(
+            towerData,
+            this.economySystem,
+            this.towerGrowthSystem,
+            offlineRewards?.xpGained || 0
+          );
+        }
+        console.log(`[GameLoop] ${saveData.towers.length} towers restored`);
+      }
+
+      // 4. 시간 추적 복원
+      if (saveData.timeTracking) {
+        this.timeTrackingSystem.loadFromSave(saveData.timeTracking);
+        console.log('[GameLoop] Time tracking restored');
+      }
+
+      console.log('[GameLoop] Game state loaded successfully');
+      return true;
+    } catch (error) {
+      console.error('[GameLoop] Failed to load game state:', error);
+      return false;
+    }
+  }
 }

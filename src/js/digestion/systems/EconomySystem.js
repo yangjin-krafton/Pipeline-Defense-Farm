@@ -184,4 +184,17 @@ export class EconomySystem {
       scFractional: this.scFractional  // 0-1 범위, 다음 1 SC까지의 진행도
     };
   }
+
+  /**
+   * 상태 설정 (저장 데이터 로드용)
+   * @param {Object} state - 복원할 경제 상태
+   */
+  setState(state) {
+    if (state.nc !== undefined) this.nc = state.nc;
+    if (state.sc !== undefined) this.sc = state.sc;
+    if (state.maxSC !== undefined) this.scMax = state.maxSC;
+    if (state.scFractional !== undefined) this.scFractional = state.scFractional || 0;
+
+    console.log('[EconomySystem] State restored:', this.getState());
+  }
 }

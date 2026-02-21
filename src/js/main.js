@@ -8,6 +8,7 @@ import { EmojiRenderer } from './renderer/EmojiRenderer.js';
 import { FlowSystem } from './systems/FlowSystem.js';
 import { AudioSystem } from './systems/AudioSystem.js';
 import { UISfxSystem } from './systems/UISfxSystem.js';
+import { SaveSystem } from './digestion/systems/SaveSystem.js';
 import { GameLoop } from './game/GameLoop.js';
 import { UIController } from './ui/UIController.js';
 import { ScaleManager } from './ui/ScaleManager.js';
@@ -456,6 +457,9 @@ async function init() {
     console.warn('UI SFX loading failed:', error);
   }
 
+  // Initialize SaveSystem
+  const saveSystem = new SaveSystem();
+
   // Create and start game loop
   const gameLoop = new GameLoop(
     multiPathSystem,
@@ -466,6 +470,32 @@ async function init() {
     audioSystem,
     uiSfxSystem
   );
+
+  // Load saved game if exists
+  const savedGame = saveSystem.loadGame();
+  if (savedGame) {
+    console.log('[Main] Loading saved game...');
+
+    // 오프라인 보상 계산
+    const currentTime = Date.now();
+    const offlineRewards = saveSystem.calculateOfflineRewards(
+      savedGame.timestamp,
+      currentTime,
+      savedGame.towers.length
+    );
+
+    console.log('[Main] Offline rewards:', offlineRewards);
+
+    // 게임 상태 복원
+    gameLoop.loadGameState(savedGame, offlineRewards);
+
+    // 오프라인 보상 UI 표시
+    if (offlineRewards.offlineHours > 0.1) {
+      setTimeout(() => {
+        showOfflineRewardsModal(offlineRewards);
+      }, 1000);
+    }
+  }
 
   gameLoop.start();
 
@@ -509,6 +539,22 @@ async function init() {
     requestAnimationFrame(updateCamera);
   };
   updateCamera();
+
+  // Setup auto-save (30초마다)
+  setInterval(() => {
+    if (!gameLoop.isPaused) {
+      const gameState = saveSystem.extractGameState(gameLoop);
+      saveSystem.saveGame(gameState);
+      console.log('[Main] Auto-save completed');
+    }
+  }, saveSystem.autoSaveInterval);
+
+  // Save on page unload
+  window.addEventListener('beforeunload', () => {
+    const gameState = saveSystem.extractGameState(gameLoop);
+    saveSystem.saveGame(gameState);
+    console.log('[Main] Game saved before unload');
+  });
 
   // NEW: Update UI displays every frame
   const updateUIDisplays = () => {
@@ -809,6 +855,42 @@ function updateMusicButton(isPlaying) {
     toggleBtn.textContent = isPlaying ? '⏸️' : '▶️';
     toggleBtn.title = isPlaying ? 'Pause Music' : 'Play Music';
   }
+}
+
+/**
+ * Show offline rewards modal
+ */
+function showOfflineRewardsModal(rewards) {
+  const modal = document.createElement('div');
+  modal.className = 'offline-rewards-modal';
+  modal.innerHTML = `
+    <div class="offline-rewards-content">
+      <h2>🎁 오프라인 보상</h2>
+      <div class="offline-time">
+        <p>오프라인 시간: <strong>${rewards.offlineHours.toFixed(1)}시간</strong></p>
+      </div>
+      <div class="offline-rewards-list">
+        ${rewards.xpGained > 0 ? `<div class="reward-item">💎 XP: +${rewards.xpGained}</div>` : ''}
+        ${rewards.ncGained > 0 ? `<div class="reward-item">💰 NC: +${rewards.ncGained}</div>` : ''}
+      </div>
+      <p class="offline-efficiency">오프라인 효율: ${(rewards.efficiency * 100).toFixed(0)}%</p>
+      <button class="claim-offline-btn">확인</button>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // Close modal on button click
+  const claimBtn = modal.querySelector('.claim-offline-btn');
+  claimBtn.addEventListener('click', () => {
+    modal.style.opacity = '0';
+    setTimeout(() => modal.remove(), 300);
+  });
+
+  // Fade in
+  setTimeout(() => {
+    modal.style.opacity = '1';
+  }, 10);
 }
 
 // Store as global for other modules

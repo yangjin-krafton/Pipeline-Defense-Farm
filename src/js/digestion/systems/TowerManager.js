@@ -103,4 +103,88 @@ export class TowerManager {
   getAllTowers() {
     return this.towers;
   }
+
+  /**
+   * Load tower from save data
+   * @param {Object} towerData - Saved tower data
+   * @param {EconomySystem} economySystem - Economy system
+   * @param {TowerGrowthSystem} towerGrowthSystem - Tower growth system
+   * @param {number} offlineXP - Offline XP to add
+   * @returns {BaseTower|null} Restored tower
+   */
+  loadTowerFromSave(towerData, economySystem, towerGrowthSystem, offlineXP = 0) {
+    try {
+      const definition = TOWER_DEFINITIONS[towerData.type];
+      if (!definition) {
+        console.error(`[TowerManager] Tower type ${towerData.type} not found`);
+        return null;
+      }
+
+      // Create slot data
+      const slotData = {
+        x: towerData.x,
+        y: towerData.y,
+        radius: 24
+      };
+
+      // Build tower
+      const TowerClass = TOWER_CLASSES[towerData.type];
+      const tower = new TowerClass(
+        slotData,
+        definition,
+        this.bulletSystem,
+        this.particleSystem
+      );
+
+      // Restore growth data
+      tower.xp = towerData.xp + (offlineXP || 0);
+      tower.level = towerData.level;
+      tower.star = towerData.star;
+      tower.upgradePoints = towerData.upgradePoints;
+
+      // Restore star bonuses
+      if (towerData.starBonuses) {
+        tower.starBonuses = { ...towerData.starBonuses };
+      }
+
+      // Restore imprints
+      if (towerData.imprints) {
+        tower.imprints = [...towerData.imprints];
+      }
+
+      if (towerData.imprintCounts) {
+        tower.imprintCounts = new Map(towerData.imprintCounts);
+      }
+
+      // Restore active nodes
+      if (towerData.activeNodes && tower.upgradeTree) {
+        for (const nodeNumber of towerData.activeNodes) {
+          const node = tower.upgradeTree.getNode(nodeNumber);
+          if (node && !tower.upgradeTree.activeNodes.has(nodeNumber)) {
+            tower.upgradeTree.activeNodes.add(nodeNumber);
+            console.log(`[TowerManager] Restored node ${nodeNumber} for tower ${towerData.type}`);
+          }
+        }
+
+        // Recalculate active modules
+        tower.upgradeTree.recalculateActiveModules();
+      }
+
+      // Check for level up with offline XP
+      if (offlineXP > 0) {
+        towerGrowthSystem.checkLevelUp(tower);
+      }
+
+      // Add to manager
+      this.towers.push(tower);
+      const slotKey = `${slotData.x}_${slotData.y}`;
+      this.towersBySlot.set(slotKey, tower);
+
+      console.log(`[TowerManager] Loaded ${towerData.type} tower at (${towerData.x}, ${towerData.y})`);
+      return tower;
+    } catch (error) {
+      console.error('[TowerManager] Failed to load tower:', error);
+      return null;
+    }
+  }
 }

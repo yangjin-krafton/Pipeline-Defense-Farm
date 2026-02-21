@@ -188,4 +188,23 @@ export class UpgradeTree {
 
     return modules;
   }
+
+  /**
+   * 활성 모듈 재계산 (저장 로드 후 호출)
+   */
+  recalculateActiveModules() {
+    // activeNodes가 Set으로 nodeNumber만 저장되어 있을 수 있음
+    // 실제 노드 객체로 변환
+    const newActiveNodes = new Set();
+
+    for (const nodeNumber of this.activeNodes) {
+      const node = this.getNode(nodeNumber);
+      if (node) {
+        newActiveNodes.add(node);
+      }
+    }
+
+    this.activeNodes = newActiveNodes;
+    console.log(`[UpgradeTree] Active modules recalculated: ${this.activeNodes.size} nodes active`);
+  }
 }
