@@ -51,6 +51,11 @@ export class TriggerModule extends BaseModule {
         // 처치 시 트리거는 공격 후 체크 필요
         shouldTrigger = food.hp - context.damage <= 0;
         break;
+
+      case 'onCrit':
+        // 치명타 시 트리거 (BaseTower.js에서 별도 처리)
+        shouldTrigger = context.isCritical === true;
+        break;
     }
 
     // 추가 조건 체크
@@ -62,9 +67,35 @@ export class TriggerModule extends BaseModule {
     if (shouldTrigger && this.triggerEffect) {
       const effect = this.triggerEffect(context);
 
-      // 효과 적용
+      // 효과 적용 (누적 가능한 값은 누적, 그 외는 할당)
       if (effect) {
-        Object.assign(context, effect);
+        // 누적형 보너스 처리
+        const accumulativeKeys = [
+          'damageBonus',
+          'critChanceBonus',
+          'critMultiplierBonus',
+          'attackSpeedBonus',
+          'rangeBonus'
+        ];
+
+        for (const key of accumulativeKeys) {
+          if (effect[key] !== undefined) {
+            context[key] = (context[key] || 0) + effect[key];
+          }
+        }
+
+        // 상태 이상 효과 누적
+        if (effect.statusEffect) {
+          if (!context.statusEffects) context.statusEffects = [];
+          context.statusEffects.push(effect.statusEffect);
+        }
+
+        // 나머지 값들은 그대로 할당 (덮어쓰기)
+        for (const key in effect) {
+          if (!accumulativeKeys.includes(key) && key !== 'statusEffect') {
+            context[key] = effect[key];
+          }
+        }
       }
 
       this.lastTriggerTime = currentTime || 0;

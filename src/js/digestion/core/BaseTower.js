@@ -153,13 +153,60 @@ export class BaseTower {
       }
     }
 
+    // ===== 트리거 보너스 누적 적용 =====
+    // Apply accumulated damage bonuses from TriggerModules
+    if (context.damageBonus) {
+      context.damage *= (1 + context.damageBonus);
+    }
+
+    // Apply critical hit calculation
+    let finalCritChance = (context.critChance || 0) + (context.critChanceBonus || 0);
+
+    if (finalCritChance > 0 && Math.random() < finalCritChance) {
+      // Base crit multiplier: 2.0
+      let critMultiplier = 2.0;
+
+      // Add any crit multiplier bonuses from modules
+      if (context.critMultiplierBonus) {
+        critMultiplier += context.critMultiplierBonus;
+      }
+
+      // Apply critical damage
+      context.damage *= critMultiplier;
+      context.isCritical = true;
+    }
+
     // Apply armor reduction
-    const armorMitigation = Math.max(0, 1 - (food.armor * 0.01));
+    const armorMitigation = Math.max(0, 1 - ((food.armor || 0) * 0.01));
     context.damage *= armorMitigation;
 
     // Apply status effects to food
     if (context.statusEffects && context.statusEffects.length > 0) {
       this._applyStatusEffects(food, context.statusEffects);
+    }
+
+    // Handle onCrit triggers (if critical hit occurred)
+    if (context.isCritical && this.upgradeTree) {
+      const onCritModules = this.upgradeTree.getAllActiveModules().filter(
+        m => m.triggerType === 'onCrit'
+      );
+
+      for (const module of onCritModules) {
+        const critContext = module.apply(context);
+
+        // Apply additional damage bonus from onCrit
+        if (critContext.damageBonus && critContext.damageBonus !== context.damageBonus) {
+          context.damage *= (1 + (critContext.damageBonus - (context.damageBonus || 0)));
+        }
+
+        // Apply status effects from onCrit
+        if (critContext.statusEffects && critContext.statusEffects.length > context.statusEffects.length) {
+          const newEffects = critContext.statusEffects.slice(context.statusEffects.length);
+          this._applyStatusEffects(food, newEffects);
+        }
+
+        context = critContext;
+      }
     }
 
     // Check if kill
