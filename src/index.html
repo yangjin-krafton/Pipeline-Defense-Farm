@@ -118,37 +118,32 @@
             </div>
 
             <div class="tower-stats">
-              <div class="stat-row">
+              <div class="stat-item">
                 <span class="stat-icon">⚔️</span>
-                <span class="stat-name">공격력</span>
-                <span class="stat-bar">
-                  <span class="stat-fill" style="width: 60%"></span>
-                </span>
-                <span class="stat-number">45</span>
+                <span class="stat-value" data-stat="attack">45</span>
               </div>
-              <div class="stat-row">
+              <div class="stat-item">
                 <span class="stat-icon">⚡</span>
-                <span class="stat-name">공격속도</span>
-                <span class="stat-bar">
-                  <span class="stat-fill" style="width: 80%"></span>
-                </span>
-                <span class="stat-number">1.2초</span>
+                <span class="stat-value" data-stat="speed">1.2초</span>
               </div>
-              <div class="stat-row">
+              <div class="stat-item">
                 <span class="stat-icon">📍</span>
-                <span class="stat-name">범위</span>
-                <span class="stat-bar">
-                  <span class="stat-fill" style="width: 40%"></span>
-                </span>
-                <span class="stat-number">2타일</span>
+                <span class="stat-value" data-stat="range">180</span>
               </div>
-              <div class="stat-row">
+              <div class="stat-item">
                 <span class="stat-icon">✨</span>
-                <span class="stat-name">분해효과</span>
-                <span class="stat-bar special">
-                  <span class="stat-fill" style="width: 75%"></span>
-                </span>
-                <span class="stat-number">+15%</span>
+                <span class="stat-value" data-stat="special">-</span>
+              </div>
+            </div>
+
+            <!-- 각인 (승급으로 획득한 영구 능력) -->
+            <div class="tower-imprints hidden" id="towerImprintBlock">
+              <div class="tower-imprints-header">
+                <h4>✨ 영구 각인</h4>
+                <span class="imprint-count" id="imprintCount">0개</span>
+              </div>
+              <div class="imprint-list" id="towerImprintList">
+                <!-- 각인 카드가 여기에 동적으로 추가됨 -->
               </div>
             </div>
           </div>

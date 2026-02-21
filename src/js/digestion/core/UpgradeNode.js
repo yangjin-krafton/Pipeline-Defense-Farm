@@ -92,9 +92,16 @@ export class UpgradeTree {
     // 포인트 체크
     if (this.usedPoints + node.cost > this.availablePoints) return false;
 
-    // NC 비용 체크 (노드별 차등 비용)
+    // NC 비용 체크 (노드별 차등 비용 + 각인 횟수 배율)
     if (economySystem && towerBaseCost) {
-      const ncCost = Math.floor(towerBaseCost * node.ncCostMultiplier);
+      // Get imprint count for this node
+      const imprintCount = this.tower ? (this.tower.imprintCounts.get(nodeNumber) || 0) : 0;
+
+      // Calculate cost multiplier based on imprint count
+      // 지수 곡선: 1.0, 1.5, 2.2, 3.2, 4.5, 6.2, 8.5, 11.5
+      const imprintCostMultiplier = imprintCount > 0 ? (1.0 + Math.pow(imprintCount, 1.4) * 0.5) : 1.0;
+
+      const ncCost = Math.floor(towerBaseCost * node.ncCostMultiplier * imprintCostMultiplier);
       if (!economySystem.canAffordNC(ncCost)) return false;
 
       // NC 차감
@@ -129,10 +136,12 @@ export class UpgradeTree {
   }
 
   /**
-   * 특정 타입의 모든 활성 모듈 가져오기
+   * 특정 타입의 모든 활성 모듈 가져오기 (각인 포함)
    */
   getActiveModulesByType(moduleType) {
     const modules = [];
+
+    // 1. 현재 활성화된 노드의 모듈
     for (const node of this.activeNodes) {
       for (const module of node.modules) {
         if (module.constructor.name === moduleType) {
@@ -140,17 +149,43 @@ export class UpgradeTree {
         }
       }
     }
+
+    // 2. 각인된 노드의 모듈 (영구 효과)
+    if (this.tower && this.tower.imprints) {
+      for (const imprint of this.tower.imprints) {
+        if (imprint.imprintedNode && imprint.imprintedNode.modules) {
+          for (const module of imprint.imprintedNode.modules) {
+            if (module.constructor.name === moduleType) {
+              modules.push(module);
+            }
+          }
+        }
+      }
+    }
+
     return modules;
   }
 
   /**
-   * 모든 활성 모듈 가져오기
+   * 모든 활성 모듈 가져오기 (각인 포함)
    */
   getAllActiveModules() {
     const modules = [];
+
+    // 1. 현재 활성화된 노드의 모듈
     for (const node of this.activeNodes) {
       modules.push(...node.modules);
     }
+
+    // 2. 각인된 노드의 모듈 (영구 효과)
+    if (this.tower && this.tower.imprints) {
+      for (const imprint of this.tower.imprints) {
+        if (imprint.imprintedNode && imprint.imprintedNode.modules) {
+          modules.push(...imprint.imprintedNode.modules);
+        }
+      }
+    }
+
     return modules;
   }
 }

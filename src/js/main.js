@@ -647,11 +647,93 @@ function setupDevCommands(gameLoop, uiController) {
     console.log(`  Can Upgrade Star: ${growthSystem.canUpgradeStar(tower)}`);
   };
 
+  /**
+   * Add NC (Nutrition Credit)
+   * @param {number} amount - NC amount to add
+   */
+  window.addNC = (amount = 1000) => {
+    const economySystem = gameLoop.getEconomySystem();
+    const beforeNC = economySystem.getState().nc;
+
+    economySystem.earnNC(amount);
+
+    const afterNC = economySystem.getState().nc;
+
+    console.log(`[devCommand] Added ${amount} NC`);
+    console.log(`  Before: 🍎 ${beforeNC}`);
+    console.log(`  After: 🍎 ${afterNC}`);
+
+    // Update UI
+    uiController.updateNutritionDisplay(economySystem.getState());
+  };
+
+  /**
+   * Add SC (Supply Charge)
+   * @param {number} amount - SC amount to add
+   */
+  window.addSC = (amount = 50) => {
+    const economySystem = gameLoop.getEconomySystem();
+    const beforeSC = economySystem.getState().sc;
+
+    economySystem.earnSC(amount);
+
+    const afterSC = economySystem.getState().sc;
+
+    console.log(`[devCommand] Added ${amount} SC`);
+    console.log(`  Before: ⚡ ${beforeSC}`);
+    console.log(`  After: ⚡ ${afterSC}`);
+
+    // Update UI
+    uiController.updateNutritionDisplay(economySystem.getState());
+  };
+
+  /**
+   * Show current currency (재화 확인)
+   */
+  window.currency = () => {
+    const economySystem = gameLoop.getEconomySystem();
+    const state = economySystem.getState();
+
+    console.log('💰 Current Currency:');
+    console.log(`  🍎 NC (Nutrition Credit): ${state.nc}`);
+    console.log(`  ⚡ SC (Supply Charge): ${state.sc} / ${state.scMax}`);
+    console.log(`  SC Usage: ${((state.sc / state.scMax) * 100).toFixed(1)}%`);
+  };
+
+  /**
+   * Max out currency (재화 최대치)
+   */
+  window.maxCurrency = () => {
+    const economySystem = gameLoop.getEconomySystem();
+
+    economySystem.earnNC(100000);
+    economySystem.earnSC(1000);
+
+    console.log('[devCommand] Currency maxed out!');
+    console.log('  🍎 NC: 100,000+');
+    console.log('  ⚡ SC: 80 (max)');
+
+    // Update UI
+    uiController.updateNutritionDisplay(economySystem.getState());
+  };
+
   console.log('💡 Dev Commands Available:');
+  console.log('');
+  console.log('🏗️ Tower Commands:');
   console.log('  addXP(amount) - Add XP to selected tower (default: 100)');
   console.log('  maxLevel() - Max out selected tower level');
   console.log('  towerInfo() - Show selected tower info');
-  console.log('  Example: addXP(500)');
+  console.log('');
+  console.log('💰 Currency Commands:');
+  console.log('  addNC(amount) - Add NC (default: 1000)');
+  console.log('  addSC(amount) - Add SC (default: 50)');
+  console.log('  currency() - Show current currency');
+  console.log('  maxCurrency() - Max out all currency');
+  console.log('');
+  console.log('📝 Examples:');
+  console.log('  addXP(500) - Add 500 XP to selected tower');
+  console.log('  addNC(5000) - Add 5000 NC');
+  console.log('  addSC(100) - Add 100 SC');
 }
 
 /**

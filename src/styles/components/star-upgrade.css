@@ -232,6 +232,17 @@
   font-size: 13px;
   color: #555;
   line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+.imprint-modules-info {
+  font-size: 11px;
+  font-weight: 700;
+  color: #00d9ff;
+  background: rgba(0, 217, 255, 0.1);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 2px solid rgba(0, 217, 255, 0.3);
 }
 
 .imprint-expand-section {

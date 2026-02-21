@@ -341,19 +341,31 @@ export class UIController {
       subtitleElement.textContent = `Lv ${towerData.level} • ${towerData.description}`;
     }
 
-    // 스탯 업데이트 (새로운 구조 우선, 레거시 구조도 지원)
-    const statFills = detailSection.querySelectorAll('.stat-fill');
-    const statNumbers = detailSection.querySelectorAll('.stat-number');
-
+    // 스탯 업데이트 (컴팩트 버전 - data-stat 속성 사용)
     if (towerData.stats) {
-      Object.keys(towerData.stats).forEach((key, index) => {
-        if (statFills[index]) {
-          statFills[index].style.width = towerData.stats[key].percentage + '%';
-        }
-        if (statNumbers[index]) {
-          statNumbers[index].textContent = towerData.stats[key].value;
-        }
-      });
+      // 공격력
+      const attackStat = detailSection.querySelector('[data-stat="attack"]');
+      if (attackStat && towerData.stats.attack) {
+        attackStat.textContent = towerData.stats.attack.value;
+      }
+
+      // 공격속도
+      const speedStat = detailSection.querySelector('[data-stat="speed"]');
+      if (speedStat && towerData.stats.speed) {
+        speedStat.textContent = towerData.stats.speed.value;
+      }
+
+      // 범위
+      const rangeStat = detailSection.querySelector('[data-stat="range"]');
+      if (rangeStat && towerData.stats.range) {
+        rangeStat.textContent = towerData.stats.range.value;
+      }
+
+      // 특수 (상태이상 성공률)
+      const specialStat = detailSection.querySelector('[data-stat="special"]');
+      if (specialStat && towerData.stats.special) {
+        specialStat.textContent = towerData.stats.special.value;
+      }
     }
   }
 
@@ -562,8 +574,69 @@ export class UIController {
     // Update action buttons (upgrade star, reroll stats)
     this._updateTowerActionButtons(tower);
 
+    // Show imprints (각인 표시)
+    this._showTowerImprints(tower);
+
     // Show upgrade tree
     this._showUpgradeTree(tower);
+  }
+
+  /**
+   * Show tower imprints (각인 표시)
+   * @param {BaseTower} tower
+   */
+  _showTowerImprints(tower) {
+    const imprintBlock = document.getElementById('towerImprintBlock');
+    const imprintList = document.getElementById('towerImprintList');
+    const imprintCount = document.getElementById('imprintCount');
+
+    if (!imprintBlock || !imprintList || !imprintCount) return;
+
+    // Check if tower has imprints
+    if (!tower.imprints || tower.imprints.length === 0) {
+      imprintBlock.classList.add('hidden');
+      return;
+    }
+
+    // Show imprint block
+    imprintBlock.classList.remove('hidden');
+    imprintCount.textContent = `${tower.imprints.length}개`;
+
+    // Clear existing imprints
+    imprintList.innerHTML = '';
+
+    // Add imprint cards
+    tower.imprints.forEach((imprint, index) => {
+      const card = document.createElement('div');
+      card.className = 'tower-imprint-card';
+
+      // Get module info from imprinted node
+      let modulesText = '';
+      if (imprint.imprintedNode && imprint.imprintedNode.modules) {
+        const moduleNames = imprint.imprintedNode.modules.map(m => {
+          const moduleName = m.constructor.name.replace('Module', '');
+          return moduleName;
+        });
+        if (moduleNames.length > 0) {
+          modulesText = `모듈: ${moduleNames.join(', ')}`;
+        }
+      }
+
+      // Check if this is a duplicate imprint (same node imprinted multiple times)
+      const totalImprintCount = tower.imprintCounts.get(imprint.nodeNumber) || 0;
+      const imprintSuffix = totalImprintCount > 1 ? ` +${totalImprintCount - 1}` : '';
+
+      card.innerHTML = `
+        <div class="imprint-card-top">
+          <span class="imprint-star-badge">${imprint.acquiredStar}★</span>
+          <span class="imprint-card-title">✨ ${imprint.nodeName}${imprintSuffix}</span>
+        </div>
+        <div class="imprint-card-description">${imprint.nodeDescription}</div>
+        ${modulesText ? `<div class="imprint-card-stats">${modulesText}</div>` : ''}
+      `;
+
+      imprintList.appendChild(card);
+    });
   }
 
   /**
@@ -1087,9 +1160,14 @@ export class UIController {
     const card = document.createElement('div');
     const isActive = tree.activeNodes.includes(node);
 
-    // NC 비용 계산 (노드별 차등 비용)
+    // Get imprint count for this node
+    const imprintCount = tower.imprintCounts.get(node.nodeNumber) || 0;
+    const imprintSuffix = imprintCount > 0 ? `<span style="color: #ffd700; font-weight: 900;">+${imprintCount}</span>` : '';
+
+    // Calculate NC cost with imprint multiplier
     const towerBaseCost = tower.definition.cost;
-    const ncCost = Math.floor(towerBaseCost * node.ncCostMultiplier);
+    const imprintCostMultiplier = this._getImprintCostMultiplier(imprintCount);
+    const ncCost = Math.floor(towerBaseCost * node.ncCostMultiplier * imprintCostMultiplier);
     const canAffordNC = economySystem.canAffordNC(ncCost);
     const canAffordPoints = tree.usedPoints + node.cost <= tree.availablePoints;
     const canActivate = node.canActivate(tree.activeNodes) && canAffordPoints && canAffordNC;
@@ -1136,6 +1214,7 @@ export class UIController {
       justify-content: space-between;
       pointer-events: none;
     `;
+
     // Calculate dynamic font sizes based on text length
     const nameFontSize = node.name.length > 10 ? '12px' : node.name.length > 7 ? '13px' : '14px';
     const effectFontSize = node.effect.length > 40 ? '11px' : node.effect.length > 25 ? '12px' : '13px';
@@ -1169,7 +1248,7 @@ export class UIController {
             word-break: keep-all;
             overflow-wrap: break-word;
             min-width: 0;
-          ">${node.name}</strong>
+          ">${node.name} ${imprintSuffix}</strong>
         </div>
         ${isActive ? '<span style="color: #ffd700; font-size: 24px; filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.3)); flex-shrink: 0; margin-top: 4px;">✓</span>' : ''}
       </div>
@@ -1184,6 +1263,16 @@ export class UIController {
         word-break: keep-all;
         overflow-wrap: break-word;
       ">${node.effect}</p>
+      ${imprintCount > 0 ? `<div style="
+        margin-top: 6px;
+        padding: 4px 8px;
+        background: rgba(255, 215, 0, 0.2);
+        border: 2px solid rgba(255, 215, 0, 0.5);
+        border-radius: 8px;
+        font-size: 10px;
+        font-weight: 700;
+        color: ${isActive ? '#fff' : '#1a1a2e'};
+      ">✨ 각인 ${imprintCount}회 보유 (비용 x${imprintCostMultiplier.toFixed(1)})</div>` : ''}
     `;
     card.appendChild(content);
 
@@ -2074,5 +2163,19 @@ export class UIController {
     });
 
     return groups.join(' 또는 ');
+  }
+
+  /**
+   * Get imprint cost multiplier based on imprint count
+   * 각인 횟수에 따른 비용 배율 계산 (곡선 증가)
+   * @param {number} imprintCount - Imprint count for this node
+   * @returns {number} Cost multiplier
+   */
+  _getImprintCostMultiplier(imprintCount) {
+    if (imprintCount === 0) return 1.0;
+
+    // 지수 곡선: 1.0, 1.5, 2.2, 3.2, 4.5, 6.2, 8.5, 11.5
+    // 공식: multiplier = 1.0 + (count ^ 1.4) * 0.5
+    return 1.0 + Math.pow(imprintCount, 1.4) * 0.5;
   }
 }

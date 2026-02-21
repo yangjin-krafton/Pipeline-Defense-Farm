@@ -85,28 +85,45 @@ export class StarUpgradeManager {
    * @param {number} count - Number of options to generate
    */
   _generateImprintOptions(tower, count) {
-    // Get available upgrade nodes from tower's upgrade tree
+    // Get active nodes from tower's upgrade tree
     const upgradeTree = tower.upgradeTree;
-    const allNodes = upgradeTree.nodes;
-    const activeNodeNumbers = upgradeTree.activeNodes.map(n => n.nodeNumber);
+    const activeNodes = upgradeTree.activeNodes;
 
-    // Get only active nodes as imprint candidates
-    const candidateNodes = allNodes.filter(node => activeNodeNumbers.includes(node.nodeNumber));
-
-    if (candidateNodes.length === 0) {
+    if (activeNodes.length === 0) {
       console.warn('[StarUpgradeManager] No active nodes for imprint');
       return;
     }
 
-    // Generate random imprint options
-    for (let i = 0; i < count; i++) {
-      const randomNode = candidateNodes[Math.floor(Math.random() * candidateNodes.length)];
+    // Get already selected node numbers to avoid duplicates
+    const selectedNodeNumbers = this.starUpgradeState.imprintOptions.map(opt => opt.nodeNumber);
+
+    // Filter out already selected nodes
+    const availableNodes = activeNodes.filter(node => !selectedNodeNumbers.includes(node.nodeNumber));
+
+    if (availableNodes.length === 0) {
+      console.warn('[StarUpgradeManager] No more unique nodes available for imprint');
+      return;
+    }
+
+    // Generate random imprint options from active nodes (no duplicates)
+    for (let i = 0; i < count && availableNodes.length > 0; i++) {
+      const randomIndex = Math.floor(Math.random() * availableNodes.length);
+      const randomNode = availableNodes[randomIndex];
+
+      // Remove from available to prevent duplicates in this batch
+      availableNodes.splice(randomIndex, 1);
+
+      // Store complete node information for permanent effect
       this.starUpgradeState.imprintOptions.push({
         nodeNumber: randomNode.nodeNumber,
         nodeName: randomNode.name,
-        nodeDescription: randomNode.description || `${randomNode.name} 효과 강화`
+        nodeDescription: randomNode.effect || `${randomNode.name} 효과`,
+        // Store original node reference for permanent effect
+        imprintedNode: randomNode
       });
     }
+
+    console.log(`[StarUpgradeManager] Generated ${count} imprint option(s) from ${activeNodes.length} active nodes`);
   }
 
   /**
@@ -290,12 +307,24 @@ export class StarUpgradeManager {
         card.classList.add('selected');
       }
 
+      // Get module info for display
+      let modulesInfo = '';
+      if (option.imprintedNode && option.imprintedNode.modules) {
+        const moduleNames = option.imprintedNode.modules.map(m => {
+          return m.constructor.name.replace('Module', '');
+        });
+        if (moduleNames.length > 0) {
+          modulesInfo = `<div class="imprint-modules-info">모듈: ${moduleNames.join(', ')}</div>`;
+        }
+      }
+
       card.innerHTML = `
         <div class="imprint-card-header">
           <span class="imprint-icon">✨</span>
           <span class="imprint-name">${option.nodeName}</span>
         </div>
         <div class="imprint-card-description">${option.nodeDescription}</div>
+        ${modulesInfo}
       `;
 
       card.addEventListener('click', () => {
@@ -360,13 +389,41 @@ export class StarUpgradeManager {
     tower.xp = 0;
     tower.level = 1;
 
+    // Reset upgrade tree
+    if (tower.upgradeTree) {
+      tower.upgradeTree.reset();
+    }
+
+    // Reset upgrade points to 1 (starting points for Lv1)
+    tower.upgradePoints = 1;
+
     // Apply stat gains
     towerGrowthSystem._applyStatGains(tower, state.currentStatRoll);
 
-    // Apply imprint (각인 적용 - 향후 구현)
+    // Apply imprint (각인 저장 - 노드 전체 정보 포함)
     const selectedImprint = state.imprintOptions[state.selectedImprint];
-    console.log('[StarUpgradeManager] Selected imprint:', selectedImprint);
-    // TODO: Implement imprint system
+
+    // Get original node from upgrade tree
+    const originalNode = state.tower.upgradeTree.nodes.find(n => n.nodeNumber === selectedImprint.nodeNumber);
+
+    // Increase imprint count for this node
+    const currentCount = tower.imprintCounts.get(selectedImprint.nodeNumber) || 0;
+    tower.imprintCounts.set(selectedImprint.nodeNumber, currentCount + 1);
+
+    tower.imprints.push({
+      nodeNumber: selectedImprint.nodeNumber,
+      nodeName: selectedImprint.nodeName,
+      nodeDescription: selectedImprint.nodeDescription,
+      acquiredStar: tower.star,  // 몇 성에서 획득했는지 기록
+      statGains: JSON.parse(JSON.stringify(state.currentStatRoll)),  // 해당 승급 시 스탯 보너스 기록
+      imprintCount: currentCount + 1,  // 이 노드의 각인 횟수 (1, 2, 3, ...)
+      // 노드 전체 정보 저장 (영구 효과 적용용)
+      imprintedNode: originalNode  // UpgradeNode 참조 저장
+    });
+
+    console.log('[StarUpgradeManager] Selected imprint:', selectedImprint.nodeName);
+    console.log('[StarUpgradeManager] Imprint count for node', selectedImprint.nodeNumber, ':', currentCount + 1);
+    console.log('[StarUpgradeManager] Total imprints:', tower.imprints.length);
 
     // Show success toast
     this.uiController._showToast(`⭐ ${state.originalStar}성 → ${tower.star}성 승급 완료!`, 'success');
@@ -390,7 +447,7 @@ export class StarUpgradeManager {
     // Clear state
     this.starUpgradeState = null;
 
-    console.log('[StarUpgradeManager] Star upgrade completed');
+    console.log('[StarUpgradeManager] Star upgrade completed - Level reset to 1, Points reset to 1, Tree reset');
   }
 
   /**

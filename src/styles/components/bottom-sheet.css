@@ -124,11 +124,48 @@
   font-weight: bold;
 }
 
-/* 타워 스탯 */
+/* 타워 스탯 (컴팩트 버전 - 1행 4개) */
 .tower-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 4px solid var(--splat-dark);
+  border-radius: 14px;
+  box-shadow: 0 0 0 2px var(--splat-cyan),
+              0 4px 0 var(--splat-dark),
+              0 6px 15px rgba(0, 217, 255, 0.3);
+}
+
+.stat-item {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.1) 0%, rgba(233, 69, 96, 0.1) 100%);
+  border: 3px solid var(--splat-dark);
+  border-radius: 10px;
+  transition: all 0.2s;
+}
+
+.stat-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 0 var(--splat-dark), 0 5px 10px rgba(0, 217, 255, 0.3);
+}
+
+.stat-item .stat-icon {
+  font-size: 20px;
+  filter: drop-shadow(1px 1px 0 rgba(0, 0, 0, 0.2));
+}
+
+.stat-item .stat-value {
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--splat-dark);
+  text-align: center;
+  line-height: 1.2;
 }
 
 /* 하위 호환성을 위한 레거시 클래스 유지 */
@@ -161,71 +198,6 @@
   box-shadow: 0 0 0 3px var(--splat-pink),
               0 8px 0 var(--splat-dark),
               0 12px 30px rgba(233, 69, 96, 0.4);
-}
-
-.stat-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.stat-icon {
-  font-size: 22px;
-  width: 30px;
-  text-align: center;
-  filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.2));
-}
-
-.stat-name {
-  font-size: 14px;
-  color: var(--splat-dark);
-  font-weight: 900;
-  min-width: 90px;
-}
-
-.stat-bar {
-  flex: 1;
-  height: 20px;
-  background: #e0e0e0;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 3px solid var(--splat-dark);
-  position: relative;
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
-}
-
-.stat-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--splat-cyan), #0096ff);
-  border-radius: 7px;
-  transition: width 0.5s ease;
-  box-shadow: 0 0 10px rgba(0, 217, 255, 0.6);
-  position: relative;
-  overflow: hidden;
-}
-
-.stat-fill::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
-  animation: shine 2s infinite;
-}
-
-.stat-bar.special .stat-fill {
-  background: linear-gradient(90deg, var(--splat-yellow), #ffa500);
-  box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
-}
-
-.stat-number {
-  font-size: 15px;
-  font-weight: 900;
-  color: var(--splat-dark);
-  min-width: 65px;
-  text-align: right;
 }
 
 /* ===== 업그레이드 블록 (Splatoon Style) ===== */

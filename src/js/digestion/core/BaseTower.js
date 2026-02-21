@@ -37,6 +37,10 @@ export class BaseTower {
     // Imprints (각인, 향후 ImprintSystem에서 관리)
     this.imprints = [];
 
+    // Imprint count per node (노드별 각인 횟수 추적)
+    // Map<nodeNumber, count>
+    this.imprintCounts = new Map();
+
     // Targeting
     this.targetingPolicy = TargetingPolicy.FIRST;
 
