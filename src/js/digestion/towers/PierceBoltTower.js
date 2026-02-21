@@ -46,11 +46,13 @@ export function createPierceBoltUpgradeNodes() {
       name: '연동 정렬 핀',
       modules: [
         new TargetingModule({
-          priority: 'first' // 직선 경로 적중 보정은 시각적 효과
+          priority: 'first', // 직선 경로 적중 보정은 시각적 효과
+          accuracyBonus: 0.15
         })
       ],
-      effect: '직선 경로 적중 보정 +20%',
-      prerequisites: []
+      effect: '직선 경로 적중 보정 +15%',
+      prerequisites: [],
+      ncCostMultiplier: 0.08
     }),
 
     // 2. 소화관 천공 강화 (PM)
@@ -67,7 +69,8 @@ export function createPierceBoltUpgradeNodes() {
         })
       ],
       effect: '관통 횟수 +1',
-      prerequisites: [1]
+      prerequisites: [],
+      ncCostMultiplier: 0.09
     }),
 
     // 3. 잔사 절개 (DM+SM)
@@ -79,12 +82,13 @@ export function createPierceBoltUpgradeNodes() {
       modules: [
         new StatusModule({
           statusType: 'acid',
-          statusValue: 0.15, // 15% DOT
+          statusValue: 0.10, // 10% DOT
           statusDuration: 2
         })
       ],
-      effect: '관통 후 잔여 피해 15%를 DOT(2초)로 전환',
-      prerequisites: [1]
+      effect: '관통 후 잔여 피해 10%를 DOT(2초)로 전환',
+      prerequisites: [],
+      ncCostMultiplier: 0.10
     }),
 
     // 4. 지방막 절단날 (TB+SM)
@@ -101,14 +105,15 @@ export function createPierceBoltUpgradeNodes() {
           tagEffects: {
             fat: {
               type: 'armorReduction',
-              value: 12,
+              value: 9,
               duration: 3
             }
           }
         })
       ],
-      effect: '지방 관통 시 방어 -12%(3초)',
-      prerequisites: [2]
+      effect: '지방 관통 시 방어 -9%(3초)',
+      prerequisites: [[1], [2]], // 1 또는 2
+      ncCostMultiplier: 0.12
     }),
 
     // 5. 유당 분해 홈 (TB+PM)
@@ -124,11 +129,12 @@ export function createPierceBoltUpgradeNodes() {
           }
         }),
         new ProjectileModule({
-          pierceDistanceBonus: 0.3
+          pierceDistanceBonus: 0.20
         })
       ],
-      effect: '유제품 관통 시 추가 관통거리 +30%',
-      prerequisites: [2]
+      effect: '유제품 관통 시 추가 관통거리 +20%',
+      prerequisites: [[1], [2]], // 1 또는 2
+      ncCostMultiplier: 0.12
     }),
 
     // 6. 단백질 결속 파열 (TB+DM)
@@ -144,11 +150,12 @@ export function createPierceBoltUpgradeNodes() {
           }
         }),
         new DamageModule({
-          damageMultiplier: 1.2 // 뒤 타겟 증폭
+          damageMultiplier: 1.15 // 뒤 타겟 증폭
         })
       ],
-      effect: '단백질 관통 시 뒤 타겟 피해 증폭 20%',
-      prerequisites: [3]
+      effect: '단백질 관통 시 뒤 타겟 피해 증폭 15%',
+      prerequisites: [[1], [3]], // 1 또는 3
+      ncCostMultiplier: 0.13
     }),
 
     // 7. 탄산 누출 밸브 (TB+SM+TR)
@@ -172,7 +179,8 @@ export function createPierceBoltUpgradeNodes() {
         })
       ],
       effect: '탄산 처치 시 경로 감속 지대 생성',
-      prerequisites: [3]
+      prerequisites: [[1], [3]], // 1 또는 3
+      ncCostMultiplier: 0.14
     }),
 
     // 8. 소장 곡선 보정 (PM+SF)
@@ -183,11 +191,12 @@ export function createPierceBoltUpgradeNodes() {
       name: '소장 곡선 보정',
       modules: [
         new ProjectileModule({
-          curveCompensation: 0.5
+          curveCompensation: 0.35
         })
       ],
-      effect: '곡선 구간 관통 손실 50% 감소',
-      prerequisites: [4, 6]
+      effect: '곡선 구간 관통 손실 35% 감소',
+      prerequisites: [[4], [5], [6]], // 4 또는 5 또는 6
+      ncCostMultiplier: 0.15
     }),
 
     // 9. 대장 정체 해소 (SM+DM)
@@ -198,11 +207,12 @@ export function createPierceBoltUpgradeNodes() {
       name: '대장 정체 해소',
       modules: [
         new DamageModule({
-          damageMultiplier: 1.25
+          damageMultiplier: 1.18
         })
       ],
-      effect: '정체 상태 적 피해 +25% (디버프 2개 이상)',
-      prerequisites: [5, 7]
+      effect: '정체 상태 적 피해 +18% (디버프 2개 이상)',
+      prerequisites: [[5], [6], [7]], // 5 또는 6 또는 7
+      ncCostMultiplier: 0.16
     }),
 
     // 10. 장내균 공명 (TR+DM)
@@ -220,12 +230,13 @@ export function createPierceBoltUpgradeNodes() {
           },
           triggerEffect: (ctx) => {
             // 추가 히트 1회
-            return { damage: ctx.damage * 1.3 };
+            return { additionalHit: true };
           }
         })
       ],
       effect: '디버프 2개 이상 적 관통 시 추가 히트 1회',
-      prerequisites: [8]
+      prerequisites: [[8]],
+      ncCostMultiplier: 0.18
     }),
 
     // 11. 관문 일직선 방전 (TM+DM+TR)
@@ -239,11 +250,12 @@ export function createPierceBoltUpgradeNodes() {
           priority: 'checkpoint'
         }),
         new DamageModule({
-          critMultiplier: 3.0 // 치명타 배율 증가
+          critMultiplierBonus: 0.6 // 치명타 배율 증가
         })
       ],
-      effect: '체크포인트 축선 정렬 시 치명타 배율 +1.0',
-      prerequisites: [9, 10]
+      effect: '체크포인트 축선 정렬 시 치명타 배율 +0.6',
+      prerequisites: [[9, 10]], // 9 + 10 (AND 조건)
+      ncCostMultiplier: 0.22
     }),
 
     // 12. 잔류물 스윕 (TR+DM)
@@ -257,14 +269,15 @@ export function createPierceBoltUpgradeNodes() {
           triggerType: 'onHit',
           triggerEffect: (ctx) => {
             // 관통 처치 카운트 기반 피해 증가
-            const killBonus = Math.min(ctx.tower.pierceKillCount * 0.05, 0.3);
+            const killBonus = Math.min(ctx.tower.pierceKillCount * 0.05, 0.20);
             ctx.tower.pierceKillCount = 0; // 리셋
             return { damage: ctx.damage * (1 + killBonus) };
           }
         })
       ],
-      effect: '관통 처치 수만큼 다음 샷 피해 최대 +30%',
-      prerequisites: [11]
+      effect: '관통 처치 수만큼 다음 샷 피해 최대 +20%',
+      prerequisites: [[11]], // 단일 조건
+      ncCostMultiplier: 0.25
     })
   ];
 }

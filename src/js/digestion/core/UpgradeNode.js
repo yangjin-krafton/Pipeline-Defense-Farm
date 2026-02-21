@@ -11,19 +11,40 @@ export class UpgradeNode {
     this.modules = config.modules || []; // 모듈 인스턴스 배열
     this.effect = config.effect || ''; // 효과 설명
     this.prerequisites = config.prerequisites || []; // 선행 노드 번호 배열
-    this.cost = config.cost || 1; // 업그레이드 포인트 비용 (기본 1)
+    this.cost = config.cost || 1; // 업그레이드 포인트 비용 (기본 1, 모든 노드 동일)
+    this.ncCostMultiplier = config.ncCostMultiplier || 0.12; // NC 비용 배율 (타워 기본 비용의 %)
   }
 
   /**
    * 이 노드를 활성화할 수 있는지 체크
+   *
+   * Prerequisites 형식:
+   * - 단순 배열: [4, 6] → OR 조건 (4 또는 6)
+   * - 배열의 배열: [[4], [6]] → OR 조건 (4 또는 6)
+   * - 배열의 배열: [[4, 6]] → AND 조건 (4 그리고 6)
+   * - 배열의 배열: [[4, 6], [7]] → 복합 조건 ((4 그리고 6) 또는 7)
    */
   canActivate(activeNodes) {
     if (this.prerequisites.length === 0) return true;
 
-    // 선행 노드 중 하나라도 활성화되어 있으면 OK
-    return this.prerequisites.some(prereqNum =>
-      activeNodes.some(node => node.nodeNumber === prereqNum)
-    );
+    // 단순 배열인지 배열의 배열인지 확인
+    const isNestedArray = Array.isArray(this.prerequisites[0]);
+
+    if (!isNestedArray) {
+      // 하위 호환성: 단순 배열은 OR 조건으로 처리
+      return this.prerequisites.some(prereqNum =>
+        activeNodes.some(node => node.nodeNumber === prereqNum)
+      );
+    }
+
+    // 배열의 배열: OR of ANDs
+    // 각 내부 배열은 AND 조건, 외부 배열은 OR 조건
+    return this.prerequisites.some(andGroup => {
+      // andGroup의 모든 노드가 활성화되어 있어야 함
+      return andGroup.every(prereqNum =>
+        activeNodes.some(node => node.nodeNumber === prereqNum)
+      );
+    });
   }
 }
 
@@ -71,9 +92,9 @@ export class UpgradeTree {
     // 포인트 체크
     if (this.usedPoints + node.cost > this.availablePoints) return false;
 
-    // NC 비용 체크 (설치비의 12%)
+    // NC 비용 체크 (노드별 차등 비용)
     if (economySystem && towerBaseCost) {
-      const ncCost = Math.floor(towerBaseCost * 0.12);
+      const ncCost = Math.floor(towerBaseCost * node.ncCostMultiplier);
       if (!economySystem.canAffordNC(ncCost)) return false;
 
       // NC 차감

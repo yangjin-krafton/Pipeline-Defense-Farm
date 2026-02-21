@@ -737,17 +737,18 @@ export class UIController {
     const maxColumn = Math.max(...Object.values(nodePositions).map(p => p.column));
     const maxRow = Math.max(...Object.values(nodePositions).map(p => p.row));
 
-    const nodeWidth = 200; // Increased from 180
-    const nodeHeight = 140; // Increased from 120
-    const columnGap = 120; // Increased from 100
-    const rowGap = 40; // Increased from 30 for better spacing
+    // 3-row compact layout sizing
+    const nodeWidth = 180;
+    const nodeHeight = 110; // Reduced for 3-row layout
+    const columnGap = 100;
+    const rowGap = 20; // Reduced to fit 3 rows on screen
 
     const totalWidth = (maxColumn + 1) * (nodeWidth + columnGap);
-    const totalHeight = Math.max((maxRow + 1) * (nodeHeight + rowGap), 320); // Ensure minimum height (increased from 250)
+    const totalHeight = Math.max((maxRow + 1) * (nodeHeight + rowGap), 280); // Reduced for 3-row layout
 
     // Set wrapper height
     treeWrapper.style.height = `${totalHeight}px`;
-    treeWrapper.style.minHeight = '320px';
+    treeWrapper.style.minHeight = '280px';
 
     // Create SVG for connection lines
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -761,8 +762,21 @@ export class UIController {
       const nodeX = nodePos.column * (nodeWidth + columnGap) + nodeWidth / 2;
       const nodeY = nodePos.row * (nodeHeight + rowGap) + nodeHeight / 2;
 
+      // Flatten prerequisites (handle both [[1,2]] and [1,2] formats)
+      let prereqNums = [];
+      if (node.prerequisites.length > 0) {
+        const isNestedArray = Array.isArray(node.prerequisites[0]);
+        if (isNestedArray) {
+          // [[1], [2]] or [[1, 2]] -> flatten to [1, 2]
+          prereqNums = node.prerequisites.flat();
+        } else {
+          // [1, 2] -> use as is
+          prereqNums = node.prerequisites;
+        }
+      }
+
       // Draw lines to prerequisites
-      for (const prereqNum of node.prerequisites) {
+      for (const prereqNum of prereqNums) {
         const prereqPos = nodePositions[prereqNum];
         if (!prereqPos) continue;
 
@@ -948,46 +962,42 @@ export class UIController {
   }
 
   /**
-   * Calculate node positions in a column-based layout
+   * Calculate node positions in a 3-row fixed layout
+   *
+   * Layout:
+   * Row 0: [1] - [4] - [7] - [10] - [12]
+   * Row 1: [2] - [5] - [8] > [11]
+   * Row 2: [3] - [6] - [9]
    */
   _calculateNodePositions(nodes) {
+    // Fixed 3-row layout mapping
+    const NODE_LAYOUT = {
+      1: { column: 0, row: 0 },
+      2: { column: 0, row: 1 },
+      3: { column: 0, row: 2 },
+      4: { column: 1, row: 0 },
+      5: { column: 1, row: 1 },
+      6: { column: 1, row: 2 },
+      7: { column: 2, row: 0 },
+      8: { column: 2, row: 1 },
+      9: { column: 2, row: 2 },
+      10: { column: 3, row: 0 },
+      11: { column: 3, row: 1 },
+      12: { column: 4, row: 0 }
+    };
+
     const positions = {};
-    const columnMap = {}; // Track which nodes are in which column
 
-    // Sort nodes by nodeNumber
-    const sortedNodes = [...nodes].sort((a, b) => a.nodeNumber - b.nodeNumber);
-
-    // Assign columns based on prerequisites
-    for (const node of sortedNodes) {
-      if (node.prerequisites.length === 0) {
-        // Root nodes go in column 0
-        positions[node.nodeNumber] = { column: 0, row: 0 };
+    // Assign positions from the fixed layout
+    for (const node of nodes) {
+      const layout = NODE_LAYOUT[node.nodeNumber];
+      if (layout) {
+        positions[node.nodeNumber] = { ...layout };
       } else {
-        // Find the max column of prerequisites and place this node one column after
-        const maxPrereqColumn = Math.max(...node.prerequisites.map(prereq =>
-          positions[prereq]?.column ?? -1
-        ));
-        positions[node.nodeNumber] = { column: maxPrereqColumn + 1, row: 0 };
+        // Fallback for any extra nodes
+        console.warn(`No layout defined for node ${node.nodeNumber}`);
+        positions[node.nodeNumber] = { column: 5, row: 0 };
       }
-    }
-
-    // Assign rows to avoid overlaps in the same column
-    for (const node of sortedNodes) {
-      const pos = positions[node.nodeNumber];
-      const column = pos.column;
-
-      if (!columnMap[column]) {
-        columnMap[column] = [];
-      }
-
-      columnMap[column].push(node.nodeNumber);
-    }
-
-    // Distribute rows within each column
-    for (const [column, nodeNumbers] of Object.entries(columnMap)) {
-      nodeNumbers.forEach((nodeNum, index) => {
-        positions[nodeNum].row = index;
-      });
     }
 
     return positions;
@@ -1001,9 +1011,9 @@ export class UIController {
     const card = document.createElement('div');
     const isActive = tree.activeNodes.includes(node);
 
-    // NC 비용 계산 (설치비의 12%)
+    // NC 비용 계산 (노드별 차등 비용)
     const towerBaseCost = tower.definition.cost;
-    const ncCost = Math.floor(towerBaseCost * 0.12);
+    const ncCost = Math.floor(towerBaseCost * node.ncCostMultiplier);
     const canAffordNC = economySystem.canAffordNC(ncCost);
     const canAffordPoints = tree.usedPoints + node.cost <= tree.availablePoints;
     const canActivate = node.canActivate(tree.activeNodes) && canAffordPoints && canAffordNC;
@@ -1099,25 +1109,15 @@ export class UIController {
         <div style="display: flex; gap: 6px; align-items: center;">
           <span style="
             color: #fff;
-            background: linear-gradient(90deg, #e94560, #ff6b9d);
-            font-size: 14px;
-            font-weight: 900;
-            padding: 6px 12px;
-            border-radius: 15px;
-            border: 3px solid #1a1a2e;
-            box-shadow: 0 3px 0 #1a1a2e;
-          ">💎 ${node.cost}P</span>
-          <span style="
-            color: #fff;
             background: linear-gradient(90deg, #00d9ff, #0fb9b1);
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 900;
-            padding: 6px 12px;
+            padding: 8px 16px;
             border-radius: 15px;
             border: 3px solid #1a1a2e;
             box-shadow: 0 3px 0 #1a1a2e;
             opacity: ${canAffordNC ? '1' : '0.5'};
-          ">🍎 ${ncCost}</span>
+          ">🍎 ${ncCost} NC</span>
         </div>
         ${node.prerequisites.length > 0
           ? `<span style="
@@ -1127,7 +1127,7 @@ export class UIController {
               background: rgba(0,0,0,0.1);
               padding: 5px 10px;
               border-radius: 10px;
-            ">← ${node.prerequisites.join(', ')}</span>`
+            ">← ${this.formatPrerequisites(node.prerequisites)}</span>`
           : `<span style="
               color: #ffd700;
               font-size: 13px;
@@ -1996,5 +1996,34 @@ export class UIController {
         if (onCancel) onCancel();
       }
     });
+  }
+
+  /**
+   * Format prerequisites for display
+   * @param {Array} prerequisites - Can be simple array or array of arrays
+   * @returns {string} Formatted prerequisite string
+   */
+  formatPrerequisites(prerequisites) {
+    if (!prerequisites || prerequisites.length === 0) {
+      return '';
+    }
+
+    // Check if it's a nested array (OR of ANDs)
+    const isNestedArray = Array.isArray(prerequisites[0]);
+
+    if (!isNestedArray) {
+      // Simple array: treat as OR
+      return prerequisites.join(' 또는 ');
+    }
+
+    // Nested array: format as "(A AND B) OR C"
+    const groups = prerequisites.map(andGroup => {
+      if (andGroup.length === 1) {
+        return andGroup[0];
+      }
+      return andGroup.join(' + ');
+    });
+
+    return groups.join(' 또는 ');
   }
 }

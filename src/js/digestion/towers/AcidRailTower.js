@@ -24,234 +24,288 @@ export class AcidRailTower extends BaseTower {
 
 /**
  * 위산 레일 주입기 업그레이드 노드 생성
+ * 재설계 방향: 암살/약점분해/임계마무리 3축 고정
+ * 역할 고정: 단일 고위협 마무리 전담 (mark 송신 + expose/shock 수신)
  */
 export function createAcidRailUpgradeNodes() {
   return [
-    // 1. 파일럿 침샘 조준 (TM)
+    // 1. 선두 적 포커스 (TM)
     new UpgradeNode({
       id: 'acidrail_node_1',
       nodeNumber: 1,
       position: 'branch',
-      name: '파일럿 침샘 조준',
+      name: '선두 적 포커스',
       modules: [
         new TargetingModule({
-          targetSwitchSpeedBonus: 0.25
+          priority: 'first' // 위에 있는 적(선두 적) 우선 타겟팅
         })
       ],
-      effect: '첫 타겟 전환 속도 +25%',
-      prerequisites: []
+      effect: '위에 있는 적 우선 타겟팅 활성',
+      prerequisites: [],
+      ncCostMultiplier: 0.08
     }),
 
-    // 2. 위산 집중 코일 (DM)
+    // 2. 약점 분해 탄두 (DM)
     new UpgradeNode({
       id: 'acidrail_node_2',
       nodeNumber: 2,
       position: 'branch',
-      name: '위산 집중 코일',
+      name: '약점 분해 탄두',
       modules: [
         new DamageModule({
-          damageMultiplier: 1.18
+          damageMultiplier: 1.12
         })
       ],
-      effect: '단일 타격 피해 +18%',
-      prerequisites: [1]
+      effect: '단일 타격 피해 +12%',
+      prerequisites: [],
+      ncCostMultiplier: 0.09
     }),
 
-    // 3. 저작 표식 (TR+DM)
+    // 3. 임계 조준 프로토콜 (TR+DM)
     new UpgradeNode({
       id: 'acidrail_node_3',
       nodeNumber: 3,
       position: 'branch',
-      name: '저작 표식',
+      name: '임계 조준 프로토콜',
       modules: [
-        new DamageModule({
-          consecutiveHitBonus: 0.12,
-          maxConsecutiveStacks: 3
+        new TriggerModule({
+          triggerType: 'onHit',
+          triggerCondition: (ctx) => {
+            const hpPercent = ctx.food.hp / ctx.food.maxHp;
+            return hpPercent <= 0.35;
+          },
+          triggerEffect: (ctx) => {
+            return { critChanceBonus: 0.12 };
+          }
         })
       ],
-      effect: '동일 타겟 재타격 피해 +12%(최대 3중첩)',
-      prerequisites: [1]
+      effect: '체력 35% 이하 대상 치명타 확률 +12%p',
+      prerequisites: [],
+      ncCostMultiplier: 0.10
     }),
 
-    // 4. 유제품 응고 파쇄 (TB+DM)
+    // 4. 취약 수신 증폭 (DM+TR)
     new UpgradeNode({
       id: 'acidrail_node_4',
       nodeNumber: 4,
       position: 'mid',
-      name: '유제품 응고 파쇄',
+      name: '취약 수신 증폭',
       modules: [
-        new TagBonusModule({
-          tagBonuses: {
-            dairy: 1.35
+        new TriggerModule({
+          triggerType: 'onHit',
+          triggerCondition: (ctx) => {
+            return ctx.food.statusEffects?.some(e => e.type === 'expose');
+          },
+          triggerEffect: (ctx) => {
+            return { damageBonus: 0.12 };
           }
         })
       ],
-      effect: '유제품/치즈 대상 피해 +35%',
-      prerequisites: [2]
+      effect: 'expose 대상 피해 +12%',
+      prerequisites: [[1], [2]], // 1 또는 2
+      ncCostMultiplier: 0.12
     }),
 
-    // 5. 단백질 가수분해 탄 (TB+SM)
+    // 5. 감전 수신 도약 (DM+TR)
     new UpgradeNode({
       id: 'acidrail_node_5',
       nodeNumber: 5,
       position: 'mid',
-      name: '단백질 가수분해 탄',
+      name: '감전 수신 도약',
       modules: [
-        new TagBonusModule({
-          tagBonuses: {
-            protein: 1.25
+        new TriggerModule({
+          triggerType: 'onHit',
+          triggerCondition: (ctx) => {
+            return ctx.food.statusEffects?.some(e => e.type === 'shock');
           },
-          tagEffects: {
-            protein: {
-              type: 'armorReduction',
-              value: 10,
-              duration: 3
-            }
+          triggerEffect: (ctx) => {
+            return { critChanceBonus: 0.10 };
           }
         })
       ],
-      effect: '단백질 처치 시 주변 1기 방어 -10%',
-      prerequisites: [2]
+      effect: 'shock 대상 치명타 확률 +10%p',
+      prerequisites: [[1], [2]], // 1 또는 2
+      ncCostMultiplier: 0.12
     }),
 
-    // 6. 고지방 열분해 렌즈 (TB+SM)
+    // 6. 고위협 관통 조준 (TM+DM)
     new UpgradeNode({
       id: 'acidrail_node_6',
       nodeNumber: 6,
       position: 'mid',
-      name: '고지방 열분해 렌즈',
+      name: '고위협 관통 조준',
       modules: [
-        new TagBonusModule({
-          tagBonuses: {
-            fat: 1.25
-          },
-          tagEffects: {
-            fat: {
-              type: 'slow',
-              value: 0.2,
-              duration: 1.5
-            }
-          }
+        new TargetingModule({
+          priority: 'threat' // threat 상위 우선
+        }),
+        new DamageModule({
+          damageMultiplier: 1.10
         })
       ],
-      effect: '지방식 명중 시 이속 -20%(1.5초)',
-      prerequisites: [3]
+      effect: 'threat 상위 대상 피해 +10%',
+      prerequisites: [[1], [3]], // 1 또는 3
+      ncCostMultiplier: 0.13
     }),
 
-    // 7. 역류 차단 핀포인트 (TM+DM)
+    // 7. 저체력 마무리 각인 (TR+DM)
     new UpgradeNode({
       id: 'acidrail_node_7',
       nodeNumber: 7,
       position: 'mid',
-      name: '역류 차단 핀포인트',
+      name: '저체력 마무리 각인',
       modules: [
-        new TargetingModule({
-          priority: 'checkpoint',
-          critChanceNearCheckpoint: 0.2
+        new TriggerModule({
+          triggerType: 'onHit',
+          triggerCondition: (ctx) => {
+            const hpPercent = ctx.food.hp / ctx.food.maxHp;
+            return hpPercent <= 0.25;
+          },
+          triggerEffect: (ctx) => {
+            return { damageBonus: 0.18 };
+          }
         })
       ],
-      effect: '체크포인트 인접 적 치명타 확률 +20%',
-      prerequisites: [3]
+      effect: '체력 25% 이하 대상 피해 +18%',
+      prerequisites: [[1], [3]], // 1 또는 3
+      ncCostMultiplier: 0.14
     }),
 
-    // 8. 위벽 반사 안정화 (PM+SF)
+    // 8. 임계 안정화 (DM+SF)
     new UpgradeNode({
       id: 'acidrail_node_8',
       nodeNumber: 8,
       position: 'mid',
-      name: '위벽 반사 안정화',
+      name: '임계 안정화',
       modules: [
+        new DamageModule({
+          damageMultiplier: 1.0
+        }),
         new SafetyModule({
-          minDamageGuarantee: 0.4
+          minDamageGuarantee: 0.3
         })
       ],
-      effect: '최소 피해 40% 보장',
-      prerequisites: [4, 6]
+      effect: '최소 피해 30% 보장',
+      prerequisites: [[4], [5], [6]], // 4 또는 5 또는 6
+      ncCostMultiplier: 0.15
     }),
 
-    // 9. 산도 임계 가속 (TR+DM)
+    // 9. 연속 마킹 예열 (TR+SM)
     new UpgradeNode({
       id: 'acidrail_node_9',
       nodeNumber: 9,
       position: 'mid',
-      name: '산도 임계 가속',
+      name: '연속 마킹 예열',
       modules: [
         new TriggerModule({
           triggerType: 'onHit',
-          triggerCondition: (ctx) => {
-            const hpPercent = ctx.food.hp / ctx.food.maxHp;
-            return hpPercent <= 0.3;
-          },
           triggerEffect: (ctx) => {
-            // 공격 속도 증가는 타워에 임시 버프로 적용
-            ctx.tower.tempAttackSpeedBonus = (ctx.tower.tempAttackSpeedBonus || 1) * 1.22;
+            // 동일 대상 히트 카운트
+            if (!ctx.tower.markHitCounts) ctx.tower.markHitCounts = {};
+            const foodId = ctx.food.id;
+            ctx.tower.markHitCounts[foodId] = (ctx.tower.markHitCounts[foodId] || 0) + 1;
+
+            if (ctx.tower.markHitCounts[foodId] >= 3) {
+              ctx.tower.markHitCounts[foodId] = 0;
+              return {
+                statusEffect: {
+                  type: 'mark',
+                  stacks: 1,
+                  duration: 4
+                }
+              };
+            }
             return {};
           }
         })
       ],
-      effect: '대상 체력 30% 이하 발사 간격 -22%',
-      prerequisites: [5, 7]
+      effect: '동일 대상 3회 적중 시 mark 1중첩 부여(4초)',
+      prerequisites: [[5], [6], [7]], // 5 또는 6 또는 7
+      ncCostMultiplier: 0.16
     }),
 
-    // 10. 가스 포켓 천공 (TB+SM+TR)
+    // 10. 분해 표식 송신기 (SM+TR)
     new UpgradeNode({
       id: 'acidrail_node_10',
       nodeNumber: 10,
       position: 'end',
-      name: '가스 포켓 천공',
+      name: '분해 표식 송신기',
       modules: [
-        new TagBonusModule({
-          tagBonuses: {
-            soda: 1.3
-          },
-          tagEffects: {
-            soda: {
-              type: 'explosion',
-              radius: 50,
-              slowAmount: 0.25
-            }
+        new StatusModule({
+          statusType: 'mark',
+          statusValue: 1, // 1 stack
+          statusDuration: 4
+        }),
+        new TriggerModule({
+          triggerType: 'onCrit',
+          triggerEffect: (ctx) => {
+            return {
+              statusEffect: {
+                type: 'mark',
+                stacks: 1,
+                duration: 4
+              }
+            };
           }
         })
       ],
-      effect: '탄산 처치 시 소폭 폭발 + 둔화 25%',
-      prerequisites: [6]
+      effect: '치명타 발생 시 mark 1중첩 부여(4초)',
+      prerequisites: [[8]], // 8
+      ncCostMultiplier: 0.18
     }),
 
-    // 11. 장문부 처형 알고리즘 (TR+DM)
+    // 11. 임계 처형 알고리즘 (TR+DM)
     new UpgradeNode({
       id: 'acidrail_node_11',
       nodeNumber: 11,
       position: 'end',
-      name: '장문부 처형 알고리즘',
+      name: '임계 처형 알고리즘',
       modules: [
         new TriggerModule({
           triggerType: 'onHit',
           triggerCondition: (ctx) => {
-            const isBossOrElite = ctx.food.traits?.includes('boss') || ctx.food.traits?.includes('elite');
             const hpPercent = ctx.food.hp / ctx.food.maxHp;
-            return isBossOrElite && hpPercent <= 0.15;
+            return hpPercent <= 0.35;
           },
           triggerEffect: TriggerEffects.execute(),
-          cooldown: 2 // 웨이브당 2회 제한 (간접적)
+          cooldown: 5 // 5초 쿨다운
+        }),
+        new DamageModule({
+          damageMultiplier: 1.0
         })
       ],
-      effect: '보스/엘리트 체력 15% 이하 즉시 분해(웨이브 2회)',
-      prerequisites: [8, 9]
+      effect: '5초 마다 한번 체력 35% 이하 대상 즉시 분해',
+      prerequisites: [[8, 9]], // 8 + 9 (AND 조건)
+      ncCostMultiplier: 0.22
     }),
 
-    // 12. 클린업 흡수 환원 (RM+TR)
+    // 12. 암살 루프 완결 (TM+DM+TR)
     new UpgradeNode({
       id: 'acidrail_node_12',
       nodeNumber: 12,
       position: 'end',
-      name: '클린업 흡수 환원',
+      name: '암살 루프 완결',
       modules: [
-        new ResourceModule({
-          nutritionOnKill: 1
+        new TargetingModule({
+          priority: 'marked' // mark 대상 우선
+        }),
+        new DamageModule({
+          critMultiplierBonus: 0.6 // 치명타 배율 +0.6
+        }),
+        new TriggerModule({
+          triggerType: 'onHit',
+          triggerCondition: (ctx) => {
+            const hpPercent = ctx.food.hp / ctx.food.maxHp;
+            const hasMarkTag = ctx.food.statusEffects?.some(e => e.type === 'mark');
+            return hasMarkTag && hpPercent <= 0.20;
+          },
+          triggerEffect: (ctx) => {
+            return { damageBonus: 0.20 };
+          }
         })
       ],
-      effect: '처치 시 영양 +1 추가 획득',
-      prerequisites: [10, 11]
+      effect: 'mark 대상 치명타 배율 +0.6, 체력 20% 이하 추가 피해 +20%',
+      prerequisites: [[10], [11]], // 10 또는 11
+      ncCostMultiplier: 0.25
     })
   ];
 }

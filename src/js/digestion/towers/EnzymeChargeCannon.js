@@ -82,11 +82,12 @@ export function createEnzymeChargeCannonUpgradeNodes() {
       name: '전해질 프리차지',
       modules: [
         new ProjectileModule({
-          speed: 350 // 기본 300에서 증가
+          chargeRateBonus: 0.10 // 충전 속도 +10%
         })
       ],
-      effect: '기본 충전 시간 -12% (충전 속도 증가)',
-      prerequisites: []
+      effect: '기본 충전 시간 -10% (충전 속도 증가)',
+      prerequisites: [],
+      ncCostMultiplier: 0.08
     }),
 
     // 2. 펩신 압축 셀 (DM)
@@ -97,11 +98,12 @@ export function createEnzymeChargeCannonUpgradeNodes() {
       name: '펩신 압축 셀',
       modules: [
         new DamageModule({
-          damageMultiplier: 1.25
+          damageMultiplier: 1.18
         })
       ],
-      effect: '완충 타격 피해 +25%',
-      prerequisites: [1]
+      effect: '완충 타격 피해 +18%',
+      prerequisites: [],
+      ncCostMultiplier: 0.09
     }),
 
     // 3. 미완충 발사 밸브 (PM+SF)
@@ -112,11 +114,13 @@ export function createEnzymeChargeCannonUpgradeNodes() {
       name: '미완충 발사 밸브',
       modules: [
         new SafetyModule({
-          minDamageGuarantee: 0.75
+          minChargeToFire: 0.60,
+          minDamageGuarantee: 0.70
         })
       ],
-      effect: '60% 이상 충전 발사 가능(피해 75%)',
-      prerequisites: [1]
+      effect: '60% 이상 충전 발사 가능(피해 70%)',
+      prerequisites: [],
+      ncCostMultiplier: 0.10
     }),
 
     // 4. 당류 급속 분해 (TB+DM)
@@ -144,7 +148,8 @@ export function createEnzymeChargeCannonUpgradeNodes() {
         })
       ],
       effect: '탄수화물 명중 시 추가 고정 피해',
-      prerequisites: [2]
+      prerequisites: [[1], [2]], // 1 또는 2
+      ncCostMultiplier: 0.12
     }),
 
     // 5. 위산-효소 동조 (TB+DM)
@@ -155,11 +160,12 @@ export function createEnzymeChargeCannonUpgradeNodes() {
       name: '위산-효소 동조',
       modules: [
         new DamageModule({
-          damageMultiplier: 1.22
+          damageMultiplier: 1.15
         })
       ],
-      effect: '산성 디버프 대상 피해 +22%',
-      prerequisites: [2]
+      effect: '산성 디버프 대상 피해 +15%',
+      prerequisites: [[1], [2]], // 1 또는 2
+      ncCostMultiplier: 0.12
     }),
 
     // 6. 과열 환기판 (SF)
@@ -170,11 +176,12 @@ export function createEnzymeChargeCannonUpgradeNodes() {
       name: '과열 환기판',
       modules: [
         new SafetyModule({
-          overheatingReduction: 0.35
+          overheatingReduction: 0.25
         })
       ],
-      effect: '발사 후 과열 페널티 -35%',
-      prerequisites: [3]
+      effect: '발사 후 과열 페널티 -25%',
+      prerequisites: [[1], [3]], // 1 또는 3
+      ncCostMultiplier: 0.13
     }),
 
     // 7. 발효 폭주 억제 (TB+SM)
@@ -192,7 +199,8 @@ export function createEnzymeChargeCannonUpgradeNodes() {
         })
       ],
       effect: '매운/발효 적 스킬 사용 지연 1초',
-      prerequisites: [3]
+      prerequisites: [[1], [3]], // 1 또는 3
+      ncCostMultiplier: 0.14
     }),
 
     // 8. 소장 연계 분출 (TR+RM)
@@ -205,12 +213,13 @@ export function createEnzymeChargeCannonUpgradeNodes() {
         new TriggerModule({
           triggerType: 'onKill',
           triggerEffect: (ctx) => {
-            return { chargeRefund: 0.2 };
+            return { chargeRefund: 0.15 };
           }
         })
       ],
-      effect: '처치 시 다음 샷 충전 20% 환급',
-      prerequisites: [4, 6]
+      effect: '처치 시 다음 샷 충전 15% 환급',
+      prerequisites: [[4], [5], [6]], // 4 또는 5 또는 6
+      ncCostMultiplier: 0.15
     }),
 
     // 9. 점막 보호 피복 (SF+TR)
@@ -225,7 +234,8 @@ export function createEnzymeChargeCannonUpgradeNodes() {
         })
       ],
       effect: '완충 발사 시 주변 타워 과산 누적 -1',
-      prerequisites: [5, 7]
+      prerequisites: [[5], [6], [7]], // 5 또는 6 또는 7
+      ncCostMultiplier: 0.16
     }),
 
     // 10. 이중 방전 회로 (TR+DM+PM)
@@ -242,13 +252,14 @@ export function createEnzymeChargeCannonUpgradeNodes() {
             return hpPercent >= 0.5;
           },
           triggerEffect: (ctx) => {
-            // 2차 타격 40%
-            return { damage: ctx.damage * 1.4 };
+            // 2차 타격 30%
+            return { damage: ctx.damage * 1.3 };
           }
         })
       ],
-      effect: '체력 50% 이상 적 명중 시 2차 타격 40%',
-      prerequisites: [8]
+      effect: '체력 50% 이상 적 명중 시 2차 타격 30%',
+      prerequisites: [[8]],
+      ncCostMultiplier: 0.18
     }),
 
     // 11. 소화 임계 폭딜 (TR+DM)
@@ -268,14 +279,15 @@ export function createEnzymeChargeCannonUpgradeNodes() {
 
             if (ctx.tower.hitCounts[foodId] >= 4) {
               ctx.tower.hitCounts[foodId] = 0;
-              return { damage: ctx.damage * 1.8 };
+              return { damage: ctx.damage * 1.5 };
             }
             return {};
           }
         })
       ],
-      effect: '동일 적 3회 명중 후 4회째 피해 +80%',
-      prerequisites: [9, 10]
+      effect: '동일 적 3회 명중 후 4회째 피해 +50%',
+      prerequisites: [[9, 10]], // 9 + 10 (AND 조건)
+      ncCostMultiplier: 0.22
     }),
 
     // 12. 영양 회수 콘덴서 (RM+TR)
@@ -286,12 +298,12 @@ export function createEnzymeChargeCannonUpgradeNodes() {
       name: '영양 회수 콘덴서',
       modules: [
         new ResourceModule({
-          nutritionOnEliteKill: 1,
-          energyOnEliteKill: 1
+          randomRewardOnHighThreatKill: true // 에너지 +1 또는 영양 +1 랜덤
         })
       ],
-      effect: '엘리트 처치 시 에너지 +1, 영양 +1',
-      prerequisites: [11]
+      effect: '고위협 처치 시 에너지 +1 또는 영양 +1 (랜덤)',
+      prerequisites: [[11]],
+      ncCostMultiplier: 0.25
     })
   ];
 }
