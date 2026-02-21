@@ -447,39 +447,15 @@ export class UIController {
   }
 
   /**
-   * Update tower action buttons (upgrade star, reroll stats)
+   * Update tower action buttons (sell)
    */
   _updateTowerActionButtons(tower) {
     const economySystem = this.gameLoop?.getEconomySystem();
-    const towerGrowthSystem = this.gameLoop?.getTowerGrowthSystem();
     const towerManager = this.gameLoop?.getTowerManager();
 
-    if (!economySystem || !towerGrowthSystem || !towerManager) return;
+    if (!economySystem || !towerManager) return;
 
     const towerBaseCost = tower.definition.cost;
-
-    // Upgrade star button
-    const upgradeStarBtn = document.getElementById('upgradeStarBtn');
-    if (upgradeStarBtn) {
-      const canUpgrade = towerGrowthSystem.canUpgradeStar(tower);
-
-      if (canUpgrade) {
-        const cost = towerGrowthSystem.getUpgradeCost(tower.star);
-        upgradeStarBtn.textContent = `⬆️ 승급 (NC ${cost.nc}, SC ${cost.sc})`;
-        upgradeStarBtn.classList.remove('hidden');
-        upgradeStarBtn.disabled = !economySystem.canAffordBoth(cost.nc, cost.sc);
-
-        upgradeStarBtn.onclick = (e) => {
-          e.stopPropagation();
-          if (towerGrowthSystem.upgradeStar(tower, economySystem)) {
-            console.log('Tower upgraded to star', tower.star);
-            this.selectTowerSlot(this.selectedSlot); // Refresh UI
-          }
-        };
-      } else {
-        upgradeStarBtn.classList.add('hidden');
-      }
-    }
 
     // Sell button
     const sellBtn = document.getElementById('sellBtn');
@@ -545,28 +521,18 @@ export class UIController {
       description: tower.definition.description,
       stats: {
         attack: {
-          percentage: (effectiveDamage / 100) * 100,
-          value: damageBonus > 0
-            ? `${baseDamage.toFixed(1)} → ${effectiveDamage.toFixed(1)} (+${damageBonus.toFixed(0)}%)`
-            : baseDamage.toFixed(1)
+          value: effectiveDamage.toFixed(1)
         },
         speed: {
-          percentage: (effectiveAttackSpeed / 3) * 100,
-          value: speedBonus > 0
-            ? `${baseAttackSpeed.toFixed(2)} → ${effectiveAttackSpeed.toFixed(2)} (+${speedBonus.toFixed(0)}%)`
-            : baseAttackSpeed.toFixed(2) + '초'
+          value: effectiveAttackSpeed.toFixed(2) + '초'
         },
         range: {
-          percentage: (effectiveRange / 300) * 100,
-          value: rangeBonus > 0
-            ? `${baseRange} → ${Math.floor(effectiveRange)} (+${rangeBonus.toFixed(0)}%)`
-            : baseRange.toString()
+          value: Math.floor(effectiveRange).toString()
         },
         special: {
-          percentage: (tower.starBonuses.statusSuccessRate / 0.5) * 100,
           value: tower.starBonuses.statusSuccessRate > 0
-            ? `상태성공률 +${(tower.starBonuses.statusSuccessRate * 100).toFixed(1)}%`
-            : '없음'
+            ? `+${(tower.starBonuses.statusSuccessRate * 100).toFixed(1)}%`
+            : '-'
         }
       }
     });
@@ -610,29 +576,12 @@ export class UIController {
       const card = document.createElement('div');
       card.className = 'tower-imprint-card';
 
-      // Get module info from imprinted node
-      let modulesText = '';
-      if (imprint.imprintedNode && imprint.imprintedNode.modules) {
-        const moduleNames = imprint.imprintedNode.modules.map(m => {
-          const moduleName = m.constructor.name.replace('Module', '');
-          return moduleName;
-        });
-        if (moduleNames.length > 0) {
-          modulesText = `모듈: ${moduleNames.join(', ')}`;
-        }
-      }
-
-      // Check if this is a duplicate imprint (same node imprinted multiple times)
-      const totalImprintCount = tower.imprintCounts.get(imprint.nodeNumber) || 0;
-      const imprintSuffix = totalImprintCount > 1 ? ` +${totalImprintCount - 1}` : '';
-
       card.innerHTML = `
         <div class="imprint-card-top">
           <span class="imprint-star-badge">${imprint.acquiredStar}★</span>
-          <span class="imprint-card-title">✨ ${imprint.nodeName}${imprintSuffix}</span>
+          <span class="imprint-card-title">✨ ${imprint.nodeName}</span>
         </div>
         <div class="imprint-card-description">${imprint.nodeDescription}</div>
-        ${modulesText ? `<div class="imprint-card-stats">${modulesText}</div>` : ''}
       `;
 
       imprintList.appendChild(card);
@@ -1215,9 +1164,12 @@ export class UIController {
       pointer-events: none;
     `;
 
+    // Calculate imprint bonuses and generate enhanced effect text
+    const enhancedEffect = this._getEnhancedEffectText(node, imprintCount);
+
     // Calculate dynamic font sizes based on text length
     const nameFontSize = node.name.length > 10 ? '12px' : node.name.length > 7 ? '13px' : '14px';
-    const effectFontSize = node.effect.length > 40 ? '11px' : node.effect.length > 25 ? '12px' : '13px';
+    const effectFontSize = enhancedEffect.length > 60 ? '10px' : enhancedEffect.length > 40 ? '11px' : '12px';
 
     content.innerHTML = `
       <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 4px;">
@@ -1262,17 +1214,7 @@ export class UIController {
         text-shadow: ${isActive ? '1px 1px 0 rgba(0,0,0,0.2)' : 'none'};
         word-break: keep-all;
         overflow-wrap: break-word;
-      ">${node.effect}</p>
-      ${imprintCount > 0 ? `<div style="
-        margin-top: 6px;
-        padding: 4px 8px;
-        background: rgba(255, 215, 0, 0.2);
-        border: 2px solid rgba(255, 215, 0, 0.5);
-        border-radius: 8px;
-        font-size: 10px;
-        font-weight: 700;
-        color: ${isActive ? '#fff' : '#1a1a2e'};
-      ">✨ 각인 ${imprintCount}회 보유 (비용 x${imprintCostMultiplier.toFixed(1)})</div>` : ''}
+      ">${enhancedEffect}</p>
     `;
     card.appendChild(content);
 
@@ -2177,5 +2119,115 @@ export class UIController {
     // 지수 곡선: 1.0, 1.5, 2.2, 3.2, 4.5, 6.2, 8.5, 11.5
     // 공식: multiplier = 1.0 + (count ^ 1.4) * 0.5
     return 1.0 + Math.pow(imprintCount, 1.4) * 0.5;
+  }
+
+  /**
+   * Get imprint cost multiplier based on imprint count
+   * 각인 횟수에 따른 비용 배율 계산 (곡선 증가)
+   * @param {number} imprintCount - Imprint count for this node
+   * @returns {number} Cost multiplier
+   */
+  _getImprintCostMultiplier(imprintCount) {
+    if (imprintCount === 0) return 1.0;
+
+    // 지수 곡선: 1.0, 1.5, 2.2, 3.2, 4.5, 6.2, 8.5, 11.5
+    // 공식: multiplier = 1.0 + (count ^ 1.4) * 0.5
+    return 1.0 + Math.pow(imprintCount, 1.4) * 0.5;
+  }
+
+  /**
+   * Get enhanced effect text with imprint bonuses
+   * 각인 보너스가 반영된 효과 텍스트 생성
+   * @param {UpgradeNode} node - Upgrade node
+   * @param {number} imprintCount - Imprint count for this node
+   * @returns {string} Enhanced effect text
+   */
+  _getEnhancedEffectText(node, imprintCount) {
+    if (imprintCount === 0) {
+      return node.effect;
+    }
+
+    let enhancedText = node.effect;
+
+    // 각 패턴을 순회하면서 매칭 리스트 수집 후 한 번에 교체
+    const replacements = [];
+
+    // 패턴별로 매칭 찾기 및 교체 정보 수집
+    const patterns = [
+      // 1. "기본 피해 +N%" (곱연산)
+      {
+        regex: /기본 피해 \+(\d+)%/g,
+        calc: (base) => {
+          const baseMultiplier = 1 + base / 100;
+          const stacked = Math.pow(baseMultiplier, imprintCount);
+          return (stacked - 1) * 100;
+        },
+        isMultiplicative: true
+      },
+      // 2. "추가 피해 +N%" (가산)
+      {
+        regex: /추가 피해 \+(\d+)%/g,
+        calc: (base) => base * imprintCount,
+        isMultiplicative: false
+      },
+      // 3. "공격속도 +N%" (곱연산)
+      {
+        regex: /공격속도 \+(\d+)%/g,
+        calc: (base) => {
+          const baseMultiplier = 1 + base / 100;
+          const stacked = Math.pow(baseMultiplier, imprintCount);
+          return (stacked - 1) * 100;
+        },
+        isMultiplicative: true
+      },
+      // 4. "치명타 확률 +N%p" (가산)
+      {
+        regex: /치명타 확률 \+(\d+)%p/g,
+        calc: (base) => base * imprintCount,
+        isMultiplicative: false
+      },
+      // 5. "치명타 +N%p" (가산)
+      {
+        regex: /치명타 \+(\d+)%p/g,
+        calc: (base) => base * imprintCount,
+        isMultiplicative: false
+      },
+      // 6. "치명타 배율 +N.N" (가산)
+      {
+        regex: /치명타 배율 \+(\d+\.?\d*)/g,
+        calc: (base) => base * imprintCount,
+        isMultiplicative: false,
+        isDecimal: true
+      }
+    ];
+
+    // 각 패턴 찾기
+    for (const pattern of patterns) {
+      let match;
+      const matches = [];
+
+      // 모든 매칭 찾기
+      while ((match = pattern.regex.exec(enhancedText)) !== null) {
+        matches.push({
+          fullMatch: match[0],
+          value: pattern.isDecimal ? parseFloat(match[1]) : parseInt(match[1]),
+          index: match.index
+        });
+      }
+
+      // 역순으로 교체 (인덱스 유지)
+      for (let i = matches.length - 1; i >= 0; i--) {
+        const m = matches[i];
+        const totalBonus = pattern.calc(m.value);
+        const bonusText = pattern.isDecimal
+          ? `(+${totalBonus.toFixed(1)})`
+          : `(+${totalBonus.toFixed(1)}%)${pattern.regex.source.includes('%p') ? 'p' : ''}`;
+
+        const replacement = `${m.fullMatch} <span style="color: #ffd700;">${bonusText}</span>`;
+        enhancedText = enhancedText.substring(0, m.index) + replacement + enhancedText.substring(m.index + m.fullMatch.length);
+      }
+    }
+
+    return enhancedText;
   }
 }
