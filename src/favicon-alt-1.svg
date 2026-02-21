@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>Food Theme Icon</title>
+  <defs>
+    <linearGradient id="foodBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1d1128"/>
+      <stop offset="100%" stop-color="#6d214f"/>
+    </linearGradient>
+    <linearGradient id="bun" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffd166"/>
+      <stop offset="100%" stop-color="#f4a261"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#foodBg)"/>
+
+  <circle cx="128" cy="128" r="92" fill="#000" opacity=".2"/>
+
+  <ellipse cx="128" cy="98" rx="72" ry="34" fill="url(#bun)"/>
+  <circle cx="94" cy="92" r="4" fill="#fff2cc"/>
+  <circle cx="118" cy="86" r="4" fill="#fff2cc"/>
+  <circle cx="142" cy="90" r="4" fill="#fff2cc"/>
+  <circle cx="165" cy="95" r="4" fill="#fff2cc"/>
+
+  <rect x="58" y="106" width="140" height="14" rx="7" fill="#67b26f"/>
+  <rect x="52" y="120" width="152" height="18" rx="9" fill="#7f1d1d"/>
+  <rect x="58" y="138" width="140" height="22" rx="11" fill="#a63d40"/>
+  <rect x="54" y="160" width="148" height="16" rx="8" fill="#f4e285"/>
+  <ellipse cx="128" cy="182" rx="76" ry="28" fill="url(#bun)"/>
+
+  <path d="M78 70c10-12 22-19 34-22M120 44c16-2 31 2 46 12" stroke="#ff8fab" stroke-width="8" stroke-linecap="round" fill="none"/>
+</svg>
