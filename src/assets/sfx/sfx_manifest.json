@@ -1,0 +1,66 @@
+{
+  "format": "wav_pcm_16_mono",
+  "sample_rate": 44100,
+  "seed": 20260221,
+  "events": {
+    "shot": [
+      "shot_1.wav",
+      "shot_2.wav",
+      "shot_3.wav",
+      "shot_4.wav"
+    ],
+    "hit": [
+      "hit_1.wav",
+      "hit_2.wav",
+      "hit_3.wav",
+      "hit_4.wav"
+    ],
+    "crit": [
+      "crit_1.wav",
+      "crit_2.wav",
+      "crit_3.wav",
+      "crit_4.wav"
+    ],
+    "explosion_small": [
+      "explosion_small_1.wav",
+      "explosion_small_2.wav",
+      "explosion_small_3.wav",
+      "explosion_small_4.wav"
+    ],
+    "explosion_big": [
+      "explosion_big_1.wav",
+      "explosion_big_2.wav",
+      "explosion_big_3.wav",
+      "explosion_big_4.wav"
+    ],
+    "ui_click": [
+      "ui_click_1.wav",
+      "ui_click_2.wav"
+    ],
+    "ui_error": [
+      "ui_error_1.wav",
+      "ui_error_2.wav"
+    ],
+    "wave_start": [
+      "wave_start_1.wav",
+      "wave_start_2.wav"
+    ],
+    "wave_clear": [
+      "wave_clear_1.wav",
+      "wave_clear_2.wav"
+    ],
+    "tower_place": [
+      "tower_place_1.wav",
+      "tower_place_2.wav",
+      "tower_place_3.wav",
+      "tower_place_4.wav"
+    ],
+    "tower_upgrade": [
+      "tower_upgrade_1.wav",
+      "tower_upgrade_2.wav",
+      "tower_upgrade_3.wav",
+      "tower_upgrade_4.wav"
+    ]
+  },
+  "count": 36
+}
