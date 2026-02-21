@@ -21,11 +21,6 @@ export class TowerGrowthSystem {
     this.xpTickInterval = 2.0;  // 2초마다 XP 획득
     this.xpPerTickPerTower = 1.0;  // 타워당 2초마다 1 XP
 
-    // 성장 가속 버프 (SC 소비)
-    this.growthBoostActive = false;
-    this.growthBoostEndTime = 0;
-    this.growthBoostMultiplier = 1.4;  // +40% XP
-
     // 승급 히스토리 (구제 메커니즘용)
     this.upgradeHistory = [];
 
@@ -52,16 +47,7 @@ export class TowerGrowthSystem {
       const tickCount = Math.floor(this.tickAccumulator / this.xpTickInterval);
       this.tickAccumulator -= tickCount * this.xpTickInterval;
 
-      // 성장 가속 버프 체크
-      let xpMultiplier = 1.0;
-      if (this.growthBoostActive && currentTime < this.growthBoostEndTime) {
-        xpMultiplier = this.growthBoostMultiplier;
-      } else if (this.growthBoostActive && currentTime >= this.growthBoostEndTime) {
-        this.growthBoostActive = false;
-        console.log('[TowerGrowthSystem] 성장 가속 종료');
-      }
-
-      const xpGain = this.xpPerTickPerTower * tickCount * xpMultiplier;
+      const xpGain = this.xpPerTickPerTower * tickCount;
 
       for (const tower of towers) {
         this.addXP(tower, xpGain);
@@ -377,57 +363,6 @@ export class TowerGrowthSystem {
     return avgDamage < threshold;
   }
 
-  /**
-   * 성장 가속 활성화 (SC 12 소비, 1시간 +40% XP)
-   * @param {EconomySystem} economySystem
-   * @param {number} currentTime - 현재 시간 (밀리초)
-   * @returns {boolean} 성공 여부
-   */
-  activateGrowthBoost(economySystem, currentTime) {
-    const cost = 12;  // SC 12
-    const duration = 60 * 60 * 1000;  // 1시간 (밀리초)
-
-    if (this.growthBoostActive) {
-      console.warn('[TowerGrowthSystem] 성장 가속이 이미 활성화되어 있습니다');
-      return false;
-    }
-
-    if (!economySystem.canAffordSC(cost)) {
-      console.warn('[TowerGrowthSystem] SC 부족');
-      return false;
-    }
-
-    if (economySystem.spendSC(cost)) {
-      this.growthBoostActive = true;
-      this.growthBoostEndTime = currentTime + duration;
-      console.log(`[TowerGrowthSystem] 성장 가속 활성화 (1시간, +40% XP)`);
-      return true;
-    }
-
-    return false;
-  }
-
-  /**
-   * 성장 가속 상태 조회
-   * @param {number} currentTime - 현재 시간 (밀리초)
-   * @returns {{active: boolean, remainingTime: number, multiplier: number}}
-   */
-  getGrowthBoostState(currentTime) {
-    if (!this.growthBoostActive) {
-      return { active: false, remainingTime: 0, multiplier: 1.0 };
-    }
-
-    const remaining = Math.max(0, this.growthBoostEndTime - currentTime);
-    if (remaining === 0) {
-      this.growthBoostActive = false;
-    }
-
-    return {
-      active: this.growthBoostActive,
-      remainingTime: remaining,
-      multiplier: this.growthBoostMultiplier
-    };
-  }
 
   /**
    * 타워 성장 상태 조회

@@ -59,7 +59,6 @@ export class UIController {
 
     this.setupBottomSheet();
     this.setupSpeedControls();
-    this.setupGrowthBoostButton();
     this.setupHourlyClaimButton();
     this.setupSixHourClaimButton();
     // Note: Tower interactions will be handled via WebGL2 rendering, not DOM events
@@ -1882,52 +1881,6 @@ export class UIController {
     }, 2000);
   }
 
-  /**
-   * Setup growth boost button
-   */
-  setupGrowthBoostButton() {
-    const boostBtn = document.getElementById('growthBoostBtn');
-    const timerDisplay = document.getElementById('growthBoostTimer');
-    const timerText = document.getElementById('growthBoostTimerText');
-
-    if (!boostBtn) {
-      console.warn('Growth boost button not found');
-      return;
-    }
-
-    boostBtn.addEventListener('click', () => {
-      this._playUISfx('ui_click', { volume: 0.62 });
-      if (!this.gameLoop) return;
-
-      const towerGrowthSystem = this.gameLoop.getTowerGrowthSystem();
-      const economySystem = this.gameLoop.getEconomySystem();
-      const currentTime = this.gameLoop.currentTime * 1000; // Convert to ms
-
-      if (towerGrowthSystem.activateGrowthBoost(economySystem, currentTime)) {
-        this._playUISfx('wave_start', { volume: 0.82 });
-        this._showToast('성장 가속 활성화! (+40% XP, 1시간)', 'success');
-        this.updateNutritionDisplay(economySystem.getState());
-
-        // Hide button, show timer
-        boostBtn.style.display = 'none';
-        if (timerDisplay) timerDisplay.style.display = 'flex';
-      } else {
-        const boostState = towerGrowthSystem.getGrowthBoostState(currentTime);
-        if (boostState.active) {
-          this._showToast('성장 가속이 이미 활성화되어 있습니다', 'error');
-        } else {
-          this._showToast('SC 부족 (12 SC 필요)', 'error');
-          const scResource = document.querySelector('.sc-resource');
-          if (scResource) {
-            scResource.classList.add('insufficient-shake');
-            setTimeout(() => scResource.classList.remove('insufficient-shake'), 500);
-          }
-        }
-      }
-    });
-
-    console.log('[UIController] Growth boost button initialized');
-  }
 
   /**
    * Setup hourly claim button (1시간 SC 수령)
@@ -1962,48 +1915,6 @@ export class UIController {
     console.log('[UIController] Hourly claim button initialized');
   }
 
-  /**
-   * Update growth boost display (timer)
-   * Called from main.js updateUIDisplays loop
-   */
-  updateGrowthBoostDisplay() {
-    const towerGrowthSystem = this.gameLoop?.getTowerGrowthSystem();
-    if (!towerGrowthSystem) return;
-
-    const currentTime = this.gameLoop.currentTime * 1000;
-    const boostState = towerGrowthSystem.getGrowthBoostState(currentTime);
-
-    const boostBtn = document.getElementById('growthBoostBtn');
-    const timerDisplay = document.getElementById('growthBoostTimer');
-    const timerText = document.getElementById('growthBoostTimerText');
-
-    if (boostState.active) {
-      // Show timer, hide button
-      if (boostBtn) boostBtn.style.display = 'none';
-      if (timerDisplay) timerDisplay.style.display = 'flex';
-
-      // Update timer text
-      if (timerText) {
-        const remainingSeconds = Math.ceil(boostState.remainingTime / 1000);
-        const minutes = Math.floor(remainingSeconds / 60);
-        const seconds = remainingSeconds % 60;
-        timerText.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-      }
-    } else {
-      // Show button, hide timer
-      if (boostBtn) boostBtn.style.display = 'flex';
-      if (timerDisplay) timerDisplay.style.display = 'none';
-
-      // Check affordability
-      const economySystem = this.gameLoop?.getEconomySystem();
-      if (economySystem) {
-        const canAfford = economySystem.canAffordSC(12);
-        if (boostBtn) {
-          boostBtn.classList.toggle('disabled', !canAfford);
-        }
-      }
-    }
-  }
 
   /**
    * Setup six hour claim button (6시간 보상)

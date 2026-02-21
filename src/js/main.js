@@ -520,9 +520,6 @@ async function init() {
     // Update boost display (timer and button states)
     uiController.updateBoostDisplay();
 
-    // Update growth boost display (timer and button)
-    uiController.updateGrowthBoostDisplay();
-
     // Update hourly claim button visibility
     uiController.updateHourlyClaimDisplay();
 
