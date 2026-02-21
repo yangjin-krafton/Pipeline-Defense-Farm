@@ -80,8 +80,8 @@ export function createAcidRailUpgradeNodes() {
         new TriggerModule({
           triggerType: 'onHit',
           triggerCondition: (ctx) => {
-            // 같은 대상을 연속 공격 중인지 체크
-            return ctx.tower.lastTarget === ctx.food;
+            // 같은 대상을 연속 공격 중인지 체크 (ID 문자열 비교)
+            return ctx.tower.lastTarget === ctx.food.id;
           },
           triggerEffect: (ctx) => {
             return { damageBonus: 0.12 };  // 같은 적 연속 공격 시 추가 피해 +12% [각인 중복: 가산]
@@ -287,7 +287,7 @@ export function createAcidRailUpgradeNodes() {
     }),
 
     // 10. 치명 표식 강화 (DM+TR)
-    // 각인 중복 시: 기본 피해 곱연산(×1.08^n), 치명타 확률 가산(+8%p×n), 치명타 보너스 가산(+12%×n)
+    // 각인 중복 시: 기본 피해 곱연산(×1.08^n), 치명타 확률 가산(+8%p×n), 치명타 보너스 곱연산(×1.12^n)
     new UpgradeNode({
       id: 'acidrail_node_10',
       nodeNumber: 10,
@@ -301,8 +301,10 @@ export function createAcidRailUpgradeNodes() {
         new TriggerModule({
           triggerType: 'onCrit',
           triggerEffect: (ctx) => {
+            // 치명타 시 직접 피해 증가
+            const critDamageMultiplier = 1.12; // +12% 피해
             return {
-              damageBonus: 0.12,  // 치명타 시 추가 피해 +12% [각인 중복: 가산]
+              damage: ctx.damage * critDamageMultiplier,  // 직접 damage 증가 [각인 중복: 곱연산]
               statusEffect: {
                 type: 'mark',
                 stacks: 1,

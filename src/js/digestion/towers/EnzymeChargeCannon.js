@@ -51,7 +51,69 @@ export class EnzymeChargeCannon extends BaseTower {
 
     // 공격 가능 상태 체크
     if (this.chargeLevel >= this.minChargeToFire) {
-      super.update(dt, foodList, multiPathSystem, currentTime);
+      // BaseTower의 update 로직을 직접 구현 (공격속도 계산 포함)
+      this.attackCooldown = Math.max(0, this.attackCooldown - dt);
+
+      // Acquire target
+      if (!this.currentTarget || this.currentTarget.hp <= 0) {
+        if (this.upgradeTree) {
+          const targetingModules = this.upgradeTree.getActiveModulesByType('TargetingModule');
+          if (targetingModules.length > 0) {
+            this.currentTarget = targetingModules[0].selectTarget({
+              tower: this,
+              foodList,
+              multiPathSystem
+            });
+          } else {
+            this.currentTarget = this.targetingPolicy(this, foodList, multiPathSystem);
+          }
+        } else {
+          this.currentTarget = this.targetingPolicy(this, foodList, multiPathSystem);
+        }
+      }
+
+      // Validate target still in range
+      if (this.currentTarget) {
+        const effectiveRange = this.range * this.auraBonuses.range;
+        const pos = multiPathSystem.samplePath(
+          this.currentTarget.currentPath,
+          this.currentTarget.d
+        );
+
+        if (pos) {
+          const dx = pos.x - this.x;
+          const dy = pos.y - this.y;
+          const distSq = dx * dx + dy * dy;
+
+          if (distSq > effectiveRange * effectiveRange) {
+            this.currentTarget = null;
+          }
+        } else {
+          this.currentTarget = null;
+        }
+      }
+
+      // Attack if ready
+      if (this.currentTarget && this.attackCooldown <= 0) {
+        this.attack(this.currentTarget, currentTime);
+
+        // Track last target for consecutive hit modules
+        this.lastTarget = this.currentTarget.id;
+
+        // Calculate effective attack speed with module bonuses
+        let attackSpeedMultiplier = 1.0;
+        if (this.upgradeTree) {
+          const modules = this.upgradeTree.getAllActiveModules();
+          for (const module of modules) {
+            if (module.attackSpeedMultiplier && module.attackSpeedMultiplier !== 1.0) {
+              attackSpeedMultiplier *= module.attackSpeedMultiplier;
+            }
+          }
+        }
+
+        const effectiveAttackSpeed = this.attackSpeed * this.auraBonuses.attackSpeed * attackSpeedMultiplier;
+        this.attackCooldown = 1 / effectiveAttackSpeed;
+      }
     } else {
       // 충전 중이면 타겟만 유지
       if (!this.currentTarget || this.currentTarget.hp <= 0) {
@@ -196,20 +258,24 @@ export class EnzymeChargeCannon extends BaseTower {
         );
 
         for (const module of onCritModules) {
-          const critContext = module.apply(context);
+          // Save pre-crit values
+          const preCritDamage = context.damage;
+          const preCritStatusEffectCount = context.statusEffects ? context.statusEffects.length : 0;
 
-          // Apply additional damage bonus from onCrit
-          if (critContext.damageBonus && critContext.damageBonus !== context.damageBonus) {
-            context.damage *= (1 + (critContext.damageBonus - (context.damageBonus || 0)));
+          // Apply onCrit module
+          context = module.apply(context);
+
+          // Apply additional damage from onCrit (if increased)
+          const postCritDamage = context.damage;
+          if (postCritDamage !== preCritDamage) {
+            // Damage already updated by module, no need to recalculate
           }
 
-          // Apply status effects from onCrit
-          if (critContext.statusEffects && critContext.statusEffects.length > context.statusEffects.length) {
-            const newEffects = critContext.statusEffects.slice(context.statusEffects.length);
+          // Apply new status effects from onCrit
+          if (context.statusEffects && context.statusEffects.length > preCritStatusEffectCount) {
+            const newEffects = context.statusEffects.slice(preCritStatusEffectCount);
             this._applyStatusEffects(food, newEffects);
           }
-
-          context = critContext;
         }
       }
     }
