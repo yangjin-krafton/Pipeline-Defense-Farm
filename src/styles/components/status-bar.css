@@ -396,3 +396,213 @@
     filter: brightness(1);
   }
 }
+
+/* ===== 1시간 SC 수령 버튼 ===== */
+.claim-btn {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border: 4px solid var(--splat-dark);
+  border-radius: 20px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 900;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  font-family: 'Arial Black', sans-serif;
+  box-shadow: 0 0 0 2px #fbbf24,
+              0 4px 0 var(--splat-dark),
+              0 6px 20px rgba(16, 185, 129, 0.6);
+  transform: skewX(-5deg);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  animation: claim-bounce 2s infinite ease-in-out;
+}
+
+.claim-btn:hover {
+  transform: skewX(-5deg) scale(1.15);
+  box-shadow: 0 0 0 2px #fbbf24,
+              0 6px 0 var(--splat-dark),
+              0 8px 30px rgba(16, 185, 129, 1);
+}
+
+.claim-btn:active {
+  transform: skewX(-5deg) scale(1.1) translateY(2px);
+  box-shadow: 0 0 0 2px #fbbf24,
+              0 2px 0 var(--splat-dark),
+              0 4px 15px rgba(16, 185, 129, 0.8);
+}
+
+.claim-icon {
+  font-size: 18px;
+  animation: claim-icon-rotate 2s infinite ease-in-out;
+}
+
+.claim-text {
+  font-size: 14px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes claim-bounce {
+  0%, 100% {
+    transform: skewX(-5deg) translateY(0);
+  }
+  50% {
+    transform: skewX(-5deg) translateY(-4px);
+  }
+}
+
+@keyframes claim-icon-rotate {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-15deg);
+  }
+  75% {
+    transform: rotate(15deg);
+  }
+}
+
+/* 6시간 보상 버튼 (특별 스타일) */
+.claim-btn.six-hour-reward {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: 0 0 0 2px #fbbf24,
+              0 4px 0 var(--splat-dark),
+              0 6px 20px rgba(245, 158, 11, 0.6);
+  animation: six-hour-glow 2s infinite ease-in-out;
+}
+
+.claim-btn.six-hour-reward:hover {
+  transform: skewX(-5deg) scale(1.15);
+  box-shadow: 0 0 0 2px #fbbf24,
+              0 6px 0 var(--splat-dark),
+              0 8px 30px rgba(245, 158, 11, 1);
+}
+
+@keyframes six-hour-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 2px #fbbf24,
+                0 4px 0 var(--splat-dark),
+                0 6px 20px rgba(245, 158, 11, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 2px #fbbf24,
+                0 4px 0 var(--splat-dark),
+                0 6px 30px rgba(245, 158, 11, 1),
+                0 0 50px rgba(251, 191, 36, 0.8);
+  }
+}
+
+/* ===== 성장 가속 컨트롤 ===== */
+.boost-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.boost-btn {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  border: 4px solid var(--splat-dark);
+  border-radius: 18px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 900;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  font-family: 'Arial Black', sans-serif;
+  box-shadow: 0 0 0 2px #a78bfa,
+              0 4px 0 var(--splat-dark),
+              0 6px 20px rgba(139, 92, 246, 0.6);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+.boost-btn:hover:not(.disabled) {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 2px #fbbf24,
+              0 6px 0 var(--splat-dark),
+              0 8px 30px rgba(139, 92, 246, 1);
+}
+
+.boost-btn:active:not(.disabled) {
+  transform: scale(1.05) translateY(2px);
+  box-shadow: 0 0 0 2px #a78bfa,
+              0 2px 0 var(--splat-dark),
+              0 4px 15px rgba(139, 92, 246, 0.8);
+}
+
+.boost-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #9ca3af;
+  box-shadow: 0 0 0 2px #d1d5db,
+              0 4px 0 var(--splat-dark);
+  pointer-events: none;
+}
+
+.boost-btn .boost-icon {
+  font-size: 16px;
+}
+
+.boost-btn .boost-text {
+  font-size: 13px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.boost-btn .boost-cost {
+  display: block;
+  font-size: 10px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 8px;
+  border: 2px solid var(--splat-dark);
+  box-shadow: 0 1px 0 var(--splat-dark),
+              inset 0 0 8px rgba(255, 255, 255, 0.3);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  font-weight: 900;
+  min-width: 30px;
+  text-align: center;
+}
+
+/* 성장 가속 타이머 */
+.growth-boost-timer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(139, 92, 246, 0.2);
+  border: 3px solid var(--splat-dark);
+  border-radius: 16px;
+  padding: 4px 10px;
+  font-family: 'Arial Black', sans-serif;
+  font-weight: 900;
+  box-shadow: 0 2px 0 var(--splat-dark);
+  animation: growth-boost-pulse 2s infinite;
+}
+
+.growth-boost-timer .timer-icon {
+  font-size: 14px;
+}
+
+.growth-boost-timer .timer-text {
+  font-size: 13px;
+  color: var(--splat-dark);
+  min-width: 42px;
+  text-align: center;
+}
+
+@keyframes growth-boost-pulse {
+  0%, 100% {
+    box-shadow: 0 2px 0 var(--splat-dark),
+                0 0 10px rgba(139, 92, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 2px 0 var(--splat-dark),
+                0 0 20px rgba(139, 92, 246, 0.8);
+  }
+}

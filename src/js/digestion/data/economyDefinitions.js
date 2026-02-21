@@ -38,13 +38,9 @@ export const COST_RATIOS = {
   towerPlacement: 1.0,              // 타워 설치 100%
   upgradeNodeActivation: 0.12,      // 노드 활성화 12%
   upgradeTreeReset: 0.35,           // 트리 리셋 35%
-  towerRelocate: 0.20,              // 재배치 20%
-  emergencyRelocate: 0.35,          // 긴급 재배치 35%
 
   // SC 소비
   upgradeTreeResetSC: 12,
-  towerRelocateSC: 8,
-  emergencyRelocateSC: 12,
 
   // 성장/부스터
   statReroll: 20,                   // 스탯 리롤
@@ -55,19 +51,14 @@ export const COST_RATIOS = {
   speed3x10m: 12                    // 3배속 10분
 };
 
-// 성급별 승급 비용 (1->12성)
+// 성급별 승급 비용 (1->7성)
 export const STAR_UPGRADE_COSTS = [
   { from: 1, to: 2, nc: 1000, sc: 20 },
   { from: 2, to: 3, nc: 1400, sc: 22 },
   { from: 3, to: 4, nc: 1900, sc: 24 },
   { from: 4, to: 5, nc: 2500, sc: 26 },
   { from: 5, to: 6, nc: 3200, sc: 28 },
-  { from: 6, to: 7, nc: 4000, sc: 30 },
-  { from: 7, to: 8, nc: 4900, sc: 32 },
-  { from: 8, to: 9, nc: 5900, sc: 34 },
-  { from: 9, to: 10, nc: 7000, sc: 36 },
-  { from: 10, to: 11, nc: 8200, sc: 40 },
-  { from: 11, to: 12, nc: 9500, sc: 45 }
+  { from: 6, to: 7, nc: 4000, sc: 30 }
 ];
 
 // ===== 레거시 설정 (호환성 유지, 향후 제거 예정) =====

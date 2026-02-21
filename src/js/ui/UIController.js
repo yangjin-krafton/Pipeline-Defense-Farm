@@ -54,6 +54,9 @@ export class UIController {
 
     this.setupBottomSheet();
     this.setupSpeedControls();
+    this.setupGrowthBoostButton();
+    this.setupHourlyClaimButton();
+    this.setupSixHourClaimButton();
     // Note: Tower interactions will be handled via WebGL2 rendering, not DOM events
   }
 
@@ -453,35 +456,6 @@ export class UIController {
       }
     }
 
-    // Add relocate button if it doesn't exist
-    let relocateBtn = document.getElementById('relocateBtn');
-    if (!relocateBtn) {
-      const actionButtons = document.querySelector('.action-buttons');
-      const sellBtn = document.getElementById('sellBtn');
-
-      if (actionButtons && sellBtn) {
-        relocateBtn = document.createElement('button');
-        relocateBtn.id = 'relocateBtn';
-        relocateBtn.className = 'action-btn primary';
-        actionButtons.insertBefore(relocateBtn, sellBtn);
-      }
-    }
-
-    // Relocate button
-    if (relocateBtn) {
-      const relocateNCCost = Math.floor(towerBaseCost * 0.20);
-      const relocateSCCost = 8;
-      const canAffordRelocate = economySystem.canAffordBoth(relocateNCCost, relocateSCCost);
-
-      relocateBtn.textContent = `📍 재배치 (🍎 ${relocateNCCost}, ⚡ ${relocateSCCost})`;
-      relocateBtn.disabled = !canAffordRelocate;
-
-      relocateBtn.onclick = (e) => {
-        e.stopPropagation();
-        this._startTowerRelocation(tower, false);
-      };
-    }
-
     // Sell button
     const sellBtn = document.getElementById('sellBtn');
     if (sellBtn) {
@@ -505,36 +479,6 @@ export class UIController {
         });
       };
     }
-  }
-
-  /**
-   * Start tower relocation mode
-   * @param {Tower} tower - Tower to relocate
-   * @param {boolean} isEmergency - Emergency relocation flag
-   */
-  _startTowerRelocation(tower, isEmergency) {
-    const economySystem = this.gameLoop?.getEconomySystem();
-    if (!economySystem) return;
-
-    const towerBaseCost = tower.definition.cost;
-    const ncCost = Math.floor(towerBaseCost * (isEmergency ? 0.35 : 0.20));
-    const scCost = isEmergency ? 12 : 8;
-
-    // Check affordability
-    if (!economySystem.canAffordBoth(ncCost, scCost)) {
-      this._showToast('비용 부족', 'error');
-      return;
-    }
-
-    // Activate relocation mode
-    this.relocatingTower = tower;
-    this.relocationIsEmergency = isEmergency;
-    this.relocationCosts = { nc: ncCost, sc: scCost };
-
-    this.closeSheet();
-    this._showToast('새 위치를 선택하세요', 'info');
-
-    // TODO: Highlight empty slots (will be implemented in rendering code)
   }
 
   /**
@@ -1815,6 +1759,195 @@ export class UIController {
       toast.style.opacity = '0';
       setTimeout(() => toast.remove(), 300);
     }, 2000);
+  }
+
+  /**
+   * Setup growth boost button
+   */
+  setupGrowthBoostButton() {
+    const boostBtn = document.getElementById('growthBoostBtn');
+    const timerDisplay = document.getElementById('growthBoostTimer');
+    const timerText = document.getElementById('growthBoostTimerText');
+
+    if (!boostBtn) {
+      console.warn('Growth boost button not found');
+      return;
+    }
+
+    boostBtn.addEventListener('click', () => {
+      if (!this.gameLoop) return;
+
+      const towerGrowthSystem = this.gameLoop.getTowerGrowthSystem();
+      const economySystem = this.gameLoop.getEconomySystem();
+      const currentTime = this.gameLoop.currentTime * 1000; // Convert to ms
+
+      if (towerGrowthSystem.activateGrowthBoost(economySystem, currentTime)) {
+        this._showToast('성장 가속 활성화! (+40% XP, 1시간)', 'success');
+        this.updateNutritionDisplay(economySystem.getState());
+
+        // Hide button, show timer
+        boostBtn.style.display = 'none';
+        if (timerDisplay) timerDisplay.style.display = 'flex';
+      } else {
+        const boostState = towerGrowthSystem.getGrowthBoostState(currentTime);
+        if (boostState.active) {
+          this._showToast('성장 가속이 이미 활성화되어 있습니다', 'error');
+        } else {
+          this._showToast('SC 부족 (12 SC 필요)', 'error');
+          const scResource = document.querySelector('.sc-resource');
+          if (scResource) {
+            scResource.classList.add('insufficient-shake');
+            setTimeout(() => scResource.classList.remove('insufficient-shake'), 500);
+          }
+        }
+      }
+    });
+
+    console.log('[UIController] Growth boost button initialized');
+  }
+
+  /**
+   * Setup hourly claim button (1시간 SC 수령)
+   */
+  setupHourlyClaimButton() {
+    const claimBtn = document.getElementById('hourlyClaimBtn');
+
+    if (!claimBtn) {
+      console.warn('Hourly claim button not found');
+      return;
+    }
+
+    claimBtn.addEventListener('click', () => {
+      if (!this.gameLoop) return;
+
+      const timeTrackingSystem = this.gameLoop.getTimeTrackingSystem();
+      const economySystem = this.gameLoop.getEconomySystem();
+
+      const result = timeTrackingSystem.claimHourlyReward(economySystem);
+
+      if (result.success) {
+        this._showToast(`1시간 보상 수령! +${result.sc} SC`, 'success');
+        this.updateNutritionDisplay(economySystem.getState());
+        claimBtn.style.display = 'none';
+      } else {
+        this._showToast(result.reason || '보상을 수령할 수 없습니다', 'error');
+      }
+    });
+
+    console.log('[UIController] Hourly claim button initialized');
+  }
+
+  /**
+   * Update growth boost display (timer)
+   * Called from main.js updateUIDisplays loop
+   */
+  updateGrowthBoostDisplay() {
+    const towerGrowthSystem = this.gameLoop?.getTowerGrowthSystem();
+    if (!towerGrowthSystem) return;
+
+    const currentTime = this.gameLoop.currentTime * 1000;
+    const boostState = towerGrowthSystem.getGrowthBoostState(currentTime);
+
+    const boostBtn = document.getElementById('growthBoostBtn');
+    const timerDisplay = document.getElementById('growthBoostTimer');
+    const timerText = document.getElementById('growthBoostTimerText');
+
+    if (boostState.active) {
+      // Show timer, hide button
+      if (boostBtn) boostBtn.style.display = 'none';
+      if (timerDisplay) timerDisplay.style.display = 'flex';
+
+      // Update timer text
+      if (timerText) {
+        const remainingSeconds = Math.ceil(boostState.remainingTime / 1000);
+        const minutes = Math.floor(remainingSeconds / 60);
+        const seconds = remainingSeconds % 60;
+        timerText.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      }
+    } else {
+      // Show button, hide timer
+      if (boostBtn) boostBtn.style.display = 'flex';
+      if (timerDisplay) timerDisplay.style.display = 'none';
+
+      // Check affordability
+      const economySystem = this.gameLoop?.getEconomySystem();
+      if (economySystem) {
+        const canAfford = economySystem.canAffordSC(12);
+        if (boostBtn) {
+          boostBtn.classList.toggle('disabled', !canAfford);
+        }
+      }
+    }
+  }
+
+  /**
+   * Setup six hour claim button (6시간 보상)
+   */
+  setupSixHourClaimButton() {
+    const claimBtn = document.getElementById('sixHourClaimBtn');
+    const claimText = document.getElementById('sixHourClaimText');
+
+    if (!claimBtn) {
+      console.warn('Six hour claim button not found');
+      return;
+    }
+
+    claimBtn.addEventListener('click', () => {
+      if (!this.gameLoop) return;
+
+      const timeTrackingSystem = this.gameLoop.getTimeTrackingSystem();
+      const economySystem = this.gameLoop.getEconomySystem();
+
+      const result = timeTrackingSystem.claimSixHourReward(economySystem);
+
+      if (result.success) {
+        this._showToast(`${result.timeSlot} 보상 수령! +${result.nc} NC, +${result.sc} SC`, 'success');
+        this.updateNutritionDisplay(economySystem.getState());
+        claimBtn.style.display = 'none';
+      } else {
+        this._showToast(result.reason || '보상을 수령할 수 없습니다', 'error');
+      }
+    });
+
+    console.log('[UIController] Six hour claim button initialized');
+  }
+
+  /**
+   * Update hourly claim button visibility
+   * Called from main.js updateUIDisplays loop
+   */
+  updateHourlyClaimDisplay() {
+    const timeTrackingSystem = this.gameLoop?.getTimeTrackingSystem();
+    if (!timeTrackingSystem) return;
+
+    const claimBtn = document.getElementById('hourlyClaimBtn');
+    if (!claimBtn) return;
+
+    const canClaim = timeTrackingSystem.canClaimHourlyReward();
+    claimBtn.style.display = canClaim ? 'flex' : 'none';
+  }
+
+  /**
+   * Update six hour claim button visibility and label
+   * Called from main.js updateUIDisplays loop
+   */
+  updateSixHourClaimDisplay() {
+    const timeTrackingSystem = this.gameLoop?.getTimeTrackingSystem();
+    if (!timeTrackingSystem) return;
+
+    const claimBtn = document.getElementById('sixHourClaimBtn');
+    const claimText = document.getElementById('sixHourClaimText');
+    if (!claimBtn || !claimText) return;
+
+    const available = timeTrackingSystem.getAvailableSixHourReward();
+
+    if (available) {
+      claimBtn.style.display = 'flex';
+      claimText.textContent = `${available.timeSlot} 보상`;
+      claimBtn.title = `${available.timeSlot} 보상: +${available.nc} NC, +${available.sc} SC`;
+    } else {
+      claimBtn.style.display = 'none';
+    }
   }
 
   /**

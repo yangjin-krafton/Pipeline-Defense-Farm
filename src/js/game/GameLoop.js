@@ -102,14 +102,21 @@ export class GameLoop {
     this.currentTime += scaledDt;
 
     // Spawn food
+    const foodsBeforeSpawn = new Set(this.multiPathSystem.getObjects());
     this.foodSpawner.update(scaledDt);
+    const foodsAfterSpawn = this.multiPathSystem.getObjects();
+    for (const food of foodsAfterSpawn) {
+      if (!foodsBeforeSpawn.has(food) && typeof food.spawnedAt !== 'number') {
+        food.spawnedAt = this.currentTime;
+      }
+    }
 
     // Update digestion systems BEFORE path movement
     const foodList = this.multiPathSystem.getObjects();
 
     // Update new systems
     this.timeTrackingSystem.update(scaledDt, this.economySystem);
-    this.towerGrowthSystem.update(scaledDt, this.towerManager.getAllTowers());
+    this.towerGrowthSystem.update(scaledDt, this.towerManager.getAllTowers(), this.currentTime * 1000); // currentTime in ms
     this.economySystem.update(scaledDt);  // Time-based SC income
 
     // Update existing systems
@@ -121,8 +128,16 @@ export class GameLoop {
     // NEW: Update particle system
     this.particleSystem.update(scaledDt);
 
-    // Update multi-path system
-    this.multiPathSystem.update(scaledDt, () => {});
+    // Update multi-path system (completed = leaked)
+    this.multiPathSystem.update(scaledDt, (completed) => {
+      const timeToKill = typeof completed.spawnedAt === 'number'
+        ? Math.max(0, this.currentTime - completed.spawnedAt)
+        : undefined;
+      this.foodSpawner.reportCombatResult({
+        leaked: true,
+        timeToKill
+      });
+    });
 
     // Handle food deaths (HP <= 0)
     this._processFoodDeaths();
@@ -240,6 +255,14 @@ export class GameLoop {
 
     // Reward player and emit death effects
     for (const food of deadFood) {
+      const timeToKill = typeof food.spawnedAt === 'number'
+        ? Math.max(0, this.currentTime - food.spawnedAt)
+        : undefined;
+      this.foodSpawner.reportCombatResult({
+        killed: true,
+        timeToKill
+      });
+
       const reward = this.economySystem.earnFromFood(food, food.currentPath);
       this.score += reward;
       this.scoreDirty = true;

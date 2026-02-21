@@ -10,34 +10,62 @@ export class TowerGrowthSystem {
   constructor(economySystem) {
     this.economySystem = economySystem;
 
-    // XP 설정 (1성 기준)
+    // XP 설정 (1성 기준) - 초반 가속형 곡선
+    // 목표: 첫 10분에 Lv6 만랩 도달
     this.xpRequirements = {
-      1: [0, 40, 90, 160, 260, 500],  // 1성: Lv1~5
-      // 성급별로 동적 계산
+      1: [0, 20, 50, 100, 180, 300],  // 1성: Lv1~6 (누적: 20/50/100/180/300)
+      // 성급별로 동적 계산 (지수 곡선)
     };
 
-    // 온라인 XP 수급률
-    this.xpPerHourPerTower = 100;  // 타워당 100 XP/h
+    // 온라인 XP 수급률 (2초 틱 기반)
+    this.xpTickInterval = 2.0;  // 2초마다 XP 획득
+    this.xpPerTickPerTower = 1.0;  // 타워당 2초마다 1 XP
+
+    // 성장 가속 버프 (SC 소비)
+    this.growthBoostActive = false;
+    this.growthBoostEndTime = 0;
+    this.growthBoostMultiplier = 1.4;  // +40% XP
 
     // 승급 히스토리 (구제 메커니즘용)
     this.upgradeHistory = [];
 
-    console.log('[TowerGrowthSystem] Initialized');
+    // 내부 틱 타이머
+    this.tickAccumulator = 0;
+
+    console.log('[TowerGrowthSystem] Initialized - 2초 틱 기반, 초반 가속 곡선');
   }
 
   /**
-   * 매 프레임 호출 - 타워들의 XP 증가
+   * 매 프레임 호출 - 타워들의 XP 증가 (2초 틱 기반)
    * @param {number} dt - delta time (초)
    * @param {BaseTower[]} towers - 타워 목록
+   * @param {number} currentTime - 현재 시간 (밀리초)
    */
-  update(dt, towers) {
+  update(dt, towers, currentTime) {
     if (!towers || towers.length === 0) return;
 
-    const xpPerSecond = this.xpPerHourPerTower / 3600;
-    const xpGain = xpPerSecond * dt;
+    // 틱 누적
+    this.tickAccumulator += dt;
 
-    for (const tower of towers) {
-      this.addXP(tower, xpGain);
+    // 2초마다 XP 지급
+    if (this.tickAccumulator >= this.xpTickInterval) {
+      const tickCount = Math.floor(this.tickAccumulator / this.xpTickInterval);
+      this.tickAccumulator -= tickCount * this.xpTickInterval;
+
+      // 성장 가속 버프 체크
+      let xpMultiplier = 1.0;
+      if (this.growthBoostActive && currentTime < this.growthBoostEndTime) {
+        xpMultiplier = this.growthBoostMultiplier;
+      } else if (this.growthBoostActive && currentTime >= this.growthBoostEndTime) {
+        this.growthBoostActive = false;
+        console.log('[TowerGrowthSystem] 성장 가속 종료');
+      }
+
+      const xpGain = this.xpPerTickPerTower * tickCount * xpMultiplier;
+
+      for (const tower of towers) {
+        this.addXP(tower, xpGain);
+      }
     }
   }
 
@@ -75,25 +103,28 @@ export class TowerGrowthSystem {
 
   /**
    * 성급별 최대 레벨 계산
-   * @param {number} star - 성급 (1~12)
+   * @param {number} star - 성급 (1~7)
    * @returns {number} 최대 레벨
    */
   calculateMaxLevel(star) {
-    return 4 + star;  // 1성: Lv5, 12성: Lv16
+    return 5 + star;  // 1성: Lv6, 7성: Lv12
   }
 
   /**
-   * 성급별 XP 요구량 조회 (누적)
+   * 성급별 XP 요구량 조회 (누적) - 지수 곡선
    */
   _getXPRequirements(star) {
     if (this.xpRequirements[star]) {
       return this.xpRequirements[star];
     }
 
-    // 성급별 동적 계산 (1성 기준의 배율 적용)
-    const baseLevelCounts = [0, 40, 90, 160, 260, 500];
+    // 성급별 동적 계산 (지수 곡선 - 초반 빠름, 후반 느림)
+    const baseLevelCounts = [0, 20, 50, 100, 180, 300];  // 1성 기준 (10분 만랩)
     const maxLevel = this.calculateMaxLevel(star);
-    const multiplier = 1 + (star - 1) * 0.5;  // 성급당 +50% XP 요구량
+
+    // 지수 곡선 배율: 1성=1.0, 2성=1.5, 3성=2.5, 4성=4.0, ...
+    // 공식: multiplier = 1.0 + (star - 1)^1.4 * 0.5
+    const multiplier = 1.0 + Math.pow(star - 1, 1.4) * 0.5;
 
     const reqs = [];
     for (let i = 0; i <= maxLevel; i++) {
@@ -116,8 +147,8 @@ export class TowerGrowthSystem {
       return false;  // 만랩 미달
     }
 
-    if (tower.star >= 12) {
-      return false;  // 최대 성급
+    if (tower.star >= 7) {
+      return false;  // 최대 성급 (7성)
     }
 
     const cost = STAR_UPGRADE_COSTS.find(c => c.from === tower.star);
@@ -293,6 +324,58 @@ export class TowerGrowthSystem {
     const threshold = 0.072;
 
     return avgDamage < threshold;
+  }
+
+  /**
+   * 성장 가속 활성화 (SC 12 소비, 1시간 +40% XP)
+   * @param {EconomySystem} economySystem
+   * @param {number} currentTime - 현재 시간 (밀리초)
+   * @returns {boolean} 성공 여부
+   */
+  activateGrowthBoost(economySystem, currentTime) {
+    const cost = 12;  // SC 12
+    const duration = 60 * 60 * 1000;  // 1시간 (밀리초)
+
+    if (this.growthBoostActive) {
+      console.warn('[TowerGrowthSystem] 성장 가속이 이미 활성화되어 있습니다');
+      return false;
+    }
+
+    if (!economySystem.canAffordSC(cost)) {
+      console.warn('[TowerGrowthSystem] SC 부족');
+      return false;
+    }
+
+    if (economySystem.spendSC(cost)) {
+      this.growthBoostActive = true;
+      this.growthBoostEndTime = currentTime + duration;
+      console.log(`[TowerGrowthSystem] 성장 가속 활성화 (1시간, +40% XP)`);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * 성장 가속 상태 조회
+   * @param {number} currentTime - 현재 시간 (밀리초)
+   * @returns {{active: boolean, remainingTime: number, multiplier: number}}
+   */
+  getGrowthBoostState(currentTime) {
+    if (!this.growthBoostActive) {
+      return { active: false, remainingTime: 0, multiplier: 1.0 };
+    }
+
+    const remaining = Math.max(0, this.growthBoostEndTime - currentTime);
+    if (remaining === 0) {
+      this.growthBoostActive = false;
+    }
+
+    return {
+      active: this.growthBoostActive,
+      remainingTime: remaining,
+      multiplier: this.growthBoostMultiplier
+    };
   }
 
   /**

@@ -29,8 +29,30 @@
             <div class="sc-bar-progress" id="scBarProgress" style="width: 0%"></div>
             <span class="sc-content">⚡ <span id="scText">40/80</span></span>
           </div>
+          <!-- 1시간 SC 수령 버튼 -->
+          <button class="claim-btn" id="hourlyClaimBtn" title="1시간 SC 보상 수령" style="display: none;">
+            <span class="claim-icon">🎁</span>
+            <span class="claim-text">수령</span>
+          </button>
+          <!-- 6시간 보상 버튼 -->
+          <button class="claim-btn six-hour-reward" id="sixHourClaimBtn" title="6시간 보상 수령" style="display: none;">
+            <span class="claim-icon">💰</span>
+            <span class="claim-text" id="sixHourClaimText">아침 보상</span>
+          </button>
         </div>
         <div class="controls-group">
+          <!-- 성장 가속 버튼 -->
+          <div class="boost-controls">
+            <button class="boost-btn" id="growthBoostBtn" title="성장 가속 (12⚡, 1시간 +40% XP)">
+              <span class="boost-icon">💎</span>
+              <span class="boost-text">성장 가속</span>
+              <span class="boost-cost">12⚡</span>
+            </button>
+            <div class="growth-boost-timer" id="growthBoostTimer" style="display: none;">
+              <span class="timer-icon">💎</span>
+              <span class="timer-text" id="growthBoostTimerText">60:00</span>
+            </div>
+          </div>
           <div class="speed-controls">
             <button class="speed-btn active" data-speed="1" title="Normal Speed">
               <span class="speed-text">1x</span>
