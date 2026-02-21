@@ -41,16 +41,23 @@ export class Bullet {
     this.rotation = 0;
     this.lifetime = 0;
     this.maxLifetime = 5.0; // 5초 후 자동 소멸
+
+    // 트레일 효과 (큰 총알만 활성화)
+    this.hasTrail = size >= 8; // 크기 8 이상일 때 트레일 활성
+    this.trailTimer = 0;
+    this.trailInterval = 0.03; // 30ms마다 트레일 생성
   }
 
   /**
    * 총알을 업데이트합니다.
    * @param {number} dt - Delta time (초)
    * @param {Object} multiPathSystem - 경로 시스템 (타겟 위치 가져오기)
+   * @param {Object} particleSystem - 파티클 시스템 (트레일 효과용, 옵션)
    * @returns {boolean} - 충돌 여부
    */
-  update(dt, multiPathSystem) {
+  update(dt, multiPathSystem, particleSystem = null) {
     this.lifetime += dt;
+    this.trailTimer += dt;
 
     // 수명 초과 시 소멸
     if (this.lifetime > this.maxLifetime) {
@@ -101,7 +108,47 @@ export class Bullet {
       }
     }
 
+    // 트레일 효과 생성 (큰 총알만)
+    if (this.hasTrail && particleSystem && this.trailTimer >= this.trailInterval) {
+      this.emitTrail(particleSystem);
+      this.trailTimer = 0;
+    }
+
     return false;
+  }
+
+  /**
+   * 트레일 효과를 생성합니다.
+   * @param {Object} particleSystem - 파티클 시스템
+   */
+  emitTrail(particleSystem) {
+    if (!particleSystem || !particleSystem.emit) return;
+
+    // 트레일 색상 (약간 어둡고 투명하게)
+    const trailColor = [
+      this.color[0] * 0.8,
+      this.color[1] * 0.8,
+      this.color[2] * 0.8,
+      this.color[3] * 0.5
+    ];
+
+    const trailCount = Math.floor(this.size / 3); // 크기에 비례
+
+    particleSystem.emit(
+      this.x,
+      this.y,
+      trailCount,
+      trailColor,
+      30, // 낮은 속도
+      0.25, // 짧은 수명
+      {
+        spread: Math.PI / 6, // 좁은 확산
+        gravity: 0, // 중력 없음
+        sizeMin: this.size * 0.4,
+        sizeMax: this.size * 0.6,
+        colorVariation: 0.1
+      }
+    );
   }
 
   /**

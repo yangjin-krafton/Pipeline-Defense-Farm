@@ -159,4 +159,96 @@ export class ParticleSystem {
       sizeMax: 4
     });
   }
+
+  /**
+   * 효소 축전 캐논 충전 발사 효과 (충전도에 따라 강도 변화)
+   * @param {number} x
+   * @param {number} y
+   * @param {number[]} color - 기본 색상
+   * @param {number} chargeLevel - 충전 레벨 (0~100)
+   */
+  emitChargeCannonEffect(x, y, color, chargeLevel = 100) {
+    const chargePct = chargeLevel / 100; // 0~1
+    const isFullCharge = chargeLevel >= 100;
+
+    // 1. 메인 섬광 (충전도에 비례)
+    const mainCount = Math.floor(8 + chargePct * 12); // 8~20개
+    this.emit(x, y, mainCount, color, 120 * chargePct, 0.4, {
+      spread: Math.PI * 2,
+      gravity: 50,
+      sizeMin: 3 + chargePct * 2,
+      sizeMax: 6 + chargePct * 4,
+      colorVariation: 0.15
+    });
+
+    // 2. 완충 시 추가 펄스 링
+    if (isFullCharge) {
+      // 밝은 청록색 링
+      const pulseColor = [
+        Math.min(1.0, color[0] + 0.3),
+        Math.min(1.0, color[1] + 0.2),
+        Math.min(1.0, color[2] + 0.1),
+        0.9
+      ];
+
+      this.emit(x, y, 15, pulseColor, 180, 0.5, {
+        spread: Math.PI * 2,
+        gravity: 30,
+        sizeMin: 4,
+        sizeMax: 7,
+        colorVariation: 0.1
+      });
+
+      // 내부 코어 플래시
+      const coreColor = [1.0, 1.0, 0.8, 1.0]; // 밝은 노란빛
+      this.emit(x, y, 8, coreColor, 60, 0.25, {
+        spread: Math.PI / 3,
+        gravity: 0,
+        sizeMin: 2,
+        sizeMax: 5,
+        colorVariation: 0.05
+      });
+    }
+
+    // 3. 충전 에너지 파편 (약간 지연)
+    const sparkCount = Math.floor(4 + chargePct * 6);
+    const sparkColor = [
+      color[0] * 0.7 + 0.3,
+      color[1] * 0.8 + 0.2,
+      color[2] * 0.9 + 0.1,
+      0.95
+    ];
+
+    this.emit(x, y, sparkCount, sparkColor, 90 * chargePct, 0.6, {
+      spread: Math.PI * 1.5,
+      gravity: 150,
+      sizeMin: 2,
+      sizeMax: 4,
+      colorVariation: 0.2
+    });
+  }
+
+  /**
+   * 충전 중 글로우 펄스 (타워 주변)
+   * @param {number} x
+   * @param {number} y
+   * @param {number[]} color
+   * @param {number} chargeLevel - 충전 레벨 (0~100)
+   */
+  emitChargingPulse(x, y, color, chargeLevel = 50) {
+    const chargePct = chargeLevel / 100;
+
+    // 충전도가 높을수록 더 많은 파티클
+    if (Math.random() < chargePct * 0.3) { // 최대 30% 확률
+      const count = Math.floor(1 + chargePct * 3);
+
+      this.emit(x, y, count, color, 40, 0.5, {
+        spread: Math.PI * 2,
+        gravity: -50, // 위로 떠오름
+        sizeMin: 2,
+        sizeMax: 4,
+        colorVariation: 0.2
+      });
+    }
+  }
 }

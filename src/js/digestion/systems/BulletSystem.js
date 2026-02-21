@@ -46,7 +46,8 @@ export class BulletSystem {
 
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const bullet = this.bullets[i];
-      const hit = bullet.update(dt, multiPathSystem);
+      // 파티클 시스템을 전달하여 트레일 효과 활성화
+      const hit = bullet.update(dt, multiPathSystem, this.particleSystem);
 
       if (hit) {
         const hpBeforeHit = bullet.target?.hp ?? 0;

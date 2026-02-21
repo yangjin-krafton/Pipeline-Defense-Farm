@@ -9,6 +9,9 @@ export class UISfxSystem {
     this.enabled = true;
     this.volume = 0.55;
     this.buffersByEvent = new Map();
+    this.userGestureUnlocked = false;
+    this.unlockListenersAttached = false;
+    this._boundUnlockHandler = () => this.unlockFromGesture();
   }
 
   async init(audioContext = null) {
@@ -23,6 +26,8 @@ export class UISfxSystem {
       this.masterGain.gain.value = this.volume;
       this.masterGain.connect(this.audioContext.destination);
     }
+
+    this._attachUnlockListeners();
   }
 
   async loadFromManifest(manifestUrl = './assets/sfx/sfx_manifest.json', basePath = './assets/sfx') {
@@ -64,9 +69,8 @@ export class UISfxSystem {
     const buffers = this.buffersByEvent.get(eventName);
     if (!buffers || buffers.length === 0) return;
 
-    if (this.audioContext.state === 'suspended') {
-      this.audioContext.resume();
-    }
+    // Chrome autoplay policy: do not try to resume/start before a user gesture.
+    if (this.audioContext.state !== 'running') return;
 
     const index = Math.floor(Math.random() * buffers.length);
     const buffer = buffers[index];
@@ -81,7 +85,35 @@ export class UISfxSystem {
 
     source.connect(gainNode);
     gainNode.connect(this.masterGain);
-    source.start();
+    try {
+      source.start();
+    } catch (error) {
+      // Ignore transient start failures (e.g. context state races).
+    }
+  }
+
+  async unlockFromGesture() {
+    if (!this.audioContext || this.userGestureUnlocked) return;
+
+    try {
+      if (this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+      }
+      this.userGestureUnlocked = this.audioContext.state === 'running';
+    } catch (error) {
+      // Ignore: browser may still block if gesture context is lost.
+    }
+  }
+
+  _attachUnlockListeners() {
+    if (this.unlockListenersAttached || typeof window === 'undefined') return;
+    this.unlockListenersAttached = true;
+
+    const opts = { passive: true };
+    window.addEventListener('pointerdown', this._boundUnlockHandler, opts);
+    window.addEventListener('touchstart', this._boundUnlockHandler, opts);
+    window.addEventListener('keydown', this._boundUnlockHandler, opts);
+    window.addEventListener('mousedown', this._boundUnlockHandler, opts);
   }
 
   async _loadEventBuffers(eventName, files, basePath) {
