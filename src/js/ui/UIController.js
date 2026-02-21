@@ -6,6 +6,7 @@
 import { TOWER_DEFINITIONS } from '../digestion/data/towerDefinitions.js';
 import { COST_RATIOS } from '../digestion/data/economyDefinitions.js';
 import { dragManager } from '../core/DragManager.js';
+import { StarUpgradeManager } from './StarUpgradeManager.js';
 
 export class UIController {
   constructor() {
@@ -25,6 +26,9 @@ export class UIController {
 
     // Speed control state
     this.previousTimeScale = 1.0; // Store previous speed before slow motion
+
+    // Star upgrade manager (initialized when gameLoop is set)
+    this.starUpgradeManager = null;
 
     this.init();
   }
@@ -180,6 +184,12 @@ export class UIController {
    * Close bottom sheet
    */
   closeSheet() {
+    // Prevent closing during star upgrade
+    if (this.starUpgradeManager && this.starUpgradeManager.isCurrentlyUpgrading()) {
+      this._showToast('승급을 완료해주세요', 'error');
+      return;
+    }
+
     if (this.isExpanded) {
       this.isExpanded = false;
       this.bottomSheet.classList.remove('expanded');
@@ -352,6 +362,9 @@ export class UIController {
    */
   setGameLoop(gameLoop) {
     this.gameLoop = gameLoop;
+
+    // Initialize star upgrade manager
+    this.starUpgradeManager = new StarUpgradeManager(gameLoop, this);
 
     // Setup boost system callbacks
     const speedBoostSystem = gameLoop.getSpeedBoostSystem();
@@ -587,29 +600,92 @@ export class UIController {
       z-index: 10;
     `;
 
-    // Create upgrade points display (Splatoon style)
+    // Check star upgrade conditions
+    const towerGrowthSystem = this.gameLoop?.getTowerGrowthSystem();
+    const maxLevel = towerGrowthSystem ? towerGrowthSystem.calculateMaxLevel(tower.star) : 6;
+    const isMaxLevel = tower.level >= maxLevel;
+    const allPointsUsed = tree.usedPoints === tree.availablePoints;
+    const canStarUpgrade = tower.star < 7 && isMaxLevel && allPointsUsed;
+
+    // Create upgrade points display OR star upgrade button
     const pointsDisplay = document.createElement('div');
     pointsDisplay.className = 'upgrade-points';
-    pointsDisplay.style.cssText = `
-      flex: 1;
-      padding: 10px 18px;
-      background: linear-gradient(135deg, #e94560 0%, #ff6b9d 100%);
-      border: 5px solid #1a1a2e;
-      border-radius: 20px;
-      text-align: center;
-      font-weight: 900;
-      font-size: 18px;
-      color: #fff;
-      text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
-      box-shadow:
-        0 0 0 3px #ffd700,
-        0 6px 0 #1a1a2e,
-        0 8px 20px rgba(255, 215, 0, 0.5);
-      letter-spacing: 1px;
-    `;
-    pointsDisplay.innerHTML = `
-      💎 업그레이드 포인트: <span style="color: #ffd700; font-size: 22px; text-shadow: 2px 2px 0 rgba(0,0,0,0.5);">${tree.usedPoints}</span> / ${tree.availablePoints}
-    `;
+
+    if (canStarUpgrade) {
+      // Show star upgrade button
+      const upgradeCost = towerGrowthSystem.getUpgradeCost(tower.star);
+      const canAfford = economySystem.canAffordBoth(upgradeCost.nc, upgradeCost.sc);
+
+      pointsDisplay.style.cssText = `
+        flex: 1;
+        padding: 10px 18px;
+        background: linear-gradient(135deg, #00d9ff 0%, #00b8d4 100%);
+        border: 5px solid #1a1a2e;
+        border-radius: 20px;
+        text-align: center;
+        font-weight: 900;
+        font-size: 18px;
+        color: #fff;
+        text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
+        box-shadow:
+          0 0 0 3px ${canAfford ? '#ffd700' : '#666'},
+          0 6px 0 #1a1a2e,
+          0 8px 20px rgba(0, 217, 255, ${canAfford ? '0.5' : '0.2'});
+        letter-spacing: 1px;
+        cursor: ${canAfford ? 'pointer' : 'not-allowed'};
+        opacity: ${canAfford ? '1' : '0.6'};
+        transition: all 0.2s;
+      `;
+      pointsDisplay.innerHTML = `
+        ⭐ 승급 가능! ${tower.star}성 → ${tower.star + 1}성<br>
+        <span style="font-size: 14px; opacity: 0.9;">🍎${upgradeCost.nc} ⚡${upgradeCost.sc}</span>
+      `;
+
+      if (canAfford) {
+        pointsDisplay.addEventListener('click', () => {
+          this.starUpgradeManager.showStarUpgradeUI(tower);
+        });
+
+        pointsDisplay.onmouseenter = () => {
+          pointsDisplay.style.transform = 'translateY(-3px) scale(1.02)';
+          pointsDisplay.style.boxShadow = `
+            0 0 0 3px #ffd700,
+            0 10px 0 #1a1a2e,
+            0 12px 30px rgba(0, 217, 255, 0.7)
+          `;
+        };
+        pointsDisplay.onmouseleave = () => {
+          pointsDisplay.style.transform = 'translateY(0) scale(1)';
+          pointsDisplay.style.boxShadow = `
+            0 0 0 3px #ffd700,
+            0 6px 0 #1a1a2e,
+            0 8px 20px rgba(0, 217, 255, 0.5)
+          `;
+        };
+      }
+    } else {
+      // Show normal points display
+      pointsDisplay.style.cssText = `
+        flex: 1;
+        padding: 10px 18px;
+        background: linear-gradient(135deg, #e94560 0%, #ff6b9d 100%);
+        border: 5px solid #1a1a2e;
+        border-radius: 20px;
+        text-align: center;
+        font-weight: 900;
+        font-size: 18px;
+        color: #fff;
+        text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
+        box-shadow:
+          0 0 0 3px #ffd700,
+          0 6px 0 #1a1a2e,
+          0 8px 20px rgba(255, 215, 0, 0.5);
+        letter-spacing: 1px;
+      `;
+      pointsDisplay.innerHTML = `
+        💎 업그레이드 포인트: <span style="color: #ffd700; font-size: 22px; text-shadow: 2px 2px 0 rgba(0,0,0,0.5);">${tree.usedPoints}</span> / ${tree.availablePoints}
+      `;
+    }
 
     // Create reset button
     const resetButton = document.createElement('button');

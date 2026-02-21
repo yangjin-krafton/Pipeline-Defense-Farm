@@ -218,6 +218,62 @@
             <button class="action-btn primary" id="closeBuildBtn">✕ 닫기</button>
           </div>
         </div>
+
+        <!-- 타워 승급 전용 UI -->
+        <div class="sheet-content hidden" id="tower-star-upgrade">
+          <!-- 승급 헤더 -->
+          <div class="upgrade-header-section">
+            <h2 class="upgrade-title">⭐ 타워 승급</h2>
+            <div class="upgrade-subtitle">
+              <span id="upgradeFromStar">1성</span> → <span id="upgradeToStar">2성</span>
+            </div>
+          </div>
+
+          <!-- 스탯 비교 섹션 -->
+          <div class="stat-comparison-section">
+            <h3 class="section-title">📊 보너스 스탯 변화</h3>
+            <div class="stat-comparison-grid" id="statComparisonGrid">
+              <!-- 동적으로 생성됨 -->
+            </div>
+          </div>
+
+          <!-- 스탯 리롤 섹션 -->
+          <div class="reroll-section">
+            <div class="reroll-header">
+              <span class="reroll-title">🎲 스탯 다시 뽑기</span>
+              <span class="reroll-cost" id="rerollCostDisplay">⚡ 20</span>
+            </div>
+            <button class="reroll-btn" id="rerollStatsBtn">
+              <span class="reroll-icon">🔄</span>
+              <span class="reroll-text">다시 뽑기</span>
+            </button>
+            <div class="reroll-count-info" id="rerollCountInfo">리롤 횟수: 0회</div>
+          </div>
+
+          <!-- 각인 선택 섹션 -->
+          <div class="imprint-section">
+            <h3 class="section-title">✨ 영구 각인 선택</h3>
+            <div class="imprint-cards-container" id="imprintCardsContainer">
+              <!-- 동적으로 생성됨 -->
+            </div>
+            <div class="imprint-expand-section">
+              <button class="expand-choice-btn" id="expandChoiceBtn">
+                <span class="expand-icon">➕</span>
+                <span class="expand-text">선택지 추가</span>
+                <span class="expand-cost">⚡ 30</span>
+              </button>
+              <div class="expand-count-info" id="expandCountInfo">추가 선택지: 0/2</div>
+            </div>
+          </div>
+
+          <!-- 승급 완료 버튼 -->
+          <div class="upgrade-confirm-section">
+            <button class="upgrade-confirm-btn disabled" id="upgradeConfirmBtn">
+              <span class="confirm-icon">⚠️</span>
+              <span class="confirm-text">각인을 선택해주세요</span>
+            </button>
+          </div>
+        </div>
       </aside>
 
     </div>

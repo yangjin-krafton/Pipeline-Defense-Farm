@@ -84,6 +84,52 @@ const AUTO_TRIPLE_CHANCE = {
   S5: 0.6,
 };
 
+const AUTO_LINE_CHANCE = {
+  S0: 0.1,
+  S1: 0.16,
+  S2: 0.22,
+  S3: 0.28,
+  S4: 0.32,
+  S5: 0.36,
+};
+
+const LINE_COUNT_BY_STAGE = {
+  S0: 2,
+  S1: 2,
+  S2: 3,
+  S3: 3,
+  S4: 4,
+  S5: 4,
+};
+
+const LINE_GAP_BY_STAGE = {
+  S0: 26,
+  S1: 24,
+  S2: 22,
+  S3: 20,
+  S4: 18,
+  S5: 18,
+};
+
+const LINE_SPEED_SCALE_BY_STAGE = {
+  S0: 0.9,
+  S1: 0.88,
+  S2: 0.86,
+  S3: 0.84,
+  S4: 0.82,
+  S5: 0.8,
+};
+
+// Ensure line-pattern appears in real gameplay even when random roll misses.
+const LINE_FORCE_EVERY_BATCHES = {
+  S0: 6,
+  S1: 5,
+  S2: 4,
+  S3: 4,
+  S4: 3,
+  S5: 3,
+};
+
 const DEFAULT_PATH_FLOW = {
   rice_stomach: 'small_intestine',
   dessert_stomach: 'small_intestine',
@@ -100,7 +146,8 @@ export class FoodSpawner {
     // Paths that can spawn food (stomach paths only)
     this.spawnablePaths = ['rice_stomach', 'dessert_stomach', 'alcohol_stomach'];
     this.pathCursor = 0;
-    this.spawnMode = 'auto'; // auto | single | triple
+    this.spawnMode = 'auto'; // auto | single | triple | line
+    this.batchesSinceLine = 3;
 
     this.foodLookupByPath = this._buildFoodLookupByPath();
     this.recentEmojiQueue = [];
@@ -400,18 +447,38 @@ export class FoodSpawner {
   /**
    * Decide current spawn batch mode.
    * @param {string} stageKey
-   * @returns {'single'|'triple'}
+   * @returns {'single'|'triple'|'line'}
    */
   _resolveBatchMode(stageKey) {
     if (this.spawnMode === 'single') return 'single';
     if (this.spawnMode === 'triple') return 'triple';
+    if (this.spawnMode === 'line') return 'line';
 
-    // auto: mix single/triple by stage and recent performance.
-    const baseChance = AUTO_TRIPLE_CHANCE[stageKey] || 0;
+    // auto: mix single/triple/line by stage and recent performance.
+    const forceEvery = LINE_FORCE_EVERY_BATCHES[stageKey] || 5;
+    if (this.batchesSinceLine >= forceEvery) return 'line';
+
+    const baseTripleChance = AUTO_TRIPLE_CHANCE[stageKey] || 0;
+    const baseLineChance = AUTO_LINE_CHANCE[stageKey] || 0;
     const perfBonus = this.dynamicOffset > 0 ? this.dynamicOffset * 0.08 : 0;
     const perfPenalty = this.dynamicOffset < 0 ? Math.abs(this.dynamicOffset) * 0.1 : 0;
-    const tripleChance = Math.max(0, Math.min(0.9, baseChance + perfBonus - perfPenalty));
-    return Math.random() < tripleChance ? 'triple' : 'single';
+    const tripleChance = Math.max(0, Math.min(0.8, baseTripleChance + perfBonus - perfPenalty));
+    const lineChance = Math.max(0, Math.min(0.55, baseLineChance + (perfBonus * 0.45) - (perfPenalty * 0.4)));
+
+    const roll = Math.random();
+    if (roll < tripleChance) return 'triple';
+    if (roll < Math.min(0.95, tripleChance + lineChance)) return 'line';
+    return 'single';
+  }
+
+  _getLineSpec(stageKey) {
+    const count = LINE_COUNT_BY_STAGE[stageKey] || 2;
+    const gap = LINE_GAP_BY_STAGE[stageKey] || 24;
+    const baseSpeedScale = LINE_SPEED_SCALE_BY_STAGE[stageKey] || 0.88;
+    const perfSlowdown = this.dynamicOffset < 0 ? Math.abs(this.dynamicOffset) * 0.04 : 0;
+    const speedScale = Math.max(0.72, Math.min(0.95, baseSpeedScale - perfSlowdown));
+
+    return { count, gap, speedScale };
   }
 
   /**
@@ -435,8 +502,9 @@ export class FoodSpawner {
    * Spawn a food item on a specific path
    * @param {string} pathKey - Path key (rice_stomach, dessert_stomach, alcohol_stomach)
    * @param {number} initialOffset - Initial offset on path
+   * @param {{speedMultiplier?:number}} options
    */
-  spawnFood(pathKey = null, initialOffset = 0) {
+  spawnFood(pathKey = null, initialOffset = 0, options = {}) {
     // If no path specified, pick random stomach path
     if (!pathKey) {
       pathKey = this._pickRandomPath();
@@ -450,28 +518,41 @@ export class FoodSpawner {
       return;
     }
     const scaledFood = this._applyStageMultiplier(food, stageKey);
+    const speedMultiplier = Math.max(0.6, Math.min(1.2, options.speedMultiplier ?? 1));
+    const baseSpawnSpeed = scaledFood.speed * speedMultiplier;
+    const speedJitter = speedMultiplier < 1 ? 6 : 8;
+    const minSpeed = speedMultiplier < 1 ? 38 : 52;
 
     // Removed: console.log - too verbose
 
     this.multiPathSystem.spawn(pathKey, {
       ...scaledFood,
-      speed: Math.max(52, scaledFood.speed + (Math.random() - 0.5) * 8),
+      speed: Math.max(minSpeed, baseSpawnSpeed + (Math.random() - 0.5) * speedJitter),
       size: Math.max(20, scaledFood.size + (Math.random() - 0.5) * 2),
       spin: (Math.random() - 0.5) * 1.8,
       exitThreshold: 25,
-      baseSpeed: scaledFood.speed,
-      speedScale: Number((scaledFood.speed / BASE_SPEED).toFixed(3))
+      baseSpeed: baseSpawnSpeed,
+      speedScale: Number((baseSpawnSpeed / BASE_SPEED).toFixed(3))
     }, initialOffset);
   }
 
   /**
    * Spawn one batch by mode.
-   * @param {'single'|'triple'} batchMode
+   * @param {'single'|'triple'|'line'} batchMode
    */
-  _spawnBatch(batchMode) {
+  _spawnBatch(batchMode, stageKey) {
     if (batchMode === 'triple') {
       for (const pathKey of this.spawnablePaths) {
         this.spawnFood(pathKey);
+      }
+      return;
+    }
+
+    if (batchMode === 'line') {
+      const pathKey = this._pickRoundRobinPath();
+      const line = this._getLineSpec(stageKey);
+      for (let i = 0; i < line.count; i += 1) {
+        this.spawnFood(pathKey, i * line.gap, { speedMultiplier: line.speedScale });
       }
       return;
     }
@@ -490,10 +571,10 @@ export class FoodSpawner {
 
   /**
    * Set spawn mode.
-   * @param {'auto'|'single'|'triple'} mode
+   * @param {'auto'|'single'|'triple'|'line'} mode
    */
   setSpawnMode(mode) {
-    if (mode === 'auto' || mode === 'single' || mode === 'triple') {
+    if (mode === 'auto' || mode === 'single' || mode === 'triple' || mode === 'line') {
       this.spawnMode = mode;
     }
   }
@@ -557,11 +638,14 @@ export class FoodSpawner {
     while (guard < 8) {
       const stageKey = this._getCurrentStageKey();
       const batchMode = this._resolveBatchMode(stageKey);
-      const batchSize = batchMode === 'triple' ? 3 : 1;
+      const lineSize = this._getLineSpec(stageKey).count;
+      const batchSize = batchMode === 'triple' ? 3 : (batchMode === 'line' ? lineSize : 1);
       const intervalSec = this._computeSpawnIntervalSec(stageKey, batchSize);
 
       if (this.spawnTimer < intervalSec) break;
-      this._spawnBatch(batchMode);
+      this._spawnBatch(batchMode, stageKey);
+      if (batchMode === 'line') this.batchesSinceLine = 0;
+      else this.batchesSinceLine += 1;
       this.spawnTimer -= intervalSec;
       guard += 1;
     }

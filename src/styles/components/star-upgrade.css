@@ -1,0 +1,340 @@
+/**
+ * Star Upgrade UI Styles (승급 전용 UI)
+ * Splatoon-inspired design
+ */
+
+/* Upgrade Header Section */
+.upgrade-header-section {
+  text-align: center;
+  padding: 20px;
+  background: linear-gradient(135deg, #00d9ff 0%, #00b8d4 100%);
+  border-bottom: 5px solid #1a1a2e;
+  box-shadow: 0 5px 0 #1a1a2e;
+}
+
+.upgrade-title {
+  font-size: 28px;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3);
+  margin-bottom: 10px;
+}
+
+.upgrade-subtitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffd700;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Stat Comparison Section */
+.stat-comparison-section {
+  padding: 20px;
+  background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+  border-bottom: 3px solid #1a1a2e;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 900;
+  color: #1a1a2e;
+  text-shadow: 2px 2px 0 rgba(233, 69, 96, 0.2);
+  margin-bottom: 15px;
+}
+
+.stat-comparison-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stat-comparison-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #fff;
+  border: 4px solid #1a1a2e;
+  border-radius: 12px;
+  box-shadow: 0 4px 0 #1a1a2e;
+}
+
+.stat-comparison-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.stat-comparison-name .stat-icon {
+  font-size: 20px;
+}
+
+.stat-comparison-values {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.stat-comparison-values .old-value {
+  color: #666;
+  font-size: 14px;
+}
+
+.stat-comparison-values .arrow {
+  color: #00d9ff;
+  font-weight: 900;
+}
+
+.stat-comparison-values .new-value {
+  color: #00d9ff;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.stat-comparison-values .gain {
+  color: #4caf50;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Reroll Section */
+.reroll-section {
+  padding: 20px;
+  background: linear-gradient(135deg, #ffe0e9 0%, #ffd0dd 100%);
+  border-bottom: 3px solid #1a1a2e;
+}
+
+.reroll-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.reroll-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.reroll-cost {
+  font-size: 16px;
+  font-weight: 900;
+  color: #e94560;
+  padding: 4px 12px;
+  background: #fff;
+  border: 3px solid #1a1a2e;
+  border-radius: 12px;
+  box-shadow: 0 3px 0 #1a1a2e;
+}
+
+.reroll-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #ff006e 0%, #ff4d8f 100%);
+  border: 5px solid #1a1a2e;
+  border-radius: 16px;
+  color: #fff;
+  font-weight: 900;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 0 0 3px #ff006e, 0 6px 0 #1a1a2e, 0 8px 20px rgba(255, 0, 110, 0.5);
+  transition: all 0.2s;
+}
+
+.reroll-btn:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 0 0 3px #ff006e, 0 10px 0 #1a1a2e, 0 12px 30px rgba(255, 0, 110, 0.7);
+}
+
+.reroll-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 0 0 3px #ff006e, 0 3px 0 #1a1a2e, 0 5px 15px rgba(255, 0, 110, 0.5);
+}
+
+.reroll-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.reroll-icon {
+  font-size: 20px;
+}
+
+.reroll-count-info {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+}
+
+/* Imprint Section */
+.imprint-section {
+  padding: 20px;
+  background: linear-gradient(135deg, #e0f7ff 0%, #d0f0ff 100%);
+  border-bottom: 3px solid #1a1a2e;
+}
+
+.imprint-cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 15px;
+}
+
+.imprint-card {
+  padding: 16px;
+  background: #fff;
+  border: 4px solid #1a1a2e;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 0 #1a1a2e;
+}
+
+.imprint-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 0 #1a1a2e, 0 10px 20px rgba(0, 217, 255, 0.3);
+}
+
+.imprint-card.selected {
+  border-color: #00d9ff;
+  background: linear-gradient(135deg, #e0f7ff 0%, #fff 100%);
+  box-shadow: 0 0 0 3px #00d9ff, 0 4px 0 #1a1a2e, 0 6px 20px rgba(0, 217, 255, 0.5);
+}
+
+.imprint-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.imprint-icon {
+  font-size: 20px;
+}
+
+.imprint-name {
+  font-size: 16px;
+  font-weight: 900;
+  color: #1a1a2e;
+}
+
+.imprint-card-description {
+  font-size: 13px;
+  color: #555;
+  line-height: 1.4;
+}
+
+.imprint-expand-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.expand-choice-btn {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  border: 5px solid #1a1a2e;
+  border-radius: 14px;
+  color: #1a1a2e;
+  font-weight: 900;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 0 0 3px #ffd700, 0 5px 0 #1a1a2e, 0 7px 15px rgba(255, 215, 0, 0.4);
+  transition: all 0.2s;
+}
+
+.expand-choice-btn:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 0 0 3px #ffd700, 0 8px 0 #1a1a2e, 0 10px 20px rgba(255, 215, 0, 0.6);
+}
+
+.expand-choice-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 0 0 3px #ffd700, 0 2px 0 #1a1a2e, 0 4px 10px rgba(255, 215, 0, 0.4);
+}
+
+.expand-choice-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #ccc;
+}
+
+.expand-icon {
+  font-size: 16px;
+}
+
+.expand-cost {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.expand-count-info {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+}
+
+/* Upgrade Confirm Section */
+.upgrade-confirm-section {
+  padding: 20px;
+  background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%);
+}
+
+.upgrade-confirm-btn {
+  width: 100%;
+  padding: 18px;
+  background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
+  border: 6px solid #1a1a2e;
+  border-radius: 18px;
+  color: #fff;
+  font-weight: 900;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  box-shadow: 0 0 0 3px #4caf50, 0 8px 0 #1a1a2e, 0 10px 25px rgba(76, 175, 80, 0.5);
+  transition: all 0.2s;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+.upgrade-confirm-btn:hover:not(.disabled) {
+  transform: translateY(-4px);
+  box-shadow: 0 0 0 3px #4caf50, 0 12px 0 #1a1a2e, 0 14px 30px rgba(76, 175, 80, 0.7);
+}
+
+.upgrade-confirm-btn:active:not(.disabled) {
+  transform: translateY(0);
+  box-shadow: 0 0 0 3px #4caf50, 0 4px 0 #1a1a2e, 0 6px 15px rgba(76, 175, 80, 0.5);
+}
+
+.upgrade-confirm-btn.disabled {
+  background: linear-gradient(135deg, #999 0%, #aaa 100%);
+  cursor: not-allowed;
+  box-shadow: 0 0 0 3px #666, 0 5px 0 #1a1a2e, 0 7px 15px rgba(0, 0, 0, 0.2);
+}
+
+.confirm-icon {
+  font-size: 24px;
+}
+
+.confirm-text {
+  font-size: 18px;
+}

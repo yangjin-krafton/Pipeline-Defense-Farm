@@ -536,6 +536,122 @@ async function init() {
   window.scaleManager = scaleManager;
   window.cameraController = cameraController;
   window.multiPathSystem = multiPathSystem;
+
+  // Development console commands
+  setupDevCommands(gameLoop, uiController);
+}
+
+/**
+ * Setup development console commands
+ */
+function setupDevCommands(gameLoop, uiController) {
+  /**
+   * Add XP to currently selected tower
+   * @param {number} amount - XP amount to add
+   */
+  window.addXP = (amount = 100) => {
+    const selectedSlot = uiController.selectedSlot;
+    if (!selectedSlot) {
+      console.warn('[devCommand] No tower selected. Click on a tower first!');
+      return;
+    }
+
+    const towerManager = gameLoop.getTowerManager();
+    const tower = towerManager.getTowerAtSlot(selectedSlot);
+
+    if (!tower) {
+      console.warn('[devCommand] No tower found at selected slot');
+      return;
+    }
+
+    const growthSystem = gameLoop.getTowerGrowthSystem();
+    const beforeLevel = tower.level;
+    const beforeXP = Math.floor(tower.xp);
+
+    growthSystem.addXP(tower, amount);
+
+    const afterLevel = tower.level;
+    const afterXP = Math.floor(tower.xp);
+
+    console.log(`[devCommand] Added ${amount} XP to ${tower.definition.name}`);
+    console.log(`  Before: Lv${beforeLevel} (${beforeXP} XP)`);
+    console.log(`  After: Lv${afterLevel} (${afterXP} XP)`);
+
+    if (beforeLevel !== afterLevel) {
+      console.log(`  🎉 Level up! ${beforeLevel} → ${afterLevel}`);
+    }
+
+    // Refresh UI if tower detail is open
+    uiController.selectTowerSlot(selectedSlot);
+  };
+
+  /**
+   * Level up currently selected tower to max level (instant)
+   */
+  window.maxLevel = () => {
+    const selectedSlot = uiController.selectedSlot;
+    if (!selectedSlot) {
+      console.warn('[devCommand] No tower selected. Click on a tower first!');
+      return;
+    }
+
+    const towerManager = gameLoop.getTowerManager();
+    const tower = towerManager.getTowerAtSlot(selectedSlot);
+
+    if (!tower) {
+      console.warn('[devCommand] No tower found at selected slot');
+      return;
+    }
+
+    const growthSystem = gameLoop.getTowerGrowthSystem();
+    const maxLevel = growthSystem.calculateMaxLevel(tower.star);
+    const xpReqs = growthSystem._getXPRequirements(tower.star);
+    const requiredXP = xpReqs[maxLevel - 1] || 0;
+
+    const xpNeeded = Math.max(0, requiredXP - tower.xp);
+    growthSystem.addXP(tower, xpNeeded);
+
+    console.log(`[devCommand] ${tower.definition.name} maxed to Lv${tower.level} (${tower.star}★)`);
+
+    // Refresh UI if tower detail is open
+    uiController.selectTowerSlot(selectedSlot);
+  };
+
+  /**
+   * Show current tower info
+   */
+  window.towerInfo = () => {
+    const selectedSlot = uiController.selectedSlot;
+    if (!selectedSlot) {
+      console.warn('[devCommand] No tower selected. Click on a tower first!');
+      return;
+    }
+
+    const towerManager = gameLoop.getTowerManager();
+    const tower = towerManager.getTowerAtSlot(selectedSlot);
+
+    if (!tower) {
+      console.warn('[devCommand] No tower found at selected slot');
+      return;
+    }
+
+    const growthSystem = gameLoop.getTowerGrowthSystem();
+    const maxLevel = growthSystem.calculateMaxLevel(tower.star);
+    const nextLevelXP = growthSystem.getXPRequiredForNextLevel(tower);
+
+    console.log(`📊 Tower Info: ${tower.definition.name}`);
+    console.log(`  Star: ${tower.star}★`);
+    console.log(`  Level: ${tower.level} / ${maxLevel}`);
+    console.log(`  XP: ${Math.floor(tower.xp)} / ${nextLevelXP || 'MAX'}`);
+    console.log(`  Upgrade Points: ${tower.upgradePoints}`);
+    console.log(`  Can Upgrade Star: ${growthSystem.canUpgradeStar(tower)}`);
+  };
+
+  console.log('💡 Dev Commands Available:');
+  console.log('  addXP(amount) - Add XP to selected tower (default: 100)');
+  console.log('  maxLevel() - Max out selected tower level');
+  console.log('  towerInfo() - Show selected tower info');
+  console.log('  Example: addXP(500)');
 }
 
 /**

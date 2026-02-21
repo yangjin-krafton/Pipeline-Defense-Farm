@@ -79,7 +79,7 @@ export function createAcidRailUpgradeNodes() {
           }
         })
       ],
-      effect: '체력 35% 이하 대상 치명타 확률 +12%p',
+      effect: '체력 35% 이하 대상 치명타 확률 +12%',
       prerequisites: [],
       ncCostMultiplier: 0.10
     }),
