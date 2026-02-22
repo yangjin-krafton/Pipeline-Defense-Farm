@@ -3,11 +3,7 @@ import { UpgradeNode } from '../core/UpgradeNode.js';
 import {
   ProjectileModule,
   DamageModule,
-  TagBonusModule,
-  TriggerModule,
-  TriggerEffects,
-  ResourceModule,
-  SafetyModule
+  TagBonusModule
 } from '../core/modules/index.js';
 
 /**
@@ -349,45 +345,50 @@ export class EnzymeChargeCannon extends BaseTower {
     super.configureBulletVisuals(bullet, context, isSecondary);
 
     const chargeLevel = Number.isFinite(context?.chargeLevel) ? context.chargeLevel : this.chargeLevel;
-    bullet.arcScaleProfile = this.getBulletArcScaleProfile(chargeLevel, isSecondary);
+    const distToTarget = Number.isFinite(context?.cannonDistToTarget) ? context.cannonDistToTarget : 0;
+
+    bullet.arcScaleProfile = this.getBulletArcScaleProfile(chargeLevel, distToTarget, isSecondary);
     bullet.colorProfile = this.getBulletColorProfile(chargeLevel, isSecondary);
-    bullet.arcUseDistanceProgress = true;
-  }
 
-  getArcFlightDuration(context, speedMultiplier = 1.0) {
-    const fireTransform = context?.fireTransform;
-    const food = context?.food;
-    const targetPos = fireTransform && food ? this.getTargetWorldPosition(food) : null;
-    const baseSpeed = Number.isFinite(context?.projectileSpeed) ? context.projectileSpeed : this.definition?.stats?.projectileSpeed;
-    const effectiveSpeed = Math.max(1, (baseSpeed || 300) * speedMultiplier);
-
-    if (targetPos && fireTransform) {
-      const dx = targetPos.x - fireTransform.x;
-      const dy = targetPos.y - fireTransform.y;
-      const distance = Math.hypot(dx, dy);
-      return Math.max(0.16, Math.min(0.55, distance / effectiveSpeed));
+    // lockedTargetPos: 주탄만 고정 착탄 적용 (2차탄은 일반 추적 유지)
+    if (!isSecondary &&
+        Number.isFinite(context?.lockedTargetPos?.x) && Number.isFinite(context?.lockedTargetPos?.y)) {
+      bullet.lockedTargetPos = {
+        x: context.lockedTargetPos.x,
+        y: context.lockedTargetPos.y
+      };
     }
 
-    return 0.32;
+    const flightDuration = isSecondary ? 1.5 : (context?.cannonArcFlightDuration ?? 1.5);
+    bullet.arcUseDistanceProgress = false;
+    bullet.arcFlightDuration = flightDuration;
+    bullet.minAirborneTime = flightDuration;
+    bullet.forceImpactOnLanding = !isSecondary; // 주탄만 강제 착탄
+    bullet.renderLast = !isSecondary; // 주탄은 파티클 위에 렌더링
   }
 
-  getBulletArcScaleProfile(chargeLevel, isSecondary = false) {
+  getBulletArcScaleProfile(chargeLevel, distToTarget = 200, isSecondary = false) {
     const chargePct = Math.max(0, Math.min(1, chargeLevel / (this.maxCharge || 100)));
+
+    // 거리 비례 인수 (250px 기준 1.0, 최소 0.3, 최대 2.4)
+    const REF_DIST = 250;
+    const distFactor = Math.max(0.3, Math.min(2.4, distToTarget / REF_DIST));
 
     if (isSecondary) {
       return {
         startScale: 0.72,
         peakScale: 1.18 + chargePct * 0.16,
         endScale: 0.70,
-        liftPixels: 4 + chargePct * 3
+        liftPixels: (4 + chargePct * 3) * Math.min(1.4, distFactor)
       };
     }
 
+    // 주탄: 거리가 멀수록 더 높이, 더 크게 부풀어 올랐다가 착지
     return {
-      startScale: 0.76,
-      peakScale: 1.36 + chargePct * 0.24,
-      endScale: 0.74,
-      liftPixels: 6 + chargePct * 4
+      startScale: 0.72,
+      peakScale: 1.45 + chargePct * 0.30 + distFactor * 0.08,
+      endScale: 0.68,
+      liftPixels: Math.min(72, (18 + chargePct * 14) * distFactor)
     };
   }
 
@@ -438,6 +439,34 @@ export class EnzymeChargeCannon extends BaseTower {
     const projectileSpeed = this.definition.stats.projectileSpeed * this.auraBonuses.projectileSpeed;
 
     const fireTransform = this.getFireTransform(food);
+    const sampledTargetPos = this.getTargetWorldPosition(food);
+    const lockedTargetPos = sampledTargetPos || (
+      (typeof food?.x === 'number' && typeof food?.y === 'number')
+        ? { x: food.x, y: food.y }
+        : null
+    );
+
+    // 거리 기반 캐논 포물선 파라미터 계산
+    // 비행 시간(arcFlightDuration)은 거리에 비례하여 산출하고,
+    // 총알 속도는 그 시간 내에 lockedTargetPos에 정확히 도달하도록 역산함.
+    let cannonArcFlightDuration = 1.5;
+    let cannonBulletSpeed = projectileSpeed;
+    let cannonDistToTarget = 0;
+
+    if (lockedTargetPos) {
+      const adx = lockedTargetPos.x - fireTransform.x;
+      const ady = lockedTargetPos.y - fireTransform.y;
+      cannonDistToTarget = Math.sqrt(adx * adx + ady * ady);
+      if (cannonDistToTarget > 0) {
+        // 250px 기준 1.2초. 짧은 거리: 최소 0.6초, 먼 거리: 최대 2.6초
+        const REF_DIST = 250;
+        cannonArcFlightDuration = Math.max(0.6, Math.min(2.6,
+          1.2 * (cannonDistToTarget / REF_DIST)
+        ));
+        // arcFlightDuration 내에 lockedTargetPos에 정확히 도달하는 속도
+        cannonBulletSpeed = cannonDistToTarget / cannonArcFlightDuration;
+      }
+    }
 
     // 총알 생성 (BaseTower의 기본 로직 대신 직접 생성)
     if (this.bulletSystem) {
@@ -457,8 +486,9 @@ export class EnzymeChargeCannon extends BaseTower {
         chargeRefund: 0,
         chargeLevel: this.chargeLevel,
         maxCharge: this.maxCharge,
-        fireTransform,
-        projectileSpeed,
+        lockedTargetPos,
+        cannonArcFlightDuration,
+        cannonDistToTarget,
         // 이전 공격에서 설정된 버프 스냅샷 (same-attack 소모 방지)
         // 노드 3: onKill 버프가 이번 공격 전에 존재했는지 여부
         killBuffStacksPreAttack: (this.killBuffStacks || 0),
@@ -512,13 +542,14 @@ export class EnzymeChargeCannon extends BaseTower {
       context.damage *= armorMitigation;
 
       // 총알 생성 (충전도에 따른 크기/색상)
+      // 속도는 lockedTargetPos까지 arcFlightDuration 내에 도달하도록 역산된 값 사용
       const bullet = this.bulletSystem.createBullet(
         fireTransform.x,
         fireTransform.y,
         food,
         context.damage,
         bulletColor,
-        projectileSpeed,
+        cannonBulletSpeed,
         bulletSize,
         true
       );
@@ -663,353 +694,242 @@ export class EnzymeChargeCannon extends BaseTower {
 
 /**
  * 효소 축전 캐논 업그레이드 노드 생성
- * 2026-02-22 재설계: 완충폭딜/유연운영/연계폭발
+ * 2026-02-22 재설계: 3x4 고정 구조 (A=공격력형 / B=사거리형 / C=공격속도형)
+ * - A 라인 (1→4→7→10): 공격력 집중, 트레이드오프 사거리 -
+ * - B 라인 (2→5→8→11): 사거리 집중, 트레이드오프 공격속도 -
+ * - C 라인 (3→6→9→12): 공격속도 집중, 트레이드오프 공격력 -
  *
  * 각인 중복 메커니즘:
- * - DamageModule.damageMultiplier: 곱연산 중첩 (1.12 × 1.12 × 1.12)
- * - DamageModule.critDamageBonus: 가산 중첩 (+0.20 + 0.20 + 0.20)
- * - DamageModule.critChanceBonus: 가산 중첩 (+0.12 + 0.12 + 0.12)
- * - ProjectileModule.rangeMultiplier: 곱연산 중첩 (1.10 × 1.10 × 1.10)
- * - ProjectileModule.chargeRateBonus: 가산 중첩 (+0.08 + 0.08 + 0.08)
- * - TriggerModule.damageBonus: 가산 중첩 (+16% + 16% + 16%)
- * - SafetyModule.overheatingReduction: 가산 중첩 (0.20 + 0.20 + 0.20)
+ * - DamageModule.damageMultiplier: 곱연산 중첩 (1.05 × 1.05 × ...)
+ * - DamageModule.attackSpeedMultiplier: 곱연산 중첩 (1.05 × 1.05 × ...)
+ * - DamageModule.critChanceBonus: 가산 중첩 (+4%p × n)
+ * - DamageModule.critMultiplierBonus: 가산 중첩 (+0.06 × n)
+ * - ProjectileModule.rangeMultiplier: 곱연산 중첩 (1.05 × 1.05 × ...)
+ * - TagBonusModule (protein/fat/dairy/spicy/soda/fermented): 곱연산 중첩
+ * - 각인 중복 비용 곡선: x1.0 → x1.5 → x2.2 → x3.2 → x4.5 → x6.2 → x8.5
  */
 export function createEnzymeChargeCannonUpgradeNodes() {
   return [
-    // 1. 완충 압축 코어 (DM)
-    // 각인 중복 시: 기본 피해 곱연산(×1.12^n), 치명타 배율 가산(+0.20×n)
+    // ── A 라인: 공격력 (트레이드오프: 사거리 ↓) ──────────────
+
+    // 1. 고압 압축탄 (분기 A) - DM
+    // 각인 중복 시: 공격력 곱연산(×1.05^n)
     new UpgradeNode({
       id: 'enzymecharge_node_1',
       nodeNumber: 1,
       position: 'branch',
-      name: '완충 압축 코어',
+      name: '고압 압축탄',
       modules: [
         new DamageModule({
-          damageMultiplier: 1.12,  // 완충 피해 +12% [각인 중복: 곱연산]
-          critDamageBonus: 0.20    // 치명타 배율 +0.20 [각인 중복: 가산]
+          damageMultiplier: 1.05  // 공격력 +5% [각인 중복: 곱연산]
         })
       ],
-      effect: '완충 피해 +12%, 치명타 배율 +0.20',
+      effect: '공격력 +5%',
       prerequisites: [],
-      ncCostMultiplier: 0.10
+      ncCostMultiplier: 0.08
     }),
 
-    // 2. 유동 조준 포커스 (PM+TM)
-    // 각인 중복 시: 사거리 곱연산(×1.10^n), 충전 속도 가산(+8%×n)
-    new UpgradeNode({
-      id: 'enzymecharge_node_2',
-      nodeNumber: 2,
-      position: 'branch',
-      name: '유동 조준 포커스',
-      modules: [
-        new ProjectileModule({
-          rangeMultiplier: 1.10,     // 사거리 +10% [각인 중복: 곱연산]
-          chargeRateBonus: 0.08      // 충전 시간 -8% (충전 속도 증가) [각인 중복: 가산]
-        })
-      ],
-      effect: '사거리 +10%, 충전 시간 -8%',
-      prerequisites: [],
-      ncCostMultiplier: 0.10
-    }),
-
-    // 3. 연쇄 기폭 축전지 (TR+DM)
-    // 각인 중복 시: 처치 후 버프 피해 곱연산(×1.16^n)
-    new UpgradeNode({
-      id: 'enzymecharge_node_3',
-      nodeNumber: 3,
-      position: 'branch',
-      name: '연쇄 기폭 축전지',
-      modules: [
-        new TriggerModule({
-          triggerType: 'onKill',
-          triggerEffect: (ctx) => {
-            // 처치 후 다음 1샷 피해 +16% 버프 활성화
-            if (!ctx.tower.killBuffStacks) ctx.tower.killBuffStacks = 0;
-            ctx.tower.killBuffStacks = 1;
-            return {};
-          }
-        }),
-        new DamageModule({
-          damageMultiplier: 1.16,  // 처치 버프 활성 시 피해 +16% [각인 중복: 곱연산]
-          conditionalCheck: (ctx) => {
-            // 이전 공격에서 설정된 버프 스냅샷으로 판정 (same-attack 즉시 소모 방지)
-            const hasBuff = ctx.killBuffStacksPreAttack > 0;
-            if (hasBuff) {
-              ctx.tower.killBuffStacks = 0; // 소모
-            }
-            return hasBuff;
-          }
-        })
-      ],
-      effect: '처치 후 다음 1샷 피해 +16%',
-      prerequisites: [],
-      ncCostMultiplier: 0.10
-    }),
-
-    // 4. 임계 과충전 (DM+TR)
-    // 각인 중복 시: 완충 시 피해 곱연산(×1.18^n)
+    // 4. 압축 강화 I (중간 A) - DM+TB
+    // 각인 중복 시: 공격력 곱연산(×1.06^n), protein 피해 곱연산(×1.14^n)
     new UpgradeNode({
       id: 'enzymecharge_node_4',
       nodeNumber: 4,
       position: 'mid',
-      name: '임계 과충전',
+      name: '압축 강화 I',
       modules: [
         new DamageModule({
-          damageMultiplier: 1.18,  // 완충 상태 추가 피해 +18% [각인 중복: 곱연산]
-          conditionalCheck: (ctx) => {
-            // 완충 상태 적중 시
-            return ctx.tower.chargeLevel >= ctx.tower.maxCharge;
-          }
-        })
+          damageMultiplier: 1.06  // 공격력 +6% [각인 중복: 곱연산]
+        }),
+        new TagBonusModule({ protein: 1.14 })  // protein 대상 추가 피해 +14% [각인 중복: 곱연산]
       ],
-      effect: '완충 상태 적중 시 추가 피해 +18%',
+      effect: '공격력 +6%, protein 대상 추가 피해 +14%',
       prerequisites: [[1]],
-      ncCostMultiplier: 0.12
+      ncCostMultiplier: 0.10
     }),
 
-    // 5. 점막 장거리 보정 (PM+DM)
-    // 각인 중복 시: 장거리 피해 곱연산(×1.14^n)
-    new UpgradeNode({
-      id: 'enzymecharge_node_5',
-      nodeNumber: 5,
-      position: 'mid',
-      name: '점막 장거리 보정',
-      modules: [
-        new ProjectileModule({
-          longRangeBonus: 0.14,      // 장거리 피해 보너스 [각인 중복: 가산]
-          longRangeThreshold: 0.70   // 사거리 70% 이상
-        }),
-        new DamageModule({
-          damageMultiplier: 1.14,    // 장거리 피해 +14% [각인 중복: 곱연산]
-          conditionalCheck: (ctx) => {
-            // 장거리 판정 (사거리 70% 이상) - 타겟의 실제 경로 위치 기반
-            let distance;
-            const tower = ctx.tower;
-            if (tower._multiPathSystem && ctx.food.currentPath !== undefined && ctx.food.d !== undefined) {
-              const pos = tower._multiPathSystem.samplePath(ctx.food.currentPath, ctx.food.d);
-              if (pos) {
-                distance = Math.hypot(tower.x - pos.x, tower.y - pos.y);
-              }
-            }
-            if (distance === undefined) {
-              // fallback: food에 직접 유효한 좌표가 있을 때만 사용
-              // undefined를 0으로 대체하면 원점 기준으로 오판정하므로 수치 타입만 허용
-              if (typeof ctx.food.x === 'number' && typeof ctx.food.y === 'number') {
-                distance = Math.hypot(tower.x - ctx.food.x, tower.y - ctx.food.y);
-              } else {
-                return false; // 위치 정보 없음 - 장거리 판정 불가
-              }
-            }
-            const effectiveRange = tower.range * (tower._moduleRangeMultiplier || 1.0);
-            return distance >= effectiveRange * 0.70;
-          }
-        })
-      ],
-      effect: '장거리(사거리 70%+) 명중 시 피해 +14%',
-      prerequisites: [[2]],
-      ncCostMultiplier: 0.12
-    }),
-
-    // 6. 고속 재축전 루프 (PM+SF)
-    // 각인 중복 시: 충전 속도 가산(+12%×n), 페널티 감소 가산(+10%p×n)
-    new UpgradeNode({
-      id: 'enzymecharge_node_6',
-      nodeNumber: 6,
-      position: 'mid',
-      name: '고속 재축전 루프',
-      modules: [
-        new ProjectileModule({
-          chargeRateBonus: 0.12      // 충전 시간 -12% [각인 중복: 가산]
-        }),
-        new SafetyModule({
-          minChargeToFire: 0.50,     // 50% 이상 발사 가능
-          incompleteFirPenaltyReduction: 0.10  // 미완충 페널티 -10%p [각인 중복: 가산]
-        })
-      ],
-      effect: '충전 시간 -12%, 미완충 발사 피해 페널티 -10%p',
-      prerequisites: [[3]],
-      ncCostMultiplier: 0.12
-    }),
-
-    // 7. 폭발 반응 촉매 (TB+TR+DM)
-    // 각인 중복 시: 디버프 대상 피해 곱연산(×1.12^n), 충전 환급 가산(+10%×n)
+    // 7. 압축 강화 II (중간 A) - DM+TB
+    // 각인 중복 시: 공격력 곱연산(×1.07^n), fat 피해 곱연산(×1.16^n)
     new UpgradeNode({
       id: 'enzymecharge_node_7',
       nodeNumber: 7,
       position: 'mid',
-      name: '폭발 반응 촉매',
+      name: '압축 강화 II',
       modules: [
         new DamageModule({
-          damageMultiplier: 1.12,    // 디버프 대상 피해 +12% [각인 중복: 곱연산]
-          conditionalCheck: (ctx) => {
-            // 디버프 대상 판정 (statusEffects 스키마 사용)
-            return ctx.food.statusEffects && ctx.food.statusEffects.length > 0;
-          }
+          damageMultiplier: 1.07  // 공격력 +7% [각인 중복: 곱연산]
         }),
-        new TriggerModule({
-          triggerType: 'onKill',
-          triggerEffect: (ctx) => {
-            // 처치 시 다음 샷 충전 +10% [각인 중복: 가산]
-            if (!ctx.tower.chargeRefundBonus) ctx.tower.chargeRefundBonus = 0;
-            ctx.tower.chargeRefundBonus += 10;
-            return {};
-          }
-        })
+        new TagBonusModule({ fat: 1.16 })  // fat 대상 추가 피해 +16% [각인 중복: 곱연산]
       ],
-      effect: '디버프 대상 명중 시 추가 피해 +12%, 처치 시 다음 샷 충전 +10%',
+      effect: '공격력 +7%, fat 대상 추가 피해 +16%',
       prerequisites: [[4]],
       ncCostMultiplier: 0.13
     }),
 
-    // 8. 단일 저격 안정화 (TM+DM)
-    // 각인 중복 시: 연속 적중 피해 곱연산(×1.20^n)
-    new UpgradeNode({
-      id: 'enzymecharge_node_8',
-      nodeNumber: 8,
-      position: 'mid',
-      name: '단일 저격 안정화',
-      modules: [
-        new TriggerModule({
-          triggerType: 'onHit',
-          triggerEffect: (ctx) => {
-            // 단일 타겟 연속 적중 카운트
-            if (!ctx.tower.sameTargetHitCount) ctx.tower.sameTargetHitCount = {};
-            const foodId = ctx.food.id;
-            ctx.tower.sameTargetHitCount[foodId] = (ctx.tower.sameTargetHitCount[foodId] || 0) + 1;
-            return {};
-          }
-        }),
-        new DamageModule({
-          damageMultiplier: 1.20,    // 연속 적중 3회 시 피해 +20% [각인 중복: 곱연산]
-          conditionalCheck: (ctx) => {
-            // 연속 적중 3회 이상
-            const foodId = ctx.food.id;
-            return ctx.tower.sameTargetHitCount && ctx.tower.sameTargetHitCount[foodId] >= 3;
-          }
-        })
-      ],
-      effect: '단일 타겟 연속 적중 3회 시 피해 +20%',
-      prerequisites: [[5]],
-      ncCostMultiplier: 0.15
-    }),
-
-    // 9. 과열 완화 방열판 (SF+PM+DM)
-    // 각인 중복 시: 과열 감소 가산(+20%×n), 완충 피해 곱연산(×1.08^n)
-    new UpgradeNode({
-      id: 'enzymecharge_node_9',
-      nodeNumber: 9,
-      position: 'mid',
-      name: '과열 완화 방열판',
-      modules: [
-        new SafetyModule({
-          overheatingReduction: 0.20  // 과열 페널티 -20% [각인 중복: 가산]
-        }),
-        new DamageModule({
-          damageMultiplier: 1.08,     // 완충 피해 +8% [각인 중복: 곱연산]
-          conditionalCheck: (ctx) => {
-            // 완충 상태 판정
-            return ctx.tower.chargeLevel >= ctx.tower.maxCharge;
-          }
-        })
-      ],
-      effect: '과열 페널티 -20%, 완충 피해 +8%',
-      prerequisites: [[6]],
-      ncCostMultiplier: 0.15
-    }),
-
-    // 10. 완충 임계 붕괴 (TR+DM+PM)
-    // 각인 중복 시: 2차 타격 피해 가산(+35%×n)
+    // 10. 압축 필살 (끝 A) - DM+PM+TR
+    // 각인 중복 시: 공격력 곱연산(×1.10^n), 치명타 확률 가산(+4%p×n), 치명타 피해 가산(+0.06×n)
     new UpgradeNode({
       id: 'enzymecharge_node_10',
       nodeNumber: 10,
       position: 'end',
-      name: '완충 임계 붕괴',
+      name: '압축 필살',
       modules: [
-        new TriggerModule({
-          triggerType: 'onHit',
-          triggerCondition: (ctx) => {
-            // 완충 샷 & 체력 60%+ 대상
-            const isFullCharge = ctx.tower.chargeLevel >= ctx.tower.maxCharge;
-            const hpPercent = ctx.food.hp / ctx.food.maxHp;
-            return isFullCharge && hpPercent >= 0.60;
-          },
-          triggerEffect: (ctx) => {
-            // 2차 타격 35% [각인 중복: 가산]
-            return { secondaryDamage: ctx.damage * 0.35 };
-          }
+        new DamageModule({
+          damageMultiplier: 1.10,    // 공격력 +10% [각인 중복: 곱연산]
+          critChanceBonus: 0.04,     // 치명타 확률 +4%p [각인 중복: 가산]
+          critMultiplierBonus: 0.06  // 치명타 피해 +6% [각인 중복: 가산]
         })
       ],
-      effect: '완충 샷이 체력 60%+ 대상에 2차 타격 35% 발생',
+      effect: '공격력 +10%, 치명타 확률 +4%, 치명타 피해 +6%',
       prerequisites: [[7]],
       ncCostMultiplier: 0.18
     }),
 
-    // 11. 타이밍 폭발 프로토콜 (TR+DM)
-    // 각인 중복 시: 타이밍 버스트 피해 곱연산(×1.40^n)
+    // ── B 라인: 사거리 (트레이드오프: 공격속도 ↓) ────────────
+
+    // 2. 장거리 포커스 (분기 B) - PM
+    // 각인 중복 시: 사거리 곱연산(×1.05^n)
+    new UpgradeNode({
+      id: 'enzymecharge_node_2',
+      nodeNumber: 2,
+      position: 'branch',
+      name: '장거리 포커스',
+      modules: [
+        new ProjectileModule({
+          rangeMultiplier: 1.05  // 사거리 +5% [각인 중복: 곱연산]
+        })
+      ],
+      effect: '사거리 +5%',
+      prerequisites: [],
+      ncCostMultiplier: 0.08
+    }),
+
+    // 5. 거리 강화 I (중간 B) - PM+TB
+    // 각인 중복 시: 사거리 곱연산(×1.06^n), dairy 피해 곱연산(×1.12^n)
+    new UpgradeNode({
+      id: 'enzymecharge_node_5',
+      nodeNumber: 5,
+      position: 'mid',
+      name: '거리 강화 I',
+      modules: [
+        new ProjectileModule({
+          rangeMultiplier: 1.06  // 사거리 +6% [각인 중복: 곱연산]
+        }),
+        new TagBonusModule({ dairy: 1.12 })  // dairy 대상 추가 피해 +12% [각인 중복: 곱연산]
+      ],
+      effect: '사거리 +6%, dairy 대상 추가 피해 +12%',
+      prerequisites: [[2]],
+      ncCostMultiplier: 0.10
+    }),
+
+    // 8. 거리 강화 II (중간 B) - PM+TB
+    // 각인 중복 시: 사거리 곱연산(×1.07^n), spicy 피해 곱연산(×1.13^n)
+    new UpgradeNode({
+      id: 'enzymecharge_node_8',
+      nodeNumber: 8,
+      position: 'mid',
+      name: '거리 강화 II',
+      modules: [
+        new ProjectileModule({
+          rangeMultiplier: 1.07  // 사거리 +7% [각인 중복: 곱연산]
+        }),
+        new TagBonusModule({ spicy: 1.13 })  // spicy 대상 추가 피해 +13% [각인 중복: 곱연산]
+      ],
+      effect: '사거리 +7%, spicy 대상 추가 피해 +13%',
+      prerequisites: [[5]],
+      ncCostMultiplier: 0.13
+    }),
+
+    // 11. 장거리 필살 (끝 B) - PM+DM+SF
+    // 각인 중복 시: 사거리 곱연산(×1.10^n), 치명타 피해 가산(+0.10×n)
     new UpgradeNode({
       id: 'enzymecharge_node_11',
       nodeNumber: 11,
       position: 'end',
-      name: '타이밍 폭발 프로토콜',
+      name: '장거리 필살',
       modules: [
-        new TriggerModule({
-          triggerType: 'onKill',
-          triggerEffect: (ctx) => {
-            // 3초 내 처치 판정
-            const now = Date.now();
-            if (!ctx.tower.lastKillTime) ctx.tower.lastKillTime = 0;
-            const timeSinceLastKill = (now - ctx.tower.lastKillTime) / 1000;
-
-            if (timeSinceLastKill <= 3.0) {
-              // 연계 성공: 다음 완충 샷 피해 +40%
-              ctx.tower.timingBurstActive = true;
-            }
-            ctx.tower.lastKillTime = now;
-            return {};
-          }
+        new ProjectileModule({
+          rangeMultiplier: 1.10       // 사거리 +10% [각인 중복: 곱연산]
         }),
         new DamageModule({
-          damageMultiplier: 1.40,    // 타이밍 버스트 피해 +40% [각인 중복: 곱연산]
-          conditionalCheck: (ctx) => {
-            // 이전 공격에서 설정된 버프 스냅샷으로 판정 (same-attack 즉시 소모 방지)
-            const isFullCharge = ctx.tower.chargeLevel >= ctx.tower.maxCharge;
-            const hasBuff = ctx.timingBurstActivePreAttack === true;
-            if (isFullCharge && hasBuff) {
-              ctx.tower.timingBurstActive = false; // 소모
-              return true;
-            }
-            return false;
-          }
+          critMultiplierBonus: 0.10   // 치명타 피해 +10% [각인 중복: 가산]
         })
       ],
-      effect: '3초 내 처치 연계 시 다음 완충 샷 피해 +40%',
+      effect: '사거리 +10%, 치명타 피해 +10%',
       prerequisites: [[8]],
-      ncCostMultiplier: 0.22
+      ncCostMultiplier: 0.20
     }),
 
-    // 12. 초고압 캐논 오버드라이브 (DM+PM+TR)
-    // 각인 중복 시: 사거리 곱연산(×1.12^n), 충전 속도 가산(+10%×n), 치명타 확률 가산(+12%p×n)
+    // ── C 라인: 공격속도 (트레이드오프: 공격력 ↓) ────────────
+
+    // 3. 과급 연사 코어 (분기 C) - DM
+    // 각인 중복 시: 공격속도 곱연산(×1.05^n)
+    new UpgradeNode({
+      id: 'enzymecharge_node_3',
+      nodeNumber: 3,
+      position: 'branch',
+      name: '과급 연사 코어',
+      modules: [
+        new DamageModule({
+          attackSpeedMultiplier: 1.05  // 공격속도 +5% [각인 중복: 곱연산]
+        })
+      ],
+      effect: '공격속도 +5%',
+      prerequisites: [],
+      ncCostMultiplier: 0.08
+    }),
+
+    // 6. 연사 강화 I (중간 C) - DM+TB
+    // 각인 중복 시: 공격속도 곱연산(×1.06^n), soda 피해 곱연산(×1.10^n)
+    new UpgradeNode({
+      id: 'enzymecharge_node_6',
+      nodeNumber: 6,
+      position: 'mid',
+      name: '연사 강화 I',
+      modules: [
+        new DamageModule({
+          attackSpeedMultiplier: 1.06  // 공격속도 +6% [각인 중복: 곱연산]
+        }),
+        new TagBonusModule({ soda: 1.10 })  // soda 대상 추가 피해 +10% [각인 중복: 곱연산]
+      ],
+      effect: '공격속도 +6%, soda 대상 추가 피해 +10%',
+      prerequisites: [[3]],
+      ncCostMultiplier: 0.10
+    }),
+
+    // 9. 연사 강화 II (중간 C) - DM+TR+TB
+    // 각인 중복 시: 공격속도 곱연산(×1.07^n), fermented 피해 곱연산(×1.15^n)
+    new UpgradeNode({
+      id: 'enzymecharge_node_9',
+      nodeNumber: 9,
+      position: 'mid',
+      name: '연사 강화 II',
+      modules: [
+        new DamageModule({
+          attackSpeedMultiplier: 1.07  // 공격속도 +7% [각인 중복: 곱연산]
+        }),
+        new TagBonusModule({ fermented: 1.15 })  // fermented 대상 추가 피해 +15% [각인 중복: 곱연산]
+      ],
+      effect: '공격속도 +7%, fermented 대상 추가 피해 +15%',
+      prerequisites: [[6]],
+      ncCostMultiplier: 0.13
+    }),
+
+    // 12. 연사 필살 (끝 C) - DM+SF+TR
+    // 각인 중복 시: 공격속도 곱연산(×1.10^n), 치명타 확률 가산(+10%p×n)
     new UpgradeNode({
       id: 'enzymecharge_node_12',
       nodeNumber: 12,
       position: 'end',
-      name: '초고압 캐논 오버드라이브',
+      name: '연사 필살',
       modules: [
-        new ProjectileModule({
-          rangeMultiplier: 1.12,     // 사거리 +12% [각인 중복: 곱연산]
-          chargeRateBonus: 0.10      // 충전 시간 -10% [각인 중복: 가산]
-        }),
         new DamageModule({
-          critChanceBonus: 0.12,     // 완충 샷 치명타 확률 +12%p [각인 중복: 가산]
-          conditionalCheck: (ctx) => {
-            // 완충 샷
-            return ctx.tower.chargeLevel >= ctx.tower.maxCharge;
-          }
+          attackSpeedMultiplier: 1.10,  // 공격속도 +10% [각인 중복: 곱연산]
+          critChanceBonus: 0.10         // 치명타 확률 +10%p [각인 중복: 가산]
         })
       ],
-      effect: '사거리 +12%, 충전 시간 -10%, 완충 샷 치명타 확률 +12%p',
+      effect: '공격속도 +10%, 치명타 확률 +10%',
       prerequisites: [[9]],
-      ncCostMultiplier: 0.25
+      ncCostMultiplier: 0.22
     })
   ];
 }

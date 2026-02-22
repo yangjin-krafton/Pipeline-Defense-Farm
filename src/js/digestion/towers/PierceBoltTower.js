@@ -29,6 +29,162 @@ export class PierceBoltTower extends BaseTower {
   getTowerMuzzleLocalAngle() {
     return -Math.PI / 4;
   }
+
+  // 기본 대비 50% 더 큰 총알
+  getBulletBaseSize() {
+    return 7.5;
+  }
+
+  /**
+   * 관통 볼트: 원형 유지. 트레일은 별도 WebGL2 이펙트로 표현.
+   */
+  getBulletRenderStyle(context, isSecondary = false) {
+    if (isSecondary) {
+      return { stretch: 1.0, thickness: 1.0, glow: 0.45 };
+    }
+    return { stretch: 1.0, thickness: 1.0, glow: 0.60 };
+  }
+
+  /**
+   * 발사 이펙트: 전방 예리한 에너지 섬광 + 측면 스파크.
+   */
+  emitBulletSpawnEffect(bullet, context, isSecondary = false) {
+    if (!this.particleSystem) return;
+
+    const forward = Number.isFinite(bullet.rotation) ? bullet.rotation : 0;
+    const c = bullet.color || [0.8, 0.2, 1.0, 1.0];
+
+    // 전방 섬광: 볼트 출발 방향으로 좁고 빠른 플래시
+    const flash = [
+      Math.min(1, c[0] + 0.15),
+      Math.min(1, c[1] + 0.35),
+      Math.min(1, c[2] + 0.0),
+      0.90
+    ];
+    this.particleSystem.emit(
+      bullet.x, bullet.y,
+      isSecondary ? 4 : 7,
+      flash,
+      isSecondary ? 180 : 240,
+      0.14,
+      {
+        spread: Math.PI / 10,
+        direction: forward,
+        gravity: 0,
+        sizeMin: isSecondary ? 3 : 5,
+        sizeMax: isSecondary ? 7 : 11,
+        colorVariation: 0.10
+      }
+    );
+
+    // 측면 에너지 스파크
+    const spark = [0.92, 0.58, 1.0, 0.80];
+    this.particleSystem.emit(
+      bullet.x, bullet.y,
+      isSecondary ? 3 : 5,
+      spark,
+      100,
+      0.22,
+      {
+        spread: Math.PI / 2.5,
+        direction: forward,
+        gravity: 50,
+        sizeMin: 2,
+        sizeMax: isSecondary ? 4 : 6,
+        colorVariation: 0.14
+      }
+    );
+  }
+
+  /**
+   * 피격 이펙트: 전방 관통 파편 + 수직 방향 에너지 산개.
+   * 관통 탄의 특성상 볼트가 계속 진행하는 느낌을 강조.
+   */
+  emitBulletHitEffect(bullet, target, particleSystem, context, isSecondary = false) {
+    if (!particleSystem) return;
+
+    const forward = Number.isFinite(bullet.rotation)
+      ? bullet.rotation
+      : Math.atan2(bullet.lastDirY || 0, bullet.lastDirX || 1);
+    const c = bullet.color || [0.8, 0.2, 1.0, 1.0];
+
+    // 전방 관통 파편: 볼트 진행 방향으로 흩어짐
+    const shatter = [
+      Math.min(1, c[0] + 0.18),
+      Math.min(1, c[1] + 0.38),
+      Math.min(1, c[2] - 0.08),
+      0.88
+    ];
+    particleSystem.emit(
+      bullet.x, bullet.y,
+      isSecondary ? 4 : 8,
+      shatter,
+      isSecondary ? 140 : 190,
+      0.20,
+      {
+        spread: Math.PI / 3.5,
+        direction: forward,
+        gravity: 90,
+        sizeMin: isSecondary ? 4 : 6,
+        sizeMax: isSecondary ? 8 : 13,
+        colorVariation: 0.18
+      }
+    );
+
+    // 수직 에너지 산개: 측면으로 퍼지는 충격파 느낌
+    const burst = [
+      c[0] * 0.85 + 0.10,
+      c[1] * 0.85 + 0.28,
+      c[2] * 0.85,
+      0.70
+    ];
+    particleSystem.emit(
+      bullet.x, bullet.y,
+      isSecondary ? 3 : 5,
+      burst,
+      80,
+      0.26,
+      {
+        spread: Math.PI * 0.7,
+        direction: forward + Math.PI / 2,
+        gravity: 120,
+        sizeMin: isSecondary ? 3 : 5,
+        sizeMax: isSecondary ? 6 : 9,
+        colorVariation: 0.20
+      }
+    );
+
+    particleSystem.emitHitEffect(bullet.x, bullet.y, bullet.color, bullet.damage);
+  }
+
+  /**
+   * 비주얼 설정: 트레일 강제 활성화 및 관통 에너지 스트리크 오버라이드.
+   * 총알 인스턴스의 emitTrail을 직접 교체해 WebGL2 파티클 기반 에너지 잔상 구현.
+   */
+  configureBulletVisuals(bullet, context, isSecondary = false) {
+    super.configureBulletVisuals(bullet, context, isSecondary);
+
+    // 관통 직진: 발사 순간 타겟 방향으로 고정, 적 움직임 추적 없음
+    bullet.homing = false;
+    const angle = Number.isFinite(bullet.rotation) ? bullet.rotation : 0;
+    bullet.dirX = Math.cos(angle);
+    bullet.dirY = Math.sin(angle);
+
+    // Ghost 잔상 트레일: 파티클 대신 동일한 총알 구슬을 BulletRenderer로 복사
+    // 크기/색상/글로우가 원본과 완벽히 일치하며, 뒤로 갈수록 페이드 처리
+    bullet.hasTrail = true;
+    bullet.trailCapacity = isSecondary ? 4 : 8;
+    bullet.trailPositions = []; // [{x, y}, ...] — index 0 이 가장 최근
+    bullet.trailInterval = isSecondary ? 0.018 : 0.012;
+
+    // emitTrail: 파티클 emit 대신 위치 버퍼에 push
+    bullet.emitTrail = function (/* ps */) {
+      this.trailPositions.unshift({ x: this.x, y: this.y });
+      if (this.trailPositions.length > this.trailCapacity) {
+        this.trailPositions.pop();
+      }
+    };
+  }
 }
 
 /**

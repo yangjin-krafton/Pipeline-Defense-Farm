@@ -336,7 +336,7 @@
   height: 48px;
   border: 4px solid var(--splat-dark);
   border-radius: 12px;
-  font-size: 14px;
+  font-size: 28px;
   font-weight: 900;
   cursor: pointer;
   transition: all 0.2s;

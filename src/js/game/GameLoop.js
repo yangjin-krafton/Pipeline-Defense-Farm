@@ -363,11 +363,16 @@ export class GameLoop {
 
   /**
    * NEW: Draw bullets (WebGL2 Instanced Rendering)
+   * @param {boolean} renderLast - true: renderLast 플래그 탄만 / false: 일반 탄만
    */
-  drawBullets() {
+  drawBullets(renderLast = false) {
     const bullets = this.bulletSystem.getBullets();
-    if (bullets.length > 0) {
-      this.bulletRenderer.update(bullets);
+    if (bullets.length === 0) return;
+
+    // renderLast 플래그 기준으로 분리 (캐논 주탄은 파티클 위에 올라옴)
+    const pass = bullets.filter(b => !!b.renderLast === renderLast);
+    if (pass.length > 0) {
+      this.bulletRenderer.update(pass);
     }
   }
 
@@ -500,13 +505,16 @@ export class GameLoop {
     // 1. WebGL: Background, paths, tower slots
     this.drawPath();
 
-    // 2. WebGL: Bullets
-    this.drawBullets();
+    // 2. WebGL: Bullets — 일반 (파티클 아래)
+    this.drawBullets(false);
 
-    // 3. WebGL: Particles (rendered last in WebGL so hit/shot effects stay on top)
+    // 3. WebGL: Particles (hit/shot 이펙트)
     this.drawParticles();
 
-    // 4. Canvas 2D: Food emojis + HP bars + status icons + Tower emojis
+    // 4. WebGL: Bullets — renderLast (캐논 주탄 등, 파티클 위)
+    this.drawBullets(true);
+
+    // 5. Canvas 2D: Food emojis + HP bars + status icons + Tower emojis
     this.drawEmojis();
 
     requestAnimationFrame((t) => this.frame(t));

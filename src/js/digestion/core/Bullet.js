@@ -88,6 +88,42 @@ export class Bullet {
       return false;
     }
 
+    // ── lockedTargetPos 모드 (캐논 탄) ──────────────────────────────────
+    // 발사 순간 고정된 경로 위치를 향해 직진.
+    // 적이 도중에 사망/이동해도 탄이 유지되며, arcFlightDuration 만료 시 강제 착탄.
+    if (this.lockedTargetPos) {
+      if (!this.target) {
+        this.alive = false;
+        return false;
+      }
+
+      // forceImpactOnLanding: 포물선 비행 시간 만료 → 강제 착탄
+      if (this.forceImpactOnLanding &&
+          Number.isFinite(this.arcFlightDuration) && this.arcFlightDuration > 0 &&
+          this.lifetime >= this.arcFlightDuration) {
+        this.alive = false;
+        return this.target.hp > 0; // 대상이 살아있으면 적중 처리
+      }
+
+      const ldx = this.lockedTargetPos.x - this.x;
+      const ldy = this.lockedTargetPos.y - this.y;
+      const ldist = Math.sqrt(ldx * ldx + ldy * ldy);
+      if (ldist > 0.5) {
+        this.lastDirX = ldx / ldist;
+        this.lastDirY = ldy / ldist;
+        this.x += (ldx / ldist) * this.speed * dt;
+        this.y += (ldy / ldist) * this.speed * dt;
+        this.rotation = Math.atan2(ldy, ldx);
+      }
+
+      if (this.hasTrail && particleSystem && this.trailTimer >= this.trailInterval) {
+        this.emitTrail(particleSystem);
+        this.trailTimer = 0;
+      }
+      return false;
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     // 타겟이 사망했거나 없으면 소멸
     if (!this.target || this.target.hp <= 0) {
       this.alive = false;

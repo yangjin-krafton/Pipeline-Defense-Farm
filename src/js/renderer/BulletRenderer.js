@@ -218,42 +218,71 @@ export class BulletRenderer extends InstancedRenderer {
   }
 
   update(bullets) {
-    if (!bullets || bullets.length === 0) {
-      return;
-    }
+    if (!bullets || bullets.length === 0) return;
 
-    const count = Math.min(bullets.length, this.maxInstances);
+    let idx = 0;
+    const max = this.maxInstances;
 
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < bullets.length && idx < max; i++) {
       const bullet = bullets[i];
+
+      // ── Ghost 잔상 (trailPositions 보유 탄만) ──────────────────────────
+      if (bullet.trailPositions && bullet.trailPositions.length > 0) {
+        const ghosts = bullet.trailPositions;
+        const n = ghosts.length;
+        const baseStyle = this.resolveRenderStyle(bullet);
+
+        for (let g = 0; g < n && idx < max; g++) {
+          const pos = ghosts[g];
+          // g=0: 가장 최근(선명) → g=n-1: 가장 오래됨(투명)
+          const t = (g + 1) / (n + 1);
+
+          this.tempPositions[idx * 2]     = pos.x;
+          this.tempPositions[idx * 2 + 1] = pos.y;
+          this.tempColors[idx * 4]     = bullet.color[0];
+          this.tempColors[idx * 4 + 1] = bullet.color[1];
+          this.tempColors[idx * 4 + 2] = bullet.color[2];
+          this.tempColors[idx * 4 + 3] = bullet.color[3] * (1 - t) * 0.65;
+          this.tempSizes[idx]      = bullet.size * (1 - t * 0.38);
+          this.tempRotations[idx]  = baseStyle.rotation;
+          this.tempStretch[idx]    = baseStyle.stretch;
+          this.tempThickness[idx]  = baseStyle.thickness;
+          this.tempGlow[idx]       = baseStyle.glow * (1 - t * 0.85);
+          idx++;
+        }
+      }
+      // ─────────────────────────────────────────────────────────────────
+
+      // 주 총알
       const style = this.resolveRenderStyle(bullet);
       const arcPose = this.resolveArcPose(bullet);
       const renderColor = this.resolveBulletColor(bullet, arcPose.t);
 
-      this.tempPositions[i * 2] = bullet.x;
-      this.tempPositions[i * 2 + 1] = bullet.y + arcPose.yOffset;
-
-      this.tempColors[i * 4] = renderColor[0];
-      this.tempColors[i * 4 + 1] = renderColor[1];
-      this.tempColors[i * 4 + 2] = renderColor[2];
-      this.tempColors[i * 4 + 3] = renderColor[3];
-
-      this.tempSizes[i] = bullet.size * arcPose.scale;
-      this.tempRotations[i] = style.rotation;
-      this.tempStretch[i] = style.stretch;
-      this.tempThickness[i] = style.thickness;
-      this.tempGlow[i] = style.glow;
+      this.tempPositions[idx * 2]     = bullet.x;
+      this.tempPositions[idx * 2 + 1] = bullet.y + arcPose.yOffset;
+      this.tempColors[idx * 4]     = renderColor[0];
+      this.tempColors[idx * 4 + 1] = renderColor[1];
+      this.tempColors[idx * 4 + 2] = renderColor[2];
+      this.tempColors[idx * 4 + 3] = renderColor[3];
+      this.tempSizes[idx]      = bullet.size * arcPose.scale;
+      this.tempRotations[idx]  = style.rotation;
+      this.tempStretch[idx]    = style.stretch;
+      this.tempThickness[idx]  = style.thickness;
+      this.tempGlow[idx]       = style.glow;
+      idx++;
     }
 
-    this.updateInstanceBuffer('position', this.tempPositions, count);
-    this.updateInstanceBuffer('color', this.tempColors, count);
-    this.updateInstanceBuffer('size', this.tempSizes, count);
-    this.updateInstanceBuffer('rotation', this.tempRotations, count);
-    this.updateInstanceBuffer('stretch', this.tempStretch, count);
-    this.updateInstanceBuffer('thickness', this.tempThickness, count);
-    this.updateInstanceBuffer('glow', this.tempGlow, count);
+    if (idx === 0) return;
 
-    this.render(count);
+    this.updateInstanceBuffer('position',  this.tempPositions, idx);
+    this.updateInstanceBuffer('color',     this.tempColors,    idx);
+    this.updateInstanceBuffer('size',      this.tempSizes,     idx);
+    this.updateInstanceBuffer('rotation',  this.tempRotations, idx);
+    this.updateInstanceBuffer('stretch',   this.tempStretch,   idx);
+    this.updateInstanceBuffer('thickness', this.tempThickness, idx);
+    this.updateInstanceBuffer('glow',      this.tempGlow,      idx);
+
+    this.render(idx);
   }
 
   updateResolution(resolution) {

@@ -280,7 +280,7 @@ export class TowerDetailPanel {
     const sellBtn = document.getElementById('sellBtn');
     if (sellBtn) {
       const refundAmount = towerManager.calculateSellValue(tower);
-      sellBtn.textContent = `💰 판매 (+🍎 ${refundAmount})`;
+      sellBtn.textContent = `🍎${refundAmount} 판매`;
 
       sellBtn.onclick = (e) => {
         e.stopPropagation();

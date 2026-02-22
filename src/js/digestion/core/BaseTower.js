@@ -257,7 +257,7 @@ export class BaseTower {
         context.damage,
         bulletColor,
         projectileSpeed * this.auraBonuses.projectileSpeed,
-        5,
+        this.getBulletBaseSize(),
         true,
         pierceOptions
       );
@@ -278,7 +278,7 @@ export class BaseTower {
           context.damage * context.secondaryDamage,
           bulletColor,
           projectileSpeed * this.auraBonuses.projectileSpeed,
-          4,
+          Math.round(this.getBulletBaseSize() * 0.8),
           true
         );
         if (secondaryBullet) {
@@ -372,6 +372,14 @@ export class BaseTower {
     if (context.statusEffects?.length > 0) {
       this._applyStatusEffects(food, context.statusEffects);
     }
+  }
+
+  /**
+   * 기본 총알 크기. 타워별 오버라이드 가능.
+   * @returns {number}
+   */
+  getBulletBaseSize() {
+    return 5;
   }
 
   /**
