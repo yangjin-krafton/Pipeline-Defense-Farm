@@ -6,6 +6,7 @@
 import { StatRollingAnimation } from './StatRollingAnimation.js';
 import { UIParticleSystem } from './UIParticleSystem.js';
 import { UpgradeCelebration } from './UpgradeCelebration.js';
+import { formatTagText } from '../utils/TagFormatter.js';
 
 export class StarUpgradeManager {
   constructor(gameLoop, uiController) {
@@ -454,7 +455,7 @@ export class StarUpgradeManager {
             <span class="imprint-name">${option.nodeName}</span>
           </div>
           <div class="imprint-card-content">
-            <p class="imprint-card-description">${option.nodeDescription}</p>
+            <p class="imprint-card-description">${formatTagText(option.nodeDescription)}</p>
           </div>
         </div>
       `;

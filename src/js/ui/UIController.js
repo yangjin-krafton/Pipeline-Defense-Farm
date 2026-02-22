@@ -7,6 +7,7 @@ import { TOWER_DEFINITIONS } from '../digestion/data/towerDefinitions.js';
 import { COST_RATIOS } from '../digestion/data/economyDefinitions.js';
 import { dragManager } from '../core/DragManager.js';
 import { StarUpgradeManager } from './StarUpgradeManager.js';
+import { formatTagText } from '../utils/TagFormatter.js';
 
 export class UIController {
   constructor() {
@@ -620,7 +621,7 @@ export class UIController {
           <span class="imprint-star-badge">${imprint.acquiredStar}★</span>
           <span class="imprint-card-title">✨ ${imprint.nodeName}</span>
         </div>
-        <div class="imprint-card-description">${imprint.nodeDescription}</div>
+        <div class="imprint-card-description">${formatTagText(imprint.nodeDescription)}</div>
       `;
 
       imprintList.appendChild(card);
@@ -2142,7 +2143,7 @@ export class UIController {
    */
   _getEnhancedEffectText(node, imprintCount) {
     if (imprintCount === 0) {
-      return node.effect;
+      return formatTagText(node.effect);
     }
 
     let enhancedText = node.effect;
@@ -2226,6 +2227,6 @@ export class UIController {
       }
     }
 
-    return enhancedText;
+    return formatTagText(enhancedText);
   }
 }
