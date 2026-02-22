@@ -1,100 +1,89 @@
 /**
  * StatRollingAnimation.js
- * 스탯 롤링 애니메이션 (슬롯머신 스타일)
+ * 스탯 카드 플립 연출 + 등급별 효과음 재생
  */
+
+const GRADE_SFX = {
+  'SSS': { event: 'upgrade_reveal_sss', volume: 0.88 },
+  'SS':  { event: 'upgrade_reveal_ss',  volume: 0.84 },
+  'S':   { event: 'upgrade_reveal_s',   volume: 0.78 },
+  'A':   { event: 'upgrade_reveal_a',   volume: 0.70 },
+  'B':   { event: 'upgrade_reveal_b',   volume: 0.60 },
+  'C':   { event: 'upgrade_reveal_c',   volume: 0.48 },
+};
+
 export class StatRollingAnimation {
   constructor() {
     this.isRolling = false;
   }
 
   /**
-   * 스탯 롤링 시작
-   * @param {Object[]} stats - 스탯 정보 배열 [{element, value, grade, min, max}, ...]
-   * @param {Function} onComplete - 완료 콜백
+   * 카드 플립 시작 (순차 실행, 120ms 간격)
+   * @param {Object[]} stats   - [{element, value, min, max, grade}, ...]
+   * @param {Function} onComplete
+   * @param {Function} [playSfx] - (eventName, volume) => void
    */
-  async startRolling(stats, onComplete) {
+  async startRolling(stats, onComplete, playSfx = null) {
     if (this.isRolling) return;
-
     this.isRolling = true;
 
-    // 모든 스탯을 순차적으로 롤링 (150ms 간격)
-    const rollingPromises = stats.map((stat, index) => {
-      return this._rollSingleStat(stat, index * 150);
-    });
+    const promises = stats.map((stat, index) =>
+      this._flipCard(stat, index * 120, playSfx)
+    );
 
-    // 모든 롤링 완료 대기
-    await Promise.all(rollingPromises);
+    await Promise.all(promises);
 
     this.isRolling = false;
     if (onComplete) onComplete();
   }
 
   /**
-   * 단일 스탯 롤링
-   * @param {Object} stat - {element: HTMLElement, value: number, grade: Object, min: number, max: number}
-   * @param {number} delay - 시작 지연 (ms)
+   * 단일 카드 플립
+   * 1) flip-out (0→90°, 180ms)
+   * 2) 90° 지점에서 값 교체 + 등급 SFX 재생
+   * 3) flip-in (-90°→0°, 280ms, 바운스)
    */
-  async _rollSingleStat(stat, delay) {
-    // 초기 지연
+  async _flipCard(stat, delay, playSfx) {
     await this._delay(delay);
 
-    const { element, value, min, max } = stat;
-    const duration = 800; // 0.8초
-    const frameRate = 60;
-    const totalFrames = Math.floor(duration / (1000 / frameRate));
+    const { element, value, grade } = stat;
+    const card = element.closest('.stat-comp-card') ?? element.closest('.stat-comparison-row');
 
-    // 롤링 클래스 추가 (CSS 애니메이션)
-    element.classList.add('rolling');
-
-    for (let frame = 0; frame < totalFrames; frame++) {
-      const progress = frame / totalFrames;
-      const easedProgress = this._easeOutCubic(progress);
-
-      if (progress < 0.7) {
-        // 랜덤 롤링 (70%까지)
-        const randomValue = min + Math.random() * (max - min);
-        const displayPercent = (randomValue * 100).toFixed(1);
-        element.textContent = `+${displayPercent}%`;
-      } else {
-        // 최종값으로 수렴 (70% ~ 100%)
-        const convergenceProgress = (progress - 0.7) / 0.3;
-        const interpolated = min + (value - min) * this._easeOutCubic(convergenceProgress);
-        const displayPercent = (interpolated * 100).toFixed(1);
-        element.textContent = `+${displayPercent}%`;
-      }
-
-      await this._delay(1000 / frameRate);
+    if (!card) {
+      element.textContent = `+${(value * 100).toFixed(1)}%`;
+      this._playSfxForGrade(grade, playSfx);
+      return;
     }
 
-    // 최종값 설정
-    const displayPercent = (value * 100).toFixed(1);
-    element.textContent = `+${displayPercent}%`;
+    // Phase 1 — flip out
+    card.classList.add('card-flip-out');
+    await this._delay(180);
 
-    // 롤링 클래스 제거
-    element.classList.remove('rolling');
+    // 카드가 보이지 않는 순간: 값 교체 + 효과음
+    element.textContent = `+${(value * 100).toFixed(1)}%`;
+    this._playSfxForGrade(grade, playSfx);
 
-    // 완료 플래시 효과
-    const row = element.closest('.stat-comparison-row');
-    if (row) {
-      row.classList.add('stat-rolled');
-      setTimeout(() => row.classList.remove('stat-rolled'), 500);
-    }
+    card.classList.remove('card-flip-out');
+
+    // Phase 2 — flip in
+    card.classList.add('card-flip-in');
+    await this._delay(280);
+    card.classList.remove('card-flip-in');
   }
 
   /**
-   * Ease Out Cubic 이징 함수
-   * @param {number} t - 0~1 사이 값
-   * @returns {number}
+   * 등급에 맞는 SFX 재생
    */
-  _easeOutCubic(t) {
-    return 1 - Math.pow(1 - t, 3);
+  _playSfxForGrade(grade, playSfx) {
+    if (!playSfx) return;
+    const gradeKey = grade?.grade;
+    if (!gradeKey) return;
+    const sfx = GRADE_SFX[gradeKey];
+    if (!sfx) return;
+    playSfx(sfx.event, sfx.volume);
+    console.log(`[StatFlip] SFX: ${gradeKey} → ${sfx.event} (vol ${sfx.volume})`);
   }
 
-  /**
-   * 지연 유틸리티
-   * @param {number} ms - 밀리초
-   * @returns {Promise}
-   */
   _delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }

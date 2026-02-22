@@ -160,7 +160,7 @@ export class StarUpgradeManager {
         this.rollingAnimation.startRolling(stats, () => {
           this._playUpgradeSfx('crit', 0.54);
           console.log('[StarUpgradeManager] Initial stat rolling complete');
-        });
+        }, (event, volume) => this._playUpgradeSfx(event, volume));
       }, 100);
     }
 
@@ -307,7 +307,7 @@ export class StarUpgradeManager {
           // 롤링 완료 후 UI 업데이트
           this._playUpgradeSfx('crit', 0.58);
           this._updateStarUpgradeUI();
-        });
+        }, (event, volume) => this._playUpgradeSfx(event, volume));
       };
     }
 

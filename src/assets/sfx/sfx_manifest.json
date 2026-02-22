@@ -60,7 +60,31 @@
       "tower_upgrade_2.wav",
       "tower_upgrade_3.wav",
       "tower_upgrade_4.wav"
+    ],
+    "upgrade_reveal_c": [
+      "upgrade_reveal_c_1.wav",
+      "upgrade_reveal_c_2.wav"
+    ],
+    "upgrade_reveal_b": [
+      "upgrade_reveal_b_1.wav",
+      "upgrade_reveal_b_2.wav"
+    ],
+    "upgrade_reveal_a": [
+      "upgrade_reveal_a_1.wav",
+      "upgrade_reveal_a_2.wav"
+    ],
+    "upgrade_reveal_s": [
+      "upgrade_reveal_s_1.wav",
+      "upgrade_reveal_s_2.wav"
+    ],
+    "upgrade_reveal_ss": [
+      "upgrade_reveal_ss_1.wav",
+      "upgrade_reveal_ss_2.wav"
+    ],
+    "upgrade_reveal_sss": [
+      "upgrade_reveal_sss_1.wav",
+      "upgrade_reveal_sss_2.wav"
     ]
   },
-  "count": 36
+  "count": 48
 }

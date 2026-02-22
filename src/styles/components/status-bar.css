@@ -269,9 +269,9 @@
   top: 0;
   left: 0;
   height: 100%;
-  background: linear-gradient(90deg, #fbbf24, #f59e0b);
+  background: linear-gradient(90deg, #24c9fb, #0b8cf5);
   transition: width 0.1s linear;
-  box-shadow: inset 0 0 15px rgba(251, 191, 36, 0.6);
+  box-shadow: inset 0 0 15px rgba(36, 93, 251, 0.6);
   z-index: 1;
 }
 
