@@ -199,6 +199,16 @@ export class TowerDetailPanel {
   }
 
   /**
+   * 스킬트리 노드 활성/비활성 후 스탯·태그 보너스만 갱신
+   * @param {Object} tower
+   */
+  refreshStats(tower) {
+    const stats = this._computeStatsForUI(tower);
+    this.updateTowerInfo({ stats });
+    this._renderTagBonuses(tower);
+  }
+
+  /**
    * 타워 스탯 정보 DOM 업데이트 (updateTowerInfo)
    */
   updateTowerInfo(towerData) {

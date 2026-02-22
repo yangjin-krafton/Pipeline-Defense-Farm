@@ -176,7 +176,10 @@ export class UpgradeNodeCard {
               this.ui.resourceAbsorptionSystem.emitDrop('nc', ncCost);
             }
 
-            setTimeout(() => { this.ui._showUpgradeTree(tower); }, 200);
+            setTimeout(() => {
+              this.ui._showUpgradeTree(tower);
+              this.ui._refreshTowerStats(tower);
+            }, 200);
           }
         }
 

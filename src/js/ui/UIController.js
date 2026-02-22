@@ -240,6 +240,11 @@ export class UIController {
     this.upgradeTreeUI.show(tower);
   }
 
+  /** 타워 스탯·태그 보너스 갱신 위임 */
+  _refreshTowerStats(tower) {
+    this.towerDetailPanel.refreshStats(tower);
+  }
+
   /** 타워 판매 위임 */
   _handleSellTower() {
     this.towerDetailPanel._handleSellTower();

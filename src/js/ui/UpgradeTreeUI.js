@@ -292,6 +292,7 @@ export class UpgradeTreeUI {
           this.ui.updateNutritionDisplay(economySystem.getState());
           this.ui._triggerSave();
           this.show(tower);
+          this.ui._refreshTowerStats(tower);
 
           // NC·SC 소비 낙하 연출
           if (this.ui.resourceAbsorptionSystem) {
