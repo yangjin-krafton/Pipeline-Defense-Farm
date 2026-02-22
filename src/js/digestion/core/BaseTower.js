@@ -325,7 +325,7 @@ export class BaseTower {
    *  - food.hp <= 0 → 처치 판정 (forceOnKillResult로 TriggerModule에 전달)
    *  - food.hp - context.damage 공식은 이미 감소된 hp 때문에 오판 가능 → 오버라이드 필요
    */
-  firePierceHit(food, damage) {
+  firePierceHit(food, damage, currentTime = 0) {
     if (!this.upgradeTree) return;
 
     const wasKill = food.hp <= 0;
@@ -334,7 +334,7 @@ export class BaseTower {
       tower: this,
       food,
       damage,
-      currentTime: 0,
+      currentTime,
       statusEffects: [],
       forceOnKillResult: wasKill
     };

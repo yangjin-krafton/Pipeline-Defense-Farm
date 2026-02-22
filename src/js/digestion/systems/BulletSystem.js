@@ -66,16 +66,17 @@ export class BulletSystem {
           this.lastCritSfxTime = this.elapsedTime;
         }
 
-        // 관통 처리: 남은 횟수가 있으면 다음 타겟으로 계속 진행
+        // 관통 체인 트리거 발동
+        // pierceIndex=0 은 최초 타겟(BaseTower.attack()에서 이미 처리됨)이므로 제외
+        // pierceIndex>0 이면 관통으로 추가 적중된 타겟 → firePierceHit 호출
+        if (bullet.pierceIndex > 0 && bullet.tower) {
+          bullet.tower.firePierceHit(bullet.target, bullet.damage, this.elapsedTime);
+        }
+
+        // 관통 체인 계속: 남은 횟수가 있으면 다음 타겟으로 재조준
         let pierced = false;
         if (bullet.pierceCount > 0 && foodList) {
           const hitTarget = bullet.target;
-
-          // 적중/처치 트리거 발동 (노드12 스택 적립 등)
-          if (bullet.tower) {
-            bullet.tower.firePierceHit(hitTarget, bullet.damage);
-          }
-
           bullet.hitTargets.add(hitTarget);
           bullet.pierceCount--;
           bullet.pierceIndex++;
@@ -92,7 +93,6 @@ export class BulletSystem {
                 const ndist = Math.sqrt(ndx * ndx + ndy * ndy);
                 if (ndist > 0) {
                   const dot = (ndx / ndist) * bullet.lastDirX + (ndy / ndist) * bullet.lastDirY;
-                  // dot: 1=직선, -1=역방향. 방향 변화량을 [0,1] 스케일로 변환
                   const curveFactor = (1 - Math.max(-1, Math.min(1, dot))) / 2;
                   const effectivePenalty = curveFactor * (1 - bullet.curveCompensation);
                   bullet.damage *= (1 - effectivePenalty);
