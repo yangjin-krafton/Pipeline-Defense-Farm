@@ -495,10 +495,10 @@ export class GameLoop {
     // 3. WebGL: Bullets
     this.drawBullets();
 
-    // 4. WebGL: Particles (semi-transparent, rendered last in WebGL)
+    // 4. WebGL: Particles (rendered last in WebGL so hit/shot effects stay on top)
     this.drawParticles();
 
-    // 5. Canvas 2D: Status effects + Food emojis + Tower emojis (on top)
+    // 5. Canvas 2D: Status effects + Food emojis + Tower emojis
     //    Status effects are rendered inside drawEmojis() to avoid being cleared
     this.drawEmojis();
 

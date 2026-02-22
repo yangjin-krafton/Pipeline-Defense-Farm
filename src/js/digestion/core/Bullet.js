@@ -24,6 +24,8 @@ export class Bullet {
     this.size = size;
     this.homing = homing;
     this.alive = true;
+    this.renderStyle = { stretch: 1.0, thickness: 1.0, glow: 0.3 };
+    this.customHitEffect = null;
 
     // 관통 데이터
     this.baseDamage = damage;
@@ -184,6 +186,11 @@ export class Bullet {
     target.hp -= this.damage;
 
     // 피격 파티클 효과 생성 (있으면)
+    if (typeof this.customHitEffect === 'function') {
+      this.customHitEffect(particleSystem, target);
+      return;
+    }
+
     if (particleSystem && particleSystem.emitHitEffect) {
       particleSystem.emitHitEffect(this.x, this.y, this.color, this.damage);
     }

@@ -24,6 +24,11 @@ export class PierceBoltTower extends BaseTower {
     // 노드 12: 관통 처치 기반 다음 샷 보너스
     this.lineSweepStacks = 0;
   }
+
+  // Default muzzle local angle for this emoji.
+  getTowerMuzzleLocalAngle() {
+    return -Math.PI / 4;
+  }
 }
 
 /**

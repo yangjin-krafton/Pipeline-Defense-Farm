@@ -1,61 +1,67 @@
 import { InstancedRenderer } from './InstancedRenderer.js';
 
 /**
- * BulletRenderer - 총알을 Instanced Rendering으로 렌더링
- *
- * 수백 개의 총알을 단일 드로우콜로 효율적으로 렌더링합니다.
+ * BulletRenderer - Renders bullets with instanced WebGL2.
+ * Supports per-bullet stretch/thickness/rotation overrides.
  */
 export class BulletRenderer extends InstancedRenderer {
-  /**
-   * @param {WebGL2RenderingContext} gl
-   * @param {number} maxBullets - 최대 총알 수 (기본: 500)
-   * @param {number} resolution - 가상 해상도 [width, height]
-   */
   constructor(gl, maxBullets = 500, resolution = [360, 640]) {
     super(gl, maxBullets);
 
     this.resolution = resolution;
 
-    // 셰이더 생성
     this._createShaders();
-
-    // 원형 메시 생성 (총알 모양)
-    this._createBulletMesh(12); // 12개 삼각형으로 원 만들기
-
-    // 인스턴스 버퍼 생성
+    this._createBulletMesh(12);
     this._createInstanceBuffers();
 
-    // 임시 데이터 배열 (매 프레임 재사용)
     this.tempPositions = new Float32Array(maxBullets * 2);
     this.tempColors = new Float32Array(maxBullets * 4);
     this.tempSizes = new Float32Array(maxBullets);
+    this.tempRotations = new Float32Array(maxBullets);
+    this.tempStretch = new Float32Array(maxBullets);
+    this.tempThickness = new Float32Array(maxBullets);
+    this.tempGlow = new Float32Array(maxBullets);
   }
 
-  /**
-   * 셰이더를 생성합니다.
-   */
   _createShaders() {
     const vertexShader = `#version 300 es
-      in vec2 aPosition;          // 원 메시 정점
-      in vec2 aInstancePos;       // 총알 위치 (인스턴스)
-      in vec4 aInstanceColor;     // 총알 색상 (인스턴스)
-      in float aInstanceSize;     // 총알 크기 (인스턴스)
+      in vec2 aPosition;
+      in vec2 aInstancePos;
+      in vec4 aInstanceColor;
+      in float aInstanceSize;
+      in float aInstanceRotation;
+      in float aInstanceStretch;
+      in float aInstanceThickness;
+      in float aInstanceGlow;
 
       uniform vec2 uResolution;
 
       out vec4 vColor;
-      out vec2 vCircleCoord;      // 원형 판정용 좌표
+      out vec2 vCircleCoord;
+      out float vForward;
+      out float vGlow;
 
       void main() {
-        // 메시 정점을 크기에 맞게 스케일하고 위치에 배치
-        vec2 worldPos = aPosition * aInstanceSize + aInstancePos;
+        vec2 local = vec2(
+          aPosition.x * aInstanceSize * aInstanceStretch,
+          aPosition.y * aInstanceSize * aInstanceThickness
+        );
 
-        // 가상 해상도를 클립 공간으로 변환
+        float c = cos(aInstanceRotation);
+        float s = sin(aInstanceRotation);
+        vec2 rotated = vec2(
+          local.x * c - local.y * s,
+          local.x * s + local.y * c
+        );
+
+        vec2 worldPos = rotated + aInstancePos;
         vec2 clip = (worldPos / uResolution) * 2.0 - 1.0;
         gl_Position = vec4(clip * vec2(1.0, -1.0), 0.0, 1.0);
 
         vColor = aInstanceColor;
-        vCircleCoord = aPosition; // -1 ~ 1 범위
+        vCircleCoord = aPosition;
+        vForward = aPosition.x;
+        vGlow = aInstanceGlow;
       }
     `;
 
@@ -64,21 +70,21 @@ export class BulletRenderer extends InstancedRenderer {
 
       in vec4 vColor;
       in vec2 vCircleCoord;
+      in float vForward;
+      in float vGlow;
 
       out vec4 outColor;
 
       void main() {
-        // 원형 모양 만들기 (부드러운 엣지)
         float dist = length(vCircleCoord);
+        float alpha = 1.0 - smoothstep(0.82, 1.0, dist);
 
-        // Anti-aliasing을 위한 부드러운 엣지
-        float alpha = 1.0 - smoothstep(0.9, 1.0, dist);
+        float forward01 = (vForward + 1.0) * 0.5;
+        float core = 1.0 - smoothstep(0.0, 0.58, dist);
+        float highlight = core * (0.22 + forward01 * 0.52) * (0.45 + vGlow);
 
         outColor = vec4(vColor.rgb, vColor.a * alpha);
-
-        // 중심부 하이라이트 (빛나는 효과)
-        float highlight = 1.0 - smoothstep(0.0, 0.5, dist);
-        outColor.rgb += vec3(0.3) * highlight;
+        outColor.rgb += vec3(0.85, 0.92, 1.0) * highlight;
       }
     `;
 
@@ -86,17 +92,21 @@ export class BulletRenderer extends InstancedRenderer {
       vertexShader,
       fragmentShader,
       ['uResolution'],
-      ['aPosition', 'aInstancePos', 'aInstanceColor', 'aInstanceSize']
+      [
+        'aPosition',
+        'aInstancePos',
+        'aInstanceColor',
+        'aInstanceSize',
+        'aInstanceRotation',
+        'aInstanceStretch',
+        'aInstanceThickness',
+        'aInstanceGlow'
+      ]
     );
 
-    // 해상도 uniform 설정
     this.setUniform('uResolution', this.resolution);
   }
 
-  /**
-   * 원형 메시를 생성합니다.
-   * @param {number} segments - 삼각형 개수
-   */
   _createBulletMesh(segments) {
     const vertices = [];
 
@@ -104,55 +114,49 @@ export class BulletRenderer extends InstancedRenderer {
       const angle1 = (i / segments) * Math.PI * 2;
       const angle2 = ((i + 1) / segments) * Math.PI * 2;
 
-      // 중심점
       vertices.push(0, 0);
-
-      // 첫 번째 호 포인트
       vertices.push(Math.cos(angle1), Math.sin(angle1));
-
-      // 두 번째 호 포인트
       vertices.push(Math.cos(angle2), Math.sin(angle2));
     }
 
     this.setupMesh(new Float32Array(vertices));
-
-    // 메시 attribute 설정
     this.setupMeshAttribute(this.attribLocations.aPosition, 2);
   }
 
-  /**
-   * 인스턴스 버퍼들을 생성합니다.
-   */
   _createInstanceBuffers() {
-    // 위치 버퍼 (vec2)
-    this.createInstanceBuffer(
-      'position',
-      2,
-      this.attribLocations.aInstancePos,
-      1
-    );
-
-    // 색상 버퍼 (vec4)
-    this.createInstanceBuffer(
-      'color',
-      4,
-      this.attribLocations.aInstanceColor,
-      1
-    );
-
-    // 크기 버퍼 (float)
-    this.createInstanceBuffer(
-      'size',
-      1,
-      this.attribLocations.aInstanceSize,
-      1
-    );
+    this.createInstanceBuffer('position', 2, this.attribLocations.aInstancePos, 1);
+    this.createInstanceBuffer('color', 4, this.attribLocations.aInstanceColor, 1);
+    this.createInstanceBuffer('size', 1, this.attribLocations.aInstanceSize, 1);
+    this.createInstanceBuffer('rotation', 1, this.attribLocations.aInstanceRotation, 1);
+    this.createInstanceBuffer('stretch', 1, this.attribLocations.aInstanceStretch, 1);
+    this.createInstanceBuffer('thickness', 1, this.attribLocations.aInstanceThickness, 1);
+    this.createInstanceBuffer('glow', 1, this.attribLocations.aInstanceGlow, 1);
   }
 
-  /**
-   * 총알 데이터를 업데이트하고 렌더링합니다.
-   * @param {Bullet[]} bullets - 총알 배열
-   */
+  resolveRenderStyle(bullet) {
+    const style = bullet.renderStyle || {};
+
+    const stretch = Number.isFinite(style.stretch) ? style.stretch : 1.0;
+    const thickness = Number.isFinite(style.thickness) ? style.thickness : 1.0;
+    const glow = Number.isFinite(style.glow) ? style.glow : 0.3;
+
+    let rotation = Number.isFinite(bullet.rotation) ? bullet.rotation : 0;
+    if (!Number.isFinite(rotation) || rotation === 0) {
+      const dx = bullet.lastDirX || 0;
+      const dy = bullet.lastDirY || 0;
+      if (dx !== 0 || dy !== 0) {
+        rotation = Math.atan2(dy, dx);
+      }
+    }
+
+    return {
+      rotation,
+      stretch: Math.max(0.2, stretch),
+      thickness: Math.max(0.1, thickness),
+      glow: Math.max(0.0, glow)
+    };
+  }
+
   update(bullets) {
     if (!bullets || bullets.length === 0) {
       return;
@@ -160,37 +164,36 @@ export class BulletRenderer extends InstancedRenderer {
 
     const count = Math.min(bullets.length, this.maxInstances);
 
-    // 임시 배열에 데이터 채우기
     for (let i = 0; i < count; i++) {
       const bullet = bullets[i];
+      const style = this.resolveRenderStyle(bullet);
 
-      // 위치
       this.tempPositions[i * 2] = bullet.x;
       this.tempPositions[i * 2 + 1] = bullet.y;
 
-      // 색상
       this.tempColors[i * 4] = bullet.color[0];
       this.tempColors[i * 4 + 1] = bullet.color[1];
       this.tempColors[i * 4 + 2] = bullet.color[2];
       this.tempColors[i * 4 + 3] = bullet.color[3];
 
-      // 크기
       this.tempSizes[i] = bullet.size;
+      this.tempRotations[i] = style.rotation;
+      this.tempStretch[i] = style.stretch;
+      this.tempThickness[i] = style.thickness;
+      this.tempGlow[i] = style.glow;
     }
 
-    // GPU로 데이터 전송
     this.updateInstanceBuffer('position', this.tempPositions, count);
     this.updateInstanceBuffer('color', this.tempColors, count);
     this.updateInstanceBuffer('size', this.tempSizes, count);
+    this.updateInstanceBuffer('rotation', this.tempRotations, count);
+    this.updateInstanceBuffer('stretch', this.tempStretch, count);
+    this.updateInstanceBuffer('thickness', this.tempThickness, count);
+    this.updateInstanceBuffer('glow', this.tempGlow, count);
 
-    // 렌더링
     this.render(count);
   }
 
-  /**
-   * 해상도를 업데이트합니다.
-   * @param {number[]} resolution - [width, height]
-   */
   updateResolution(resolution) {
     this.resolution = resolution;
     this.setUniform('uResolution', resolution);

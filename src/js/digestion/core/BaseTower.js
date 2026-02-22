@@ -43,6 +43,8 @@ export class BaseTower {
 
     // Targeting
     this.targetingPolicy = TargetingPolicy.FIRST;
+    this.visualRotation = 0;
+    this._multiPathSystem = null;
 
     // Systems (injected)
     this.bulletSystem = bulletSystem;
@@ -65,6 +67,8 @@ export class BaseTower {
   }
 
   update(dt, foodList, multiPathSystem, currentTime) {
+    this._multiPathSystem = multiPathSystem;
+
     // Cooldown
     this.attackCooldown = Math.max(0, this.attackCooldown - dt);
 
@@ -131,6 +135,8 @@ export class BaseTower {
   }
 
   attack(food, currentTime = 0) {
+    const fireTransform = this.getFireTransform(food);
+
     // Calculate effective damage with star bonuses
     const effectiveDamage = this.damage * this.starBonuses.damageMultiplier * this.auraBonuses.damage;
 
@@ -234,7 +240,7 @@ export class BaseTower {
     // Fire bullet or instant damage
     if (this.bulletSystem) {
       const bulletColor = this.getTowerBulletColor();
-      const projectileSpeed = context.projectile?.speed || 300;
+      const projectileSpeed = this.getProjectileSpeed(context);
       const pierceOptions = (context.projectile?.pierceCount > 0) ? {
         pierceCount: context.projectile.pierceCount,
         pierceDamageFalloff: context.projectile.pierceDamageFalloff,
@@ -243,8 +249,8 @@ export class BaseTower {
       } : null;
 
       const bullet = this.bulletSystem.createBullet(
-        this.x,
-        this.y,
+        fireTransform.x,
+        fireTransform.y,
         food,
         context.damage,
         bulletColor,
@@ -254,13 +260,18 @@ export class BaseTower {
         pierceOptions
       );
       // 관통 체인 트리거(onHit/onKill)를 처리하기 위해 타워 레퍼런스 주입
-      if (bullet) bullet.tower = this;
+      if (bullet) {
+        bullet.tower = this;
+        bullet.rotation = fireTransform.fireAngle;
+        this.configureBulletVisuals(bullet, context, false);
+        this.emitBulletSpawnEffect(bullet, context, false);
+      }
 
       // 추가 타격 (노드 10 등 secondaryDamage)
       if (context.secondaryDamage > 0) {
-        this.bulletSystem.createBullet(
-          this.x,
-          this.y,
+        const secondaryBullet = this.bulletSystem.createBullet(
+          fireTransform.x,
+          fireTransform.y,
           food,
           context.damage * context.secondaryDamage,
           bulletColor,
@@ -268,10 +279,12 @@ export class BaseTower {
           4,
           true
         );
-      }
-
-      if (this.particleSystem) {
-        this.particleSystem.emitTowerAttackEffect(this.x, this.y, bulletColor);
+        if (secondaryBullet) {
+          secondaryBullet.tower = this;
+          secondaryBullet.rotation = fireTransform.fireAngle;
+          this.configureBulletVisuals(secondaryBullet, context, true);
+          this.emitBulletSpawnEffect(secondaryBullet, context, true);
+        }
       }
     } else {
       food.hp -= context.damage;
@@ -373,6 +386,128 @@ export class BaseTower {
       default:
         return [1.0, 1.0, 1.0, 1.0]; // White
     }
+  }
+
+  /**
+   * Configure per-bullet visual style and impact hook.
+   * Override in tower classes for custom projectile rendering/effects.
+   * @param {Bullet} bullet
+   * @param {Object} context
+   * @param {boolean} isSecondary
+   */
+  configureBulletVisuals(bullet, context, isSecondary = false) {
+    const style = this.getBulletRenderStyle(context, isSecondary);
+    bullet.renderStyle = {
+      stretch: style?.stretch ?? 1.0,
+      thickness: style?.thickness ?? 1.0,
+      glow: style?.glow ?? 0.3
+    };
+
+    bullet.customHitEffect = (particleSystem, target) => {
+      this.emitBulletHitEffect(bullet, target, particleSystem, context, isSecondary);
+    };
+  }
+
+  /**
+   * Per-tower projectile render style.
+   * @param {Object} context
+   * @param {boolean} isSecondary
+   * @returns {{stretch:number, thickness:number, glow:number}}
+   */
+  getBulletRenderStyle(context, isSecondary = false) {
+    return { stretch: 1.0, thickness: 1.0, glow: 0.3 };
+  }
+
+  /**
+   * Spawn effect when bullet is fired.
+   * @param {Bullet} bullet
+   * @param {Object} context
+   * @param {boolean} isSecondary
+   */
+  emitBulletSpawnEffect(bullet, context, isSecondary = false) {
+    if (!this.particleSystem) return;
+    this.particleSystem.emitTowerAttackEffect(bullet.x, bullet.y, bullet.color);
+  }
+
+  /**
+   * Hit effect when bullet applies damage.
+   * @param {Bullet} bullet
+   * @param {Object} target
+   * @param {ParticleSystem} particleSystem
+   * @param {Object} context
+   * @param {boolean} isSecondary
+   */
+  emitBulletHitEffect(bullet, target, particleSystem, context, isSecondary = false) {
+    if (!particleSystem || !particleSystem.emitHitEffect) return;
+    particleSystem.emitHitEffect(bullet.x, bullet.y, bullet.color, bullet.damage);
+  }
+
+  /**
+   * Get projectile speed for this attack context.
+   * Override in tower classes for per-tower speed tuning.
+   * @param {Object} context
+   * @returns {number}
+   */
+  getProjectileSpeed(context) {
+    return context.projectile?.speed || this.definition?.stats?.projectileSpeed || 300;
+  }
+
+  /**
+   * Local muzzle angle for the tower emoji at rotation 0.
+   * Override per tower because each emoji has a different muzzle direction.
+   * @returns {number}
+   */
+  getTowerMuzzleLocalAngle() {
+    return 0;
+  }
+
+  /**
+   * Muzzle distance from tower center in virtual coordinates.
+   * Override if an emoji needs a different muzzle offset.
+   * @returns {number}
+   */
+  getTowerMuzzleDistance() {
+    return Math.max(6, this.slotRadius * 0.72);
+  }
+
+  /**
+   * Resolve target world position.
+   * @param {Object} food
+   * @param {Object} multiPathSystem
+   * @returns {{x:number,y:number}|null}
+   */
+  getTargetWorldPosition(food, multiPathSystem = this._multiPathSystem) {
+    if (!food || !multiPathSystem) return null;
+    if (typeof food.currentPath === 'undefined' || typeof food.d !== 'number') return null;
+    return multiPathSystem.samplePath(food.currentPath, food.d);
+  }
+
+  /**
+   * Compute bullet fire origin and current tower visual rotation.
+   * @param {Object} food
+   * @param {Object} multiPathSystem
+   * @returns {{x:number,y:number,towerRotation:number,fireAngle:number}}
+   */
+  getFireTransform(food, multiPathSystem = this._multiPathSystem) {
+    const muzzleLocalAngle = this.getTowerMuzzleLocalAngle();
+    let towerRotation = this.visualRotation || 0;
+    let fireAngle = towerRotation + muzzleLocalAngle;
+
+    const targetPos = this.getTargetWorldPosition(food, multiPathSystem);
+    if (targetPos) {
+      const aimAngle = Math.atan2(targetPos.y - this.y, targetPos.x - this.x);
+      towerRotation = aimAngle - muzzleLocalAngle;
+      fireAngle = aimAngle;
+      this.visualRotation = towerRotation;
+    }
+
+    const muzzleDistance = this.getTowerMuzzleDistance();
+    return {
+      x: this.x + Math.cos(fireAngle) * muzzleDistance,
+      y: this.y + Math.sin(fireAngle) * muzzleDistance,
+      towerRotation,
+      fireAngle
+    };
   }
 
   /**

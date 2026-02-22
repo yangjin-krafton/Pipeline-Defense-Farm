@@ -22,6 +22,7 @@ export class ParticleSystem {
   emit(x, y, count, color, speed = 100, lifetime = 1.0, options = {}) {
     const {
       spread = Math.PI * 2,       // 방사 각도 범위
+      direction = null,           // 방향 중심 각도 (라디안)
       gravity = 200,              // 중력 (픽셀/초^2)
       sizeMin = 2,                // 최소 크기
       sizeMax = 6,                // 최대 크기
@@ -32,7 +33,8 @@ export class ParticleSystem {
     for (let i = 0; i < count; i++) {
       if (this.particles.length >= this.maxParticles) break;
 
-      const angle = Math.random() * spread - spread / 2;
+      const angleCenter = (direction == null) ? 0 : direction;
+      const angle = angleCenter + (Math.random() * spread - spread / 2);
       const particleSpeed = speed * (0.7 + Math.random() * 0.6);
       const size = sizeMin + Math.random() * (sizeMax - sizeMin);
 

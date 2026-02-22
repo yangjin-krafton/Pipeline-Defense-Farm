@@ -27,6 +27,11 @@ export class EnzymeChargeCannon extends BaseTower {
     this.isCharging = true;
   }
 
+  // 🔋 emoji 기준: 기본 자세에서 방출 방향을 상단(-90deg)으로 가정.
+  getTowerMuzzleLocalAngle() {
+    return -Math.PI / 2;
+  }
+
   update(dt, foodList, multiPathSystem, currentTime) {
     // ===== 모듈 스탯 통합 계산 (한 번만 순회) =====
     let chargeRateMultiplier = 1.0;
@@ -183,6 +188,8 @@ export class EnzymeChargeCannon extends BaseTower {
     const bulletSize = this.getChargeBulletSize(this.chargeLevel);
     const projectileSpeed = this.definition.stats.projectileSpeed * this.auraBonuses.projectileSpeed;
 
+    const fireTransform = this.getFireTransform(food);
+
     // 총알 생성 (BaseTower의 기본 로직 대신 직접 생성)
     if (this.bulletSystem) {
       // Create attack context (BaseTower와 동일한 방식)
@@ -252,9 +259,9 @@ export class EnzymeChargeCannon extends BaseTower {
       context.damage *= armorMitigation;
 
       // 총알 생성 (충전도에 따른 크기/색상)
-      this.bulletSystem.createBullet(
-        this.x,
-        this.y,
+      const bullet = this.bulletSystem.createBullet(
+        fireTransform.x,
+        fireTransform.y,
         food,
         context.damage,
         bulletColor,
@@ -262,14 +269,18 @@ export class EnzymeChargeCannon extends BaseTower {
         bulletSize,
         true
       );
+      if (bullet) {
+        bullet.tower = this;
+        bullet.rotation = fireTransform.fireAngle;
+      }
 
       // 2차 타격 적용 (노드 10: 완충 임계 붕괴 - 완충 샷이 체력 60%+ 대상에 추가 피해)
       // homing=true: 적은 x/y가 없고 currentPath+d로만 위치를 가지므로
       //             비유도(homing=false)는 생성자에서 dirX/dirY=NaN이 되어 동작 불가
       if (context.secondaryDamage && context.secondaryDamage > 0) {
-        this.bulletSystem.createBullet(
-          this.x,
-          this.y,
+        const secondaryBullet = this.bulletSystem.createBullet(
+          fireTransform.x,
+          fireTransform.y,
           food,
           context.secondaryDamage,
           [0.6, 1.0, 0.5, 0.7], // 2차 타격 색상 (연두빛)
@@ -277,6 +288,10 @@ export class EnzymeChargeCannon extends BaseTower {
           bulletSize * 0.6,
           true  // homing=true: samplePath 기반 추적
         );
+        if (secondaryBullet) {
+          secondaryBullet.tower = this;
+          secondaryBullet.rotation = fireTransform.fireAngle;
+        }
       }
 
       // 충전 발사 이펙트 (일반 공격 이펙트 대신)

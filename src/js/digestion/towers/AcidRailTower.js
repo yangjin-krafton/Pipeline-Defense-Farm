@@ -20,6 +20,95 @@ export class AcidRailTower extends BaseTower {
   constructor(slotData, definition, bulletSystem = null, particleSystem = null) {
     super(slotData, definition, bulletSystem, particleSystem);
   }
+
+  // 💉 emoji 기준: 기본 자세에서 바늘이 우상향이라 -45deg를 총구 로컬 각도로 사용.
+  getTowerMuzzleLocalAngle() {
+    return -Math.PI / 4;
+  }
+
+  getProjectileSpeed(context) {
+    return super.getProjectileSpeed(context) * 3;
+  }
+
+  /**
+   * Acid Rail bullet: fast, thin, elongated droplet/needle style.
+   */
+  getBulletRenderStyle(context, isSecondary = false) {
+    if (isSecondary) {
+      return {
+        stretch: 2.5,
+        thickness: 0.50,
+        glow: 0.42
+      };
+    }
+
+    return {
+      stretch: 3.6,
+      thickness: 0.34,
+      glow: 0.50
+    };
+  }
+
+  /**
+   * Muzzle effect: liquid pop burst ("찍!").
+   */
+  emitBulletSpawnEffect(bullet, context, isSecondary = false) {
+    if (!this.particleSystem) return;
+
+    const forward = Number.isFinite(bullet.rotation) ? bullet.rotation : 0;
+    const splashColor = [0.52, 0.96, 0.90, 0.95];
+    const mistColor = [0.90, 1.00, 0.98, 0.72];
+
+    this.particleSystem.emit(this.x, this.y, isSecondary ? 7 : 10, splashColor, isSecondary ? 120 : 160, 0.22, {
+      spread: Math.PI / 2.8,
+      direction: forward,
+      gravity: 75,
+      sizeMin: 1.6,
+      sizeMax: isSecondary ? 3.8 : 4.8,
+      colorVariation: 0.16
+    });
+
+    this.particleSystem.emit(this.x, this.y, isSecondary ? 4 : 6, mistColor, 90, 0.18, {
+      spread: Math.PI / 3.4,
+      direction: forward + Math.PI,
+      gravity: 35,
+      sizeMin: 1.2,
+      sizeMax: 2.8,
+      colorVariation: 0.08
+    });
+  }
+
+  /**
+   * Impact effect: directional liquid burst.
+   */
+  emitBulletHitEffect(bullet, target, particleSystem, context, isSecondary = false) {
+    if (!particleSystem) return;
+
+    const forward = Number.isFinite(bullet.rotation)
+      ? bullet.rotation
+      : Math.atan2(bullet.lastDirY || 0, bullet.lastDirX || 1);
+
+    const impactColor = [0.34, 0.92, 0.82, 0.96];
+    const dropletColor = [0.72, 1.00, 0.92, 0.72];
+
+    particleSystem.emit(bullet.x, bullet.y, isSecondary ? 10 : 14, impactColor, isSecondary ? 130 : 180, 0.36, {
+      spread: Math.PI / 2.3,
+      direction: forward,
+      gravity: 220,
+      sizeMin: 1.8,
+      sizeMax: isSecondary ? 4.0 : 5.6,
+      colorVariation: 0.2
+    });
+
+    particleSystem.emit(bullet.x, bullet.y, isSecondary ? 6 : 10, dropletColor, isSecondary ? 95 : 140, 0.30, {
+      spread: Math.PI * 0.9,
+      direction: forward + 0.12,
+      gravity: 260,
+      sizeMin: 1.2,
+      sizeMax: isSecondary ? 3.2 : 4.2,
+      colorVariation: 0.2
+    });
+  }
 }
 
 /**

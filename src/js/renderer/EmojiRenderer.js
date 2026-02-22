@@ -86,12 +86,17 @@ export class EmojiRenderer {
     const x = tower.x * scale;
     const y = tower.y * scale;
     const size = tower.slotRadius * 2 * scale;
+    const rotation = Number.isFinite(tower.visualRotation) ? tower.visualRotation : 0;
 
     // Draw tower emoji
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rotation);
     ctx.font = `${size}px Arial`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(tower.definition.emoji, x, y);
+    ctx.fillText(tower.definition.emoji, 0, 0);
+    ctx.restore();
 
     // Draw tower growth info (star, level, XP gauge)
     this._drawTowerGrowthInfo(tower, x, y, size, scale);
@@ -183,29 +188,44 @@ export class EmojiRenderer {
     const levelX = x; // 타워 중심 (게이지 중앙)
     const levelY = gaugeY + gaugeRadius + size * 0.15; // 반원 아래
     const levelFontSize = Math.max(10, size * 0.3);
-
-    ctx.font = `bold ${levelFontSize}px Arial`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    // 레벨 텍스트
     const levelText = tower.level >= maxLevel ? 'MAX' : `Lv${tower.level}`;
 
-    // 텍스트 그림자 (가독성)
+    // 알림 상태: 미사용 포인트(회전 pingpong) / 승급 가능(스케일 pingpong)
+    const hasUnusedPoints = tower.upgradeTree &&
+                            tower.upgradePoints > tower.upgradeTree.usedPoints;
+    const canPromote = tower.level >= maxLevel &&
+                       tower.star < 7 &&
+                       (!tower.upgradeTree || tower.upgradePoints <= tower.upgradeTree.usedPoints);
+
+    // 변환 행렬 계산 (setTransform으로 현재 캔버스 상태와 무관하게 명시적 적용)
+    let rotAngle = 0;
+    let scaleVal = 1;
+    if (hasUnusedPoints || canPromote) {
+      const now = performance.now() / 1000;
+      if (hasUnusedPoints) {
+        rotAngle = Math.sin(now * Math.PI * 4) * (Math.PI / 6); // ±30도, 2Hz
+      }
+      if (canPromote) {
+        scaleVal = 1 + Math.sin(now * Math.PI * 3) * 0.25; // ±25%, 1.5Hz
+      }
+    }
+    const cosR = Math.cos(rotAngle) * scaleVal;
+    const sinR = Math.sin(rotAngle) * scaleVal;
+
+    ctx.save();
+    ctx.setTransform(cosR, sinR, -sinR, cosR, levelX, levelY);
+
+    ctx.font = `bold ${levelFontSize}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
     ctx.shadowBlur = 4;
     ctx.shadowOffsetX = 1;
     ctx.shadowOffsetY = 1;
-
-    // 레벨 텍스트
     ctx.fillStyle = tower.level >= maxLevel ? '#FFD700' : '#FFFFFF';
-    ctx.fillText(levelText, levelX, levelY);
+    ctx.fillText(levelText, 0, 0);
 
-    // 그림자 초기화
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
+    ctx.restore();
   }
 
   /**
