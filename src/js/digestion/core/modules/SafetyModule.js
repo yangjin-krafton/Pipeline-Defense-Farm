@@ -12,6 +12,8 @@ export class SafetyModule extends BaseModule {
     this.minDamageGuarantee = config.minDamageGuarantee || 0; // 최소 피해 보장 (%)
     this.stabilityBonus = config.stabilityBonus || 0; // 안정성 보너스
     this.auraAcidReduction = config.auraAcidReduction || 0; // 주변 타워 과산 누적 감소
+    this.minChargeToFire = config.minChargeToFire || 0; // 최소 발사 충전 비율 (0~1, 0=미적용), update()에서 직접 소비
+    this.incompleteFirPenaltyReduction = config.incompleteFirPenaltyReduction || 0; // 미완충 피해 페널티 감소 (가산, update()에서 직접 소비)
   }
 
   _applyEffect(context) {

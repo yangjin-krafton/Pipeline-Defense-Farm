@@ -75,7 +75,8 @@ export class TriggerModule extends BaseModule {
           'critChanceBonus',
           'critMultiplierBonus',
           'attackSpeedBonus',
-          'rangeBonus'
+          'rangeBonus',
+          'secondaryDamage'  // 노드 10: 각인 중복 시 가산 누적
         ];
 
         for (const key of accumulativeKeys) {

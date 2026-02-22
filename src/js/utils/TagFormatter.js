@@ -13,22 +13,22 @@
  */
 const TAG_LABELS = {
   // ── 음식 태그 (Food tags) ─────────────────────────────────────
-  carb:       { label: '탄수화물',  color: '#f5c842' },
-  fat:        { label: '지방',      color: '#ffa040' },
-  protein:    { label: '단백질',    color: '#60d060' },
-  dairy:      { label: '유제품',    color: '#80d8ff' },
-  spicy:      { label: '매운맛',    color: '#ff5533' },
-  soda:       { label: '탄산음료',  color: '#40e0ff' },
-  fermented:  { label: '발효식품',  color: '#c070e0' },
-  sugar:      { label: '당분',      color: '#ff80b0' },
-  alcohol:    { label: '알코올',    color: '#c8a860' },
+  carb:       { label: '탄수화물',  color: '#b08000' },  // dark amber
+  fat:        { label: '지방',      color: '#cc6600' },  // deep orange
+  protein:    { label: '단백질',    color: '#228b22' },  // forest green
+  dairy:      { label: '유제품',    color: '#0080aa' },  // deep sky blue
+  spicy:      { label: '매운맛',    color: '#cc2200' },  // deep red
+  soda:       { label: '탄산음료',  color: '#0095aa' },  // deep cyan
+  fermented:  { label: '발효식품',  color: '#8830b0' },  // deep purple
+  sugar:      { label: '당분',      color: '#cc2266' },  // deep rose
+  alcohol:    { label: '알코올',    color: '#8b6914' },  // dark gold
 
   // ── 시너지/상태이상 태그 (Synergy tags) ──────────────────────
-  expose:     { label: '노출',      color: '#ff9900' },   // 점막 취약 노출
-  corrode:    { label: '부식',      color: '#aaee44' },   // 산성 부식 상태
-  shock:      { label: '감전',      color: '#44ccff' },   // 연동 교란 자극
-  mark:       { label: '표식',      color: '#ee44ee' },   // 분해 표식
-  clustered:  { label: '군집',      color: '#ffcc00' },   // 정체 군집 상태
+  expose:     { label: '노출',      color: '#cc5500' },  // deep amber-orange
+  corrode:    { label: '부식',      color: '#5a8800' },  // olive green
+  shock:      { label: '감전',      color: '#0077aa' },  // deep blue
+  mark:       { label: '표식',      color: '#aa00aa' },  // deep magenta
+  clustered:  { label: '군집',      color: '#aa8800' },  // dark yellow
 };
 
 /**
@@ -47,7 +47,7 @@ export function formatTagText(text) {
     const regex = new RegExp(`(?<![a-zA-Z0-9])${tag}(?![a-zA-Z0-9])`, 'g');
     result = result.replace(
       regex,
-      `<span style="color:${color};font-weight:bold;">[${label}]</span>`
+      `<span style="background:${color};color:#fff;font-weight:900;padding:1px 5px;border-radius:4px;font-size:0.88em;white-space:nowrap;border:1.5px solid rgba(0,0,0,0.2);">[${label}]</span>`
     );
   }
 

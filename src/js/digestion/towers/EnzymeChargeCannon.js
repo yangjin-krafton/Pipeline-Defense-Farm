@@ -28,10 +28,35 @@ export class EnzymeChargeCannon extends BaseTower {
   }
 
   update(dt, foodList, multiPathSystem, currentTime) {
+    // ===== 모듈 스탯 통합 계산 (한 번만 순회) =====
+    let chargeRateMultiplier = 1.0;
+    let moduleRangeMultiplier = 1.0;
+    let attackSpeedMultiplier = 1.0;
+    let effectiveMinChargeToFire = this.maxCharge; // 기본: 완충 필요
+    let incompleteFirPenaltyReduction = 0;
+
+    if (this.upgradeTree) {
+      const modules = this.upgradeTree.getAllActiveModules();
+      for (const module of modules) {
+        if (module.chargeRateBonus > 0) chargeRateMultiplier += module.chargeRateBonus;
+        if (module.rangeMultiplier && module.rangeMultiplier !== 1.0) moduleRangeMultiplier *= module.rangeMultiplier;
+        if (module.attackSpeedMultiplier && module.attackSpeedMultiplier !== 1.0) attackSpeedMultiplier *= module.attackSpeedMultiplier;
+        if (module.minChargeToFire > 0) {
+          effectiveMinChargeToFire = Math.min(effectiveMinChargeToFire, module.minChargeToFire * this.maxCharge);
+        }
+        if (module.incompleteFirPenaltyReduction > 0) incompleteFirPenaltyReduction += module.incompleteFirPenaltyReduction;
+      }
+    }
+    this.minChargeToFire = effectiveMinChargeToFire;
+    this._incompleteFirPenaltyReduction = incompleteFirPenaltyReduction;
+    this._moduleRangeMultiplier = moduleRangeMultiplier;
+    this._attackSpeedMultiplier = attackSpeedMultiplier;
+    this._multiPathSystem = multiPathSystem; // 노드 5 장거리 판정에서 사용
+
     // 충전 로직
     if (this.isCharging && this.chargeLevel < this.maxCharge) {
       const prevChargeLevel = this.chargeLevel;
-      this.chargeLevel = Math.min(this.maxCharge, this.chargeLevel + this.chargeRate * dt);
+      this.chargeLevel = Math.min(this.maxCharge, this.chargeLevel + this.chargeRate * chargeRateMultiplier * dt);
 
       // 충전 중 파티클 효과 (일정 간격으로)
       if (this.particleSystem && this.particleSystem.emitChargingPulse) {
@@ -74,7 +99,7 @@ export class EnzymeChargeCannon extends BaseTower {
 
       // Validate target still in range
       if (this.currentTarget) {
-        const effectiveRange = this.range * this.auraBonuses.range;
+        const effectiveRange = this.range * this.auraBonuses.range * moduleRangeMultiplier;
         const pos = multiPathSystem.samplePath(
           this.currentTarget.currentPath,
           this.currentTarget.d
@@ -99,17 +124,6 @@ export class EnzymeChargeCannon extends BaseTower {
 
         // Track last target for consecutive hit modules
         this.lastTarget = this.currentTarget.id;
-
-        // Calculate effective attack speed with module bonuses
-        let attackSpeedMultiplier = 1.0;
-        if (this.upgradeTree) {
-          const modules = this.upgradeTree.getAllActiveModules();
-          for (const module of modules) {
-            if (module.attackSpeedMultiplier && module.attackSpeedMultiplier !== 1.0) {
-              attackSpeedMultiplier *= module.attackSpeedMultiplier;
-            }
-          }
-        }
 
         const effectiveAttackSpeed = this.attackSpeed * this.auraBonuses.attackSpeed * attackSpeedMultiplier;
         this.attackCooldown = 1 / effectiveAttackSpeed;
@@ -152,8 +166,13 @@ export class EnzymeChargeCannon extends BaseTower {
     if (this.chargeLevel < this.minChargeToFire) return;
 
     // 충전량에 비례한 피해 배율 계산
-    const chargeMultiplier = this.chargeLevel / 100;
+    // 미완충 페널티 감소 적용 (노드 6: 고속 재축전 루프)
     const isFullCharge = this.chargeLevel >= this.maxCharge;
+    let chargeMultiplier = this.chargeLevel / 100;
+    if (!isFullCharge && this._incompleteFirPenaltyReduction > 0) {
+      const penalty = 1 - chargeMultiplier;
+      chargeMultiplier = chargeMultiplier + penalty * this._incompleteFirPenaltyReduction;
+    }
 
     // Context에 충전 정보 추가
     const originalDamage = this.damage;
@@ -179,7 +198,12 @@ export class EnzymeChargeCannon extends BaseTower {
         projectile: null,
         gainNutrition: 0,
         gainEnergy: 0,
-        chargeRefund: 0
+        chargeRefund: 0,
+        // 이전 공격에서 설정된 버프 스냅샷 (same-attack 소모 방지)
+        // 노드 3: onKill 버프가 이번 공격 전에 존재했는지 여부
+        killBuffStacksPreAttack: (this.killBuffStacks || 0),
+        // 노드 11: 타이밍 버스트 버프가 이번 공격 전에 활성이었는지 여부
+        timingBurstActivePreAttack: (this.timingBurstActive === true)
       };
 
       // Apply base tag bonuses
@@ -239,6 +263,20 @@ export class EnzymeChargeCannon extends BaseTower {
         true
       );
 
+      // 2차 타격 적용 (노드 10: 완충 임계 붕괴 - 완충 샷이 체력 60%+ 대상에 추가 피해)
+      if (context.secondaryDamage && context.secondaryDamage > 0) {
+        this.bulletSystem.createBullet(
+          this.x,
+          this.y,
+          food,
+          context.secondaryDamage,
+          [0.6, 1.0, 0.5, 0.7], // 2차 타격 색상 (연두빛)
+          projectileSpeed * 1.3,
+          bulletSize * 0.6,
+          false
+        );
+      }
+
       // 충전 발사 이펙트 (일반 공격 이펙트 대신)
       if (this.particleSystem && this.particleSystem.emitChargeCannonEffect) {
         this.particleSystem.emitChargeCannonEffect(this.x, this.y, bulletColor, this.chargeLevel);
@@ -285,6 +323,11 @@ export class EnzymeChargeCannon extends BaseTower {
 
     // 충전 소모
     this.chargeLevel = 0;
+    // 충전 환급 적용 (노드 7: 폭발 반응 촉매 - 처치 시 다음 샷 충전 +10%)
+    if (this.chargeRefundBonus > 0) {
+      this.chargeLevel = Math.min(this.maxCharge, this.maxCharge * this.chargeRefundBonus / 100);
+      this.chargeRefundBonus = 0;
+    }
     this.isCharging = true;
   }
 
@@ -412,7 +455,8 @@ export function createEnzymeChargeCannonUpgradeNodes() {
         new DamageModule({
           damageMultiplier: 1.16,  // 처치 버프 활성 시 피해 +16% [각인 중복: 곱연산]
           conditionalCheck: (ctx) => {
-            const hasBuff = ctx.tower.killBuffStacks > 0;
+            // 이전 공격에서 설정된 버프 스냅샷으로 판정 (same-attack 즉시 소모 방지)
+            const hasBuff = ctx.killBuffStacksPreAttack > 0;
             if (hasBuff) {
               ctx.tower.killBuffStacks = 0; // 소모
             }
@@ -461,9 +505,20 @@ export function createEnzymeChargeCannonUpgradeNodes() {
         new DamageModule({
           damageMultiplier: 1.14,    // 장거리 피해 +14% [각인 중복: 곱연산]
           conditionalCheck: (ctx) => {
-            // 장거리 판정 (사거리 70% 이상)
-            const distance = Math.hypot(ctx.tower.x - ctx.food.x, ctx.tower.y - ctx.food.y);
-            const effectiveRange = ctx.tower.range;
+            // 장거리 판정 (사거리 70% 이상) - 타겟의 실제 경로 위치 기반
+            let distance;
+            const tower = ctx.tower;
+            if (tower._multiPathSystem && ctx.food.currentPath !== undefined && ctx.food.d !== undefined) {
+              const pos = tower._multiPathSystem.samplePath(ctx.food.currentPath, ctx.food.d);
+              if (pos) {
+                distance = Math.hypot(tower.x - pos.x, tower.y - pos.y);
+              }
+            }
+            if (distance === undefined) {
+              // fallback: food에 직접 좌표가 있는 경우
+              distance = Math.hypot(tower.x - (ctx.food.x || 0), tower.y - (ctx.food.y || 0));
+            }
+            const effectiveRange = tower.range * (tower._moduleRangeMultiplier || 1.0);
             return distance >= effectiveRange * 0.70;
           }
         })
@@ -505,8 +560,8 @@ export function createEnzymeChargeCannonUpgradeNodes() {
         new DamageModule({
           damageMultiplier: 1.12,    // 디버프 대상 피해 +12% [각인 중복: 곱연산]
           conditionalCheck: (ctx) => {
-            // 디버프 대상 판정
-            return ctx.food.debuffs && Object.keys(ctx.food.debuffs).length > 0;
+            // 디버프 대상 판정 (statusEffects 스키마 사용)
+            return ctx.food.statusEffects && ctx.food.statusEffects.length > 0;
           }
         }),
         new TriggerModule({
@@ -634,9 +689,9 @@ export function createEnzymeChargeCannonUpgradeNodes() {
         new DamageModule({
           damageMultiplier: 1.40,    // 타이밍 버스트 피해 +40% [각인 중복: 곱연산]
           conditionalCheck: (ctx) => {
-            // 완충 상태 & 타이밍 버스트 활성
+            // 이전 공격에서 설정된 버프 스냅샷으로 판정 (same-attack 즉시 소모 방지)
             const isFullCharge = ctx.tower.chargeLevel >= ctx.tower.maxCharge;
-            const hasBuff = ctx.tower.timingBurstActive === true;
+            const hasBuff = ctx.timingBurstActivePreAttack === true;
             if (isFullCharge && hasBuff) {
               ctx.tower.timingBurstActive = false; // 소모
               return true;

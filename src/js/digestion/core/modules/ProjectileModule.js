@@ -16,6 +16,8 @@ export class ProjectileModule extends BaseModule {
     this.chainRange = config.chainRange || 0; // 연쇄 범위
     this.aoeRadius = config.aoeRadius || 0; // 광역 반경
     this.curveCompensation = config.curveCompensation || 0; // 곡선 구간 관통 손실 감소 (%)
+    this.rangeMultiplier = config.rangeMultiplier || 1.0; // 사거리 배율 (update()에서 직접 소비)
+    this.chargeRateBonus = config.chargeRateBonus || 0; // 충전 속도 보너스 (가산, update()에서 직접 소비)
   }
 
   _applyEffect(context) {

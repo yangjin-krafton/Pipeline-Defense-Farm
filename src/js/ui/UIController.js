@@ -894,8 +894,8 @@ export class UIController {
     const maxRow = Math.max(...Object.values(nodePositions).map(p => p.row));
 
     // 3-row compact layout sizing
-    const nodeWidth = 216; // Increased by 20% from 180
-    const nodeHeight = 110; // Reduced for 3-row layout
+    const nodeWidth = 260; // Increased by 20% from 216
+    const nodeHeight = 130; // Increased for more text space
     const columnGap = 100;
     const rowGap = 20; // Reduced to fit 3 rows on screen
 
@@ -1192,7 +1192,7 @@ export class UIController {
     const shadowColor = isActive ? '#00d9ff' : canActivate ? '#e94560' : '#666';
 
     card.style.cssText = `
-      padding: 16px;
+      padding: 10px 12px;
       background: ${bgColor};
       border: 5px solid #1a1a2e;
       border-radius: 18px;
@@ -1218,7 +1218,7 @@ export class UIController {
       height: 100%;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
+      justify-content: flex-start;
       pointer-events: none;
     `;
 
@@ -1226,27 +1226,27 @@ export class UIController {
     const enhancedEffect = this._getEnhancedEffectText(node, imprintCount);
 
     // Calculate dynamic font sizes based on text length
-    const nameFontSize = node.name.length > 10 ? '12px' : node.name.length > 7 ? '13px' : '14px';
-    const effectFontSize = enhancedEffect.length > 60 ? '10px' : enhancedEffect.length > 40 ? '11px' : '12px';
+    const nameFontSize = node.name.length > 10 ? '13px' : node.name.length > 7 ? '14px' : '15px';
+    const effectFontSize = enhancedEffect.length > 60 ? '15px' : enhancedEffect.length > 45 ? '16px' : enhancedEffect.length > 30 ? '17px' : '18px';
 
     content.innerHTML = `
-      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 4px;">
-        <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+        <div style="display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1;">
           <span style="
             background: linear-gradient(90deg, #00d9ff, #0fb9b1);
             color: #fff;
-            min-width: 70px;
-            height: 36px;
-            border-radius: 18px;
+            min-width: 60px;
+            height: 28px;
+            border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 900;
-            border: 4px solid #1a1a2e;
-            box-shadow: 0 4px 0 #1a1a2e;
+            border: 3px solid #1a1a2e;
+            box-shadow: 0 3px 0 #1a1a2e;
             flex-shrink: 0;
-            padding: 0 10px;
+            padding: 0 8px;
             opacity: ${canAffordNC ? '1' : '0.5'};
           ">🍎 ${ncCost}</span>
           <strong style="
@@ -1260,18 +1260,19 @@ export class UIController {
             min-width: 0;
           ">${node.name} ${imprintSuffix}</strong>
         </div>
-        ${isActive ? '<span style="color: #ffd700; font-size: 24px; filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.3)); flex-shrink: 0; margin-top: 4px;">✓</span>' : ''}
+        ${isActive ? '<span style="color: #ffd700; font-size: 20px; filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.3)); flex-shrink: 0;">✓</span>' : ''}
       </div>
       <p style="
         color: ${isActive ? '#fff' : '#1a1a2e'};
         font-size: ${effectFontSize};
-        line-height: 1.3;
-        flex: 1;
-        margin: 6px 0 0 0;
+        line-height: 1.4;
+        margin: auto 0 0 0;
+        padding-top: 4px;
         font-weight: ${isActive ? '700' : '600'};
         text-shadow: ${isActive ? '1px 1px 0 rgba(0,0,0,0.2)' : 'none'};
         word-break: keep-all;
         overflow-wrap: break-word;
+        overflow: visible;
       ">${enhancedEffect}</p>
     `;
     card.appendChild(content);
