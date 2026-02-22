@@ -264,6 +264,8 @@ export class EnzymeChargeCannon extends BaseTower {
       );
 
       // 2차 타격 적용 (노드 10: 완충 임계 붕괴 - 완충 샷이 체력 60%+ 대상에 추가 피해)
+      // homing=true: 적은 x/y가 없고 currentPath+d로만 위치를 가지므로
+      //             비유도(homing=false)는 생성자에서 dirX/dirY=NaN이 되어 동작 불가
       if (context.secondaryDamage && context.secondaryDamage > 0) {
         this.bulletSystem.createBullet(
           this.x,
@@ -273,7 +275,7 @@ export class EnzymeChargeCannon extends BaseTower {
           [0.6, 1.0, 0.5, 0.7], // 2차 타격 색상 (연두빛)
           projectileSpeed * 1.3,
           bulletSize * 0.6,
-          false
+          true  // homing=true: samplePath 기반 추적
         );
       }
 
@@ -515,8 +517,13 @@ export function createEnzymeChargeCannonUpgradeNodes() {
               }
             }
             if (distance === undefined) {
-              // fallback: food에 직접 좌표가 있는 경우
-              distance = Math.hypot(tower.x - (ctx.food.x || 0), tower.y - (ctx.food.y || 0));
+              // fallback: food에 직접 유효한 좌표가 있을 때만 사용
+              // undefined를 0으로 대체하면 원점 기준으로 오판정하므로 수치 타입만 허용
+              if (typeof ctx.food.x === 'number' && typeof ctx.food.y === 'number') {
+                distance = Math.hypot(tower.x - ctx.food.x, tower.y - ctx.food.y);
+              } else {
+                return false; // 위치 정보 없음 - 장거리 판정 불가
+              }
             }
             const effectiveRange = tower.range * (tower._moduleRangeMultiplier || 1.0);
             return distance >= effectiveRange * 0.70;
