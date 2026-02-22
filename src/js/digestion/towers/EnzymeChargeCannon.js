@@ -442,7 +442,7 @@ export function createEnzymeChargeCannonUpgradeNodes() {
         })
       ],
       effect: '완충 상태 적중 시 추가 피해 +18%',
-      prerequisites: [[1], [2]], // 1 또는 2
+      prerequisites: [[1]],
       ncCostMultiplier: 0.12
     }),
 
@@ -469,7 +469,7 @@ export function createEnzymeChargeCannonUpgradeNodes() {
         })
       ],
       effect: '장거리(사거리 70%+) 명중 시 피해 +14%',
-      prerequisites: [[1], [2]], // 1 또는 2
+      prerequisites: [[2]],
       ncCostMultiplier: 0.12
     }),
 
@@ -490,7 +490,7 @@ export function createEnzymeChargeCannonUpgradeNodes() {
         })
       ],
       effect: '충전 시간 -12%, 미완충 발사 피해 페널티 -10%p',
-      prerequisites: [[1], [3]], // 1 또는 3
+      prerequisites: [[3]],
       ncCostMultiplier: 0.12
     }),
 
@@ -520,7 +520,7 @@ export function createEnzymeChargeCannonUpgradeNodes() {
         })
       ],
       effect: '디버프 대상 명중 시 추가 피해 +12%, 처치 시 다음 샷 충전 +10%',
-      prerequisites: [[1], [3]], // 1 또는 3
+      prerequisites: [[4]],
       ncCostMultiplier: 0.13
     }),
 
@@ -552,7 +552,7 @@ export function createEnzymeChargeCannonUpgradeNodes() {
         })
       ],
       effect: '단일 타겟 연속 적중 3회 시 피해 +20%',
-      prerequisites: [[4], [5], [6]], // 4 또는 5 또는 6
+      prerequisites: [[5]],
       ncCostMultiplier: 0.15
     }),
 
@@ -576,7 +576,7 @@ export function createEnzymeChargeCannonUpgradeNodes() {
         })
       ],
       effect: '과열 페널티 -20%, 완충 피해 +8%',
-      prerequisites: [[5], [6], [7]], // 5 또는 6 또는 7
+      prerequisites: [[6]],
       ncCostMultiplier: 0.15
     }),
 
@@ -603,7 +603,7 @@ export function createEnzymeChargeCannonUpgradeNodes() {
         })
       ],
       effect: '완충 샷이 체력 60%+ 대상에 2차 타격 35% 발생',
-      prerequisites: [[8]],
+      prerequisites: [[7]],
       ncCostMultiplier: 0.18
     }),
 
@@ -646,7 +646,7 @@ export function createEnzymeChargeCannonUpgradeNodes() {
         })
       ],
       effect: '3초 내 처치 연계 시 다음 완충 샷 피해 +40%',
-      prerequisites: [[9, 10]], // 9 + 10 (AND)
+      prerequisites: [[8]],
       ncCostMultiplier: 0.22
     }),
 
@@ -671,7 +671,7 @@ export function createEnzymeChargeCannonUpgradeNodes() {
         })
       ],
       effect: '사거리 +12%, 충전 시간 -10%, 완충 샷 치명타 확률 +12%p',
-      prerequisites: [[11]],
+      prerequisites: [[9]],
       ncCostMultiplier: 0.25
     })
   ];

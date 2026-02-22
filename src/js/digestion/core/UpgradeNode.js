@@ -73,6 +73,15 @@ export class UpgradeTree {
   }
 
   /**
+   * 노드 번호로 노드 객체 조회
+   * @param {number} nodeNumber
+   * @returns {UpgradeNode|undefined}
+   */
+  getNode(nodeNumber) {
+    return this.nodes.find(n => n.nodeNumber === nodeNumber);
+  }
+
+  /**
    * 노드 활성화
    * @param {number} nodeNumber - 활성화할 노드 번호
    * @param {EconomySystem} economySystem - 경제 시스템 (NC/SC 관리)
@@ -193,18 +202,22 @@ export class UpgradeTree {
    * 활성 모듈 재계산 (저장 로드 후 호출)
    */
   recalculateActiveModules() {
-    // activeNodes가 Set으로 nodeNumber만 저장되어 있을 수 있음
-    // 실제 노드 객체로 변환
-    const newActiveNodes = new Set();
-
-    for (const nodeNumber of this.activeNodes) {
-      const node = this.getNode(nodeNumber);
-      if (node) {
-        newActiveNodes.add(node);
-      }
+    // activeNodes를 nodeNumber 배열로 정규화 후 UpgradeNode 객체 배열로 재구성
+    const nodeNumbers = [];
+    for (const nodeOrNumber of this.activeNodes) {
+      if (typeof nodeOrNumber === 'number') nodeNumbers.push(nodeOrNumber);
+      else if (nodeOrNumber?.nodeNumber !== undefined) nodeNumbers.push(nodeOrNumber.nodeNumber);
     }
 
-    this.activeNodes = newActiveNodes;
-    console.log(`[UpgradeTree] Active modules recalculated: ${this.activeNodes.size} nodes active`);
+    this.activeNodes = [];
+    this.usedPoints = 0;
+    for (const nodeNumber of nodeNumbers) {
+      const node = this.getNode(nodeNumber);
+      if (node) {
+        this.activeNodes.push(node);
+        this.usedPoints += node.cost;
+      }
+    }
+    console.log(`[UpgradeTree] Active modules recalculated: ${this.activeNodes.length} nodes active`);
   }
 }

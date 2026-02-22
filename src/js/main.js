@@ -510,6 +510,13 @@ async function init() {
   uiController.setUISfxSystem(uiSfxSystem);
   uiController.setGameLoop(gameLoop); // NEW: Connect UI to game systems
 
+  // 유저 액션 시 즉시 저장하는 콜백 연결
+  uiController.saveCallback = () => {
+    const gameState = saveSystem.extractGameState(gameLoop);
+    saveSystem.saveGame(gameState);
+    console.log('[Main] Action save triggered');
+  };
+
   // Initialize Scale Manager
   const scaleManager = new ScaleManager();
 

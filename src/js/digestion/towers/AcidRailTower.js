@@ -142,7 +142,7 @@ export function createAcidRailUpgradeNodes() {
         })
       ],
       effect: '기본 피해 +5%, 취약 대상 추가 피해 +12%',
-      prerequisites: [[1], [2]], // 1 또는 2
+      prerequisites: [[1]],
       ncCostMultiplier: 0.12
     }),
 
@@ -168,7 +168,7 @@ export function createAcidRailUpgradeNodes() {
         })
       ],
       effect: '기본 피해 +5%, 감전 대상 치명타 확률 +10%p',
-      prerequisites: [[1], [2]], // 1 또는 2
+      prerequisites: [[2]],
       ncCostMultiplier: 0.12
     }),
 
@@ -195,7 +195,7 @@ export function createAcidRailUpgradeNodes() {
         })
       ],
       effect: '기본 피해 +10%, 방어력 10+ 적 추가 피해 +15%',
-      prerequisites: [[1], [3]], // 1 또는 3
+      prerequisites: [[3]],
       ncCostMultiplier: 0.13
     }),
 
@@ -222,7 +222,7 @@ export function createAcidRailUpgradeNodes() {
         })
       ],
       effect: '기본 피해 +7%, 체력 25% 이하 대상 추가 피해 +18%',
-      prerequisites: [[1], [3]], // 1 또는 3
+      prerequisites: [[4]],
       ncCostMultiplier: 0.14
     }),
 
@@ -240,7 +240,7 @@ export function createAcidRailUpgradeNodes() {
         })
       ],
       effect: '기본 피해 +12%, 공격속도 +5%',
-      prerequisites: [[4], [5], [6]], // 4 또는 5 또는 6
+      prerequisites: [[5]],
       ncCostMultiplier: 0.15
     }),
 
@@ -282,7 +282,7 @@ export function createAcidRailUpgradeNodes() {
         })
       ],
       effect: '기본 피해 +6%, 동일 대상 3회 적중 시 피해 +18% + 표식 부여',
-      prerequisites: [[5], [6], [7]], // 5 또는 6 또는 7
+      prerequisites: [[6]],
       ncCostMultiplier: 0.16
     }),
 
@@ -315,7 +315,7 @@ export function createAcidRailUpgradeNodes() {
         })
       ],
       effect: '기본 피해 +8%, 치명타 확률 +8%p, 치명타 시 피해 +12% + 표식 부여',
-      prerequisites: [[8]], // 8
+      prerequisites: [[7]],
       ncCostMultiplier: 0.18
     }),
 
@@ -345,7 +345,7 @@ export function createAcidRailUpgradeNodes() {
         })
       ],
       effect: '기본 피해 +8%, 체력 35% 이하 대상 피해 +40%, 치명타 +15%p',
-      prerequisites: [[8, 9]], // 8 + 9 (AND 조건)
+      prerequisites: [[8]],
       ncCostMultiplier: 0.22
     }),
 
@@ -384,7 +384,7 @@ export function createAcidRailUpgradeNodes() {
         })
       ],
       effect: '기본 피해 +12%, 치명타 배율 +0.6, 표식 대상 피해 +15%, 표식 + 체력 20% 이하 추가 피해 +20%',
-      prerequisites: [[10], [11]], // 10 또는 11
+      prerequisites: [[9]],
       ncCostMultiplier: 0.25
     })
   ];

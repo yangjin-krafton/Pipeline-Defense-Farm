@@ -35,28 +35,21 @@ export class SaveSystem {
           maxSC: gameState.economy.maxSC
         },
 
-        // 타워 상태
+        // 타워 상태 (extractGameState()가 이미 변환한 plain object를 그대로 사용)
         towers: gameState.towers.map(tower => ({
           slotIndex: tower.slotIndex,
           type: tower.type,
           x: tower.x,
           y: tower.y,
-
-          // 성장 정보
           xp: tower.xp,
           level: tower.level,
           star: tower.star,
           upgradePoints: tower.upgradePoints,
-
-          // 스탯 보너스
           starBonuses: tower.starBonuses,
-
-          // 스킬트리
-          activeNodes: Array.from(tower.upgradeTree?.activeNodes || []),
-
-          // 각인
-          imprints: tower.imprints,
-          imprintCounts: tower.imprintCounts ? Array.from(tower.imprintCounts.entries()) : []
+          activeNodes: tower.activeNodes || [],
+          imprints: tower.imprints || [],
+          imprintCounts: tower.imprintCounts || [],
+          pendingUpgrade: tower.pendingUpgrade || null
         })),
 
         // 시간 추적
@@ -240,8 +233,17 @@ export class SaveSystem {
         upgradePoints: tower.upgradePoints,
         starBonuses: tower.starBonuses,
         activeNodes: activeNodeNumbers,
-        imprints: tower.imprints || [],
-        imprintCounts: tower.imprintCounts ? Array.from(tower.imprintCounts.entries()) : []
+        // imprintedNode(UpgradeNode 참조)는 직렬화 불가 → 로드 시 upgradeTree에서 재구성
+        imprints: (tower.imprints || []).map(imp => ({
+          nodeNumber: imp.nodeNumber,
+          nodeName: imp.nodeName,
+          nodeDescription: imp.nodeDescription,
+          acquiredStar: imp.acquiredStar,
+          statGains: imp.statGains,
+          imprintCount: imp.imprintCount
+        })),
+        imprintCounts: tower.imprintCounts ? Array.from(tower.imprintCounts.entries()) : [],
+        pendingUpgrade: tower.pendingUpgrade || null
       };
     });
 

@@ -1,4 +1,5 @@
 import { TOWER_DEFINITIONS } from '../data/towerDefinitions.js';
+import { STAR_UPGRADE_COSTS } from '../data/economyDefinitions.js';
 import { AcidRailTower } from '../towers/AcidRailTower.js';
 import { EnzymeChargeCannon } from '../towers/EnzymeChargeCannon.js';
 import { PierceBoltTower } from '../towers/PierceBoltTower.js';
@@ -70,12 +71,35 @@ export class TowerManager {
   }
 
   /**
-   * Sell tower and get partial refund
-   * @param {Tower} tower - Tower to sell
-   * @param {number} refundRate - Refund rate (0.0-1.0), default 0.6 (60%)
-   * @returns {number} Refund amount
+   * 타워 판매 금액 계산 (레벨·승급 반영)
+   * - 설치비 60% 환급
+   * - 승급에 투자한 NC의 50% 환급 (star 1→현재까지 누적)
+   * - 레벨당 설치비의 4% 보너스 (Lv1 기준)
+   * @param {BaseTower} tower
+   * @returns {number}
    */
-  sellTower(tower, refundRate = 0.6) {
+  calculateSellValue(tower) {
+    const baseCost = tower.definition.cost;
+
+    // 승급 투자 NC 누적
+    let totalStarNC = 0;
+    for (const cost of STAR_UPGRADE_COSTS) {
+      if (cost.from < tower.star) totalStarNC += cost.nc;
+    }
+
+    const baseRefund  = Math.floor(baseCost * 0.6);
+    const starRefund  = Math.floor(totalStarNC * 0.5);
+    const levelBonus  = Math.floor(baseCost * 0.04 * (tower.level - 1));
+
+    return baseRefund + starRefund + levelBonus;
+  }
+
+  /**
+   * Sell tower and return refund amount
+   * @param {BaseTower} tower - Tower to sell
+   * @returns {number} Refund amount (NC)
+   */
+  sellTower(tower) {
     const index = this.towers.indexOf(tower);
     if (index !== -1) {
       this.towers.splice(index, 1);
@@ -89,8 +113,8 @@ export class TowerManager {
       }
     }
 
-    const refundAmount = Math.floor(tower.definition.cost * refundRate);
-    console.log(`Sold tower for ${refundAmount} NC (${refundRate * 100}% refund)`);
+    const refundAmount = this.calculateSellValue(tower);
+    console.log(`Sold tower for ${refundAmount} NC (star ${tower.star}, level ${tower.level})`);
     return refundAmount;
   }
 
@@ -147,27 +171,33 @@ export class TowerManager {
         tower.starBonuses = { ...towerData.starBonuses };
       }
 
-      // Restore imprints
+      // Restore imprints (imprintedNode를 upgradeTree에서 재구성)
       if (towerData.imprints) {
-        tower.imprints = [...towerData.imprints];
+        tower.imprints = towerData.imprints.map(imprint => ({
+          ...imprint,
+          imprintedNode: tower.upgradeTree?.nodes.find(n => n.nodeNumber === imprint.nodeNumber) || null
+        }));
       }
 
       if (towerData.imprintCounts) {
         tower.imprintCounts = new Map(towerData.imprintCounts);
       }
 
-      // Restore active nodes
+      // Restore pending upgrade state
+      if (towerData.pendingUpgrade) {
+        tower.pendingUpgrade = towerData.pendingUpgrade;
+      }
+
+      // Restore active nodes (activeNodes는 항상 Array<UpgradeNode>)
       if (towerData.activeNodes && tower.upgradeTree) {
         for (const nodeNumber of towerData.activeNodes) {
           const node = tower.upgradeTree.getNode(nodeNumber);
-          if (node && !tower.upgradeTree.activeNodes.has(nodeNumber)) {
-            tower.upgradeTree.activeNodes.add(nodeNumber);
+          if (node && !tower.upgradeTree.activeNodes.some(n => n.nodeNumber === nodeNumber)) {
+            tower.upgradeTree.activeNodes.push(node);
+            tower.upgradeTree.usedPoints += node.cost;
             console.log(`[TowerManager] Restored node ${nodeNumber} for tower ${towerData.type}`);
           }
         }
-
-        // Recalculate active modules
-        tower.upgradeTree.recalculateActiveModules();
       }
 
       // Check for level up with offline XP

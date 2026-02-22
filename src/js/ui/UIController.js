@@ -19,6 +19,7 @@ export class UIController {
 
     this.gameLoop = null; // Will be set by main.js
     this.selectedSlot = null;
+    this.saveCallback = null; // Set by main.js for action-triggered saves
 
     // Drag manager
     this.dragManager = dragManager;
@@ -202,10 +203,9 @@ export class UIController {
    * Close bottom sheet
    */
   closeSheet() {
-    // Prevent closing during star upgrade
+    // 승급 UI가 열려있으면 닫기 시 UI만 숨김 (pendingUpgrade는 유지)
     if (this.starUpgradeManager && this.starUpgradeManager.isCurrentlyUpgrading()) {
-      this._showToast('승급을 완료해주세요', 'error');
-      return;
+      this.starUpgradeManager.dismissUpgradeUI();
     }
 
     if (this.isExpanded) {
@@ -265,6 +265,12 @@ export class UIController {
     const existingTower = towerManager.getTowerAtSlot(slotData);
 
     if (existingTower) {
+      // 승급 대기 중인 타워 → 바로 승급 UI로 복원
+      if (existingTower.pendingUpgrade && this.starUpgradeManager) {
+        this.openSheet();
+        this.starUpgradeManager.showStarUpgradeUI(existingTower, existingTower.pendingUpgrade);
+        return;
+      }
       // 타워가 설치되어 있음 - 상세 정보 표시
       this._showTowerDetail(existingTower);
     } else {
@@ -296,6 +302,10 @@ export class UIController {
   _playUISfx(eventName, options = {}) {
     if (!this.uiSfxSystem) return;
     this.uiSfxSystem.play(eventName, options);
+  }
+
+  _triggerSave() {
+    if (this.saveCallback) this.saveCallback();
   }
 
   /* REMOVED: Tower interactions moved to WebGL2 rendering
@@ -490,24 +500,17 @@ export class UIController {
     // Sell button
     const sellBtn = document.getElementById('sellBtn');
     if (sellBtn) {
-      const refundAmount = Math.floor(towerBaseCost * 0.6);
-
+      const refundAmount = towerManager.calculateSellValue(tower);
       sellBtn.textContent = `💰 판매 (+🍎 ${refundAmount})`;
 
       sellBtn.onclick = (e) => {
         e.stopPropagation();
-
-        this._showConfirmDialog({
-          title: '타워 판매',
-          message: `이 타워를 판매하여 🍎 ${refundAmount} NC를 받습니다.`,
-          onConfirm: () => {
-            const refund = towerManager.sellTower(tower, 0.6);
-            economySystem.earnNC(refund);
-            this._showToast(`타워 판매: +🍎 ${refund}`, 'success');
-            this.updateNutritionDisplay(economySystem.getState());
-            this.closeSheet();
-          }
-        });
+        const refund = towerManager.sellTower(tower);
+        economySystem.earnNC(refund);
+        this._showToast(`타워 판매: +🍎 ${refund}`, 'success');
+        this.updateNutritionDisplay(economySystem.getState());
+        this._triggerSave();
+        this.closeSheet();
       };
     }
   }
@@ -517,6 +520,12 @@ export class UIController {
    */
   _showTowerDetail(tower) {
     console.log('UIController: Showing tower detail');
+    // 승급 UI가 열려있으면 숨김 (다른 타워 선택 시)
+    if (this.starUpgradeManager?.isCurrentlyUpgrading()) {
+      this.starUpgradeManager.dismissUpgradeUI();
+    }
+    const starUpgradeUI = document.getElementById('tower-star-upgrade');
+    if (starUpgradeUI) starUpgradeUI.classList.add('hidden');
     // Hide build UI, show detail UI
     if (this.towerBuildContent) {
       this.towerBuildContent.classList.add('hidden');
@@ -709,6 +718,8 @@ export class UIController {
           this._playUISfx('tower_upgrade', { volume: 0.7 });
           this.updateNutritionDisplay(economySystem.getState());
           this.starUpgradeManager.showStarUpgradeUI(tower);
+          // 승급 대기 상태 저장 (비용 이미 차감됨)
+          this._triggerSave();
         });
 
         pointsDisplay.onmouseenter = () => {
@@ -813,6 +824,7 @@ export class UIController {
           this._playUISfx('tower_upgrade', { volume: 0.8 });
           this._showToast('스킬트리 리셋 완료', 'success');
           this.updateNutritionDisplay(economySystem.getState());
+          this._triggerSave();
           this._showUpgradeTree(tower);
         }
       });
@@ -1108,9 +1120,9 @@ export class UIController {
    * Calculate node positions in a 3-row fixed layout
    *
    * Layout:
-   * Row 0: [1] - [4] - [7] - [10] - [12]
-   * Row 1: [2] - [5] - [8] > [11]
-   * Row 2: [3] - [6] - [9]
+   * Row 0: [1] - [4] - [7] - [10]
+   * Row 1: [2] - [5] - [8] - [11]
+   * Row 2: [3] - [6] - [9] - [12]
    */
   _calculateNodePositions(nodes) {
     // Fixed 3-row layout mapping
@@ -1126,7 +1138,7 @@ export class UIController {
       9: { column: 2, row: 2 },
       10: { column: 3, row: 0 },
       11: { column: 3, row: 1 },
-      12: { column: 4, row: 0 }
+      12: { column: 3, row: 2 }
     };
 
     const positions = {};
@@ -1319,6 +1331,7 @@ export class UIController {
 
             // Update currency display
             self.updateNutritionDisplay(economySystem.getState());
+            self._triggerSave();
 
             setTimeout(() => {
               self._showUpgradeTree(tower); // Refresh UI
@@ -1407,6 +1420,12 @@ export class UIController {
    */
   _showTowerBuild() {
     console.log('UIController: Showing tower build');
+    // 승급 UI가 열려있으면 숨김
+    if (this.starUpgradeManager?.isCurrentlyUpgrading()) {
+      this.starUpgradeManager.dismissUpgradeUI();
+    }
+    const starUpgradeUI = document.getElementById('tower-star-upgrade');
+    if (starUpgradeUI) starUpgradeUI.classList.add('hidden');
     // Hide detail UI, show build UI
     if (this.towerDetailContent) {
       this.towerDetailContent.classList.add('hidden');

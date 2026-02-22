@@ -30,45 +30,96 @@ export class StarUpgradeManager {
     return this.isUpgrading;
   }
 
+  /**
+   * 승급 UI를 숨기고 상태를 초기화 (tower.pendingUpgrade는 유지)
+   * 다른 타워 선택 또는 시트 닫기 시 호출
+   */
+  dismissUpgradeUI() {
+    const starUpgradeUI = document.getElementById('tower-star-upgrade');
+    if (starUpgradeUI) starUpgradeUI.classList.add('hidden');
+    this.uiParticleSystem.destroy();
+    this.isUpgrading = false;
+    this.starUpgradeState = null;
+  }
+
   _playUpgradeSfx(eventName, volume = 0.7) {
     if (!this.uiController || typeof this.uiController._playUISfx !== 'function') return;
     this.uiController._playUISfx(eventName, { volume });
   }
 
   /**
+   * 현재 승급 상태를 저장 가능한 형태로 직렬화
+   * @returns {Object|null}
+   */
+  _buildPendingUpgradeData() {
+    const state = this.starUpgradeState;
+    if (!state) return null;
+    return {
+      statRoll: JSON.parse(JSON.stringify(state.currentStatRoll)),
+      imprintOptions: state.imprintOptions.map(opt => ({
+        nodeNumber: opt.nodeNumber,
+        nodeName: opt.nodeName,
+        nodeDescription: opt.nodeDescription
+      })),
+      rerollCount: state.rerollCount,
+      expandCount: state.expandCount,
+      selectedImprint: state.selectedImprint
+    };
+  }
+
+  /**
    * Show star upgrade UI (승급 전용 UI 표시)
    * @param {BaseTower} tower - Tower to upgrade
+   * @param {Object|null} restoredState - 재접속 시 복원할 pending 상태 (null이면 새로 시작)
    */
-  showStarUpgradeUI(tower) {
+  showStarUpgradeUI(tower, restoredState = null) {
     if (!this.gameLoop) return;
 
     const towerGrowthSystem = this.gameLoop.getTowerGrowthSystem();
     const economySystem = this.gameLoop.getEconomySystem();
 
-    // 게임 정지
-    this.gameLoop.pause();
+    // 게임은 0.5배속 유지 (시트 오픈 시 이미 설정됨), 일시정지 없음
     this._playUpgradeSfx('tower_upgrade', 0.72);
 
-    // 현재 타워 상태 저장 (취소 시 복원용)
-    this.starUpgradeState = {
-      tower: tower,
-      originalStar: tower.star,
-      originalStarBonuses: JSON.parse(JSON.stringify(tower.starBonuses)),
-      currentStatRoll: null,
-      rerollCount: 0,
-      expandCount: 0,
-      selectedImprint: null,
-      imprintOptions: []
-    };
+    if (restoredState) {
+      // 재접속 복원: 저장된 상태 그대로 사용 (비용은 이미 차감됨)
+      const restoredOptions = restoredState.imprintOptions.map(opt => ({
+        nodeNumber: opt.nodeNumber,
+        nodeName: opt.nodeName,
+        nodeDescription: opt.nodeDescription,
+        imprintedNode: tower.upgradeTree?.nodes.find(n => n.nodeNumber === opt.nodeNumber) || null
+      }));
 
-    // 승급 비용 계산
-    const upgradeCost = towerGrowthSystem.getUpgradeCost(tower.star);
+      this.starUpgradeState = {
+        tower: tower,
+        originalStar: tower.star,
+        originalStarBonuses: JSON.parse(JSON.stringify(tower.starBonuses)),
+        currentStatRoll: restoredState.statRoll,
+        rerollCount: restoredState.rerollCount,
+        expandCount: restoredState.expandCount,
+        selectedImprint: restoredState.selectedImprint,
+        imprintOptions: restoredOptions
+      };
+      console.log('[StarUpgradeManager] Restored pending upgrade state');
+    } else {
+      // 새 승급: 상태 초기화 후 스탯 롤
+      this.starUpgradeState = {
+        tower: tower,
+        originalStar: tower.star,
+        originalStarBonuses: JSON.parse(JSON.stringify(tower.starBonuses)),
+        currentStatRoll: null,
+        rerollCount: 0,
+        expandCount: 0,
+        selectedImprint: null,
+        imprintOptions: []
+      };
 
-    // 초기 스탯 롤 (등급 정보 포함)
-    this.starUpgradeState.currentStatRoll = towerGrowthSystem._rollStatGainsWithGrades();
+      this.starUpgradeState.currentStatRoll = towerGrowthSystem._rollStatGainsWithGrades();
+      this._generateImprintOptions(tower, 1);
 
-    // 각인 옵션 생성 (1개)
-    this._generateImprintOptions(tower, 1);
+      // 타워에 승급 대기 상태 기록
+      tower.pendingUpgrade = this._buildPendingUpgradeData();
+    }
 
     // Hide other UIs, show star upgrade UI
     const towerDetailContent = document.getElementById('tower-detail');
@@ -91,22 +142,24 @@ export class StarUpgradeManager {
     // Update UI
     this._updateStarUpgradeUI();
 
-    // Initial stat rolling animation (처음 열 때 스탯 롤링)
-    setTimeout(() => {
-      this._playUpgradeSfx('shot', 0.5);
-      const statElements = document.querySelectorAll('.stat-comparison-values .new-value');
-      const stats = [
-        { element: statElements[0], value: this.starUpgradeState.currentStatRoll.damageMultiplier, min: 0.07, max: 0.11, grade: this.starUpgradeState.currentStatRoll.damageGrade },
-        { element: statElements[1], value: this.starUpgradeState.currentStatRoll.attackSpeedMultiplier, min: 0.02, max: 0.04, grade: this.starUpgradeState.currentStatRoll.attackSpeedGrade },
-        { element: statElements[2], value: this.starUpgradeState.currentStatRoll.rangeMultiplier, min: 0.01, max: 0.03, grade: this.starUpgradeState.currentStatRoll.rangeGrade },
-        { element: statElements[3], value: this.starUpgradeState.currentStatRoll.statusSuccessRate, min: 0.015, max: 0.03, grade: this.starUpgradeState.currentStatRoll.statusGrade }
-      ];
+    // 스탯 롤링 애니메이션 (재접속 복원 시에는 애니메이션 없이 즉시 표시)
+    if (!restoredState) {
+      setTimeout(() => {
+        this._playUpgradeSfx('shot', 0.5);
+        const statElements = document.querySelectorAll('.stat-comparison-values .new-value');
+        const stats = [
+          { element: statElements[0], value: this.starUpgradeState.currentStatRoll.damageMultiplier, min: 0.07, max: 0.11, grade: this.starUpgradeState.currentStatRoll.damageGrade },
+          { element: statElements[1], value: this.starUpgradeState.currentStatRoll.attackSpeedMultiplier, min: 0.02, max: 0.04, grade: this.starUpgradeState.currentStatRoll.attackSpeedGrade },
+          { element: statElements[2], value: this.starUpgradeState.currentStatRoll.rangeMultiplier, min: 0.01, max: 0.03, grade: this.starUpgradeState.currentStatRoll.rangeGrade },
+          { element: statElements[3], value: this.starUpgradeState.currentStatRoll.statusSuccessRate, min: 0.015, max: 0.03, grade: this.starUpgradeState.currentStatRoll.statusGrade }
+        ];
 
-      this.rollingAnimation.startRolling(stats, () => {
-        this._playUpgradeSfx('crit', 0.54);
-        console.log('[StarUpgradeManager] Initial stat rolling complete');
-      });
-    }, 100);
+        this.rollingAnimation.startRolling(stats, () => {
+          this._playUpgradeSfx('crit', 0.54);
+          console.log('[StarUpgradeManager] Initial stat rolling complete');
+        });
+      }, 100);
+    }
 
     // Prevent sheet close
     this.isUpgrading = true;
@@ -213,6 +266,10 @@ export class StarUpgradeManager {
         // Re-roll stats (등급 정보 포함)
         state.currentStatRoll = towerGrowthSystem._rollStatGainsWithGrades();
 
+        // 승급 대기 상태 갱신 후 저장
+        state.tower.pendingUpgrade = this._buildPendingUpgradeData();
+        this.uiController._triggerSave();
+
         this.uiController._showToast(`스탯 리롤 (${state.rerollCount}회)`, 'success');
         this.uiController.updateNutritionDisplay(economySystem.getState());
 
@@ -280,6 +337,10 @@ export class StarUpgradeManager {
 
         // Generate 1 more imprint option
         this._generateImprintOptions(tower, 1);
+
+        // 승급 대기 상태 갱신 후 저장
+        state.tower.pendingUpgrade = this._buildPendingUpgradeData();
+        this.uiController._triggerSave();
 
         this.uiController._showToast(`선택지 추가 (${state.expandCount}/2)`, 'success');
         this.uiController.updateNutritionDisplay(economySystem.getState());
@@ -534,9 +595,12 @@ export class StarUpgradeManager {
     // Show success toast
     this.uiController._showToast(`⭐ ${state.originalStar}성 → ${tower.star}성 승급 완료!`, 'success');
 
-    // Resume game
-    this.gameLoop.resume();
+    // 게임 속도는 시트 닫을 때 복원됨 (여기서는 건드리지 않음)
     this.isUpgrading = false;
+
+    // 승급 대기 상태 해제 후 저장
+    tower.pendingUpgrade = null;
+    this.uiController._triggerSave();
 
     // Destroy particle system
     this.uiParticleSystem.destroy();

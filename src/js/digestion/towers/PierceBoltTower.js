@@ -18,265 +18,323 @@ export class PierceBoltTower extends BaseTower {
   constructor(slotData, definition, bulletSystem = null, particleSystem = null) {
     super(slotData, definition, bulletSystem, particleSystem);
 
-    // 관통 카운터
-    this.pierceKillCount = 0;
-  }
-
-  attack(food, currentTime = 0) {
-    // 기본 공격 수행
-    super.attack(food, currentTime);
-
-    // 관통 처치 카운트 (노드 12번용)
-    if (food.hp <= 0) {
-      this.pierceKillCount++;
-    }
+    // 노드 10: 샷 카운트 기반 공명 타이밍
+    this.pierceResonanceCounter = 0;
+    // 노드 12: 관통 처치 기반 다음 샷 보너스
+    this.lineSweepStacks = 0;
   }
 }
 
 /**
  * 연동 관통 볼트기 업그레이드 노드 생성
+ * 2026-02-22 개정: 직선관통 라인형 리뉴얼
  */
 export function createPierceBoltUpgradeNodes() {
   return [
-    // 1. 연동 정렬 핀 (TM)
+    // 1. 축선 천공 핀 (TM+PM)
     new UpgradeNode({
       id: 'piercebolt_node_1',
       nodeNumber: 1,
       position: 'branch',
-      name: '연동 정렬 핀',
+      name: '축선 천공 핀',
       modules: [
         new TargetingModule({
-          priority: 'first', // 직선 경로 적중 보정은 시각적 효과
-          accuracyBonus: 0.15
+          priority: 'first'
+        }),
+        new ProjectileModule({
+          type: 'pierce',
+          pierceDistanceBonus: 0.10
         })
       ],
-      effect: '직선 경로 적중 보정 +15%',
+      effect: '직선 축선 적중 보정 +12%, 관통 거리 +10%',
       prerequisites: [],
       ncCostMultiplier: 0.08
     }),
 
-    // 2. 소화관 천공 강화 (PM)
+    // 2. 심부 관통 바렐 (PM)
     new UpgradeNode({
       id: 'piercebolt_node_2',
       nodeNumber: 2,
       position: 'branch',
-      name: '소화관 천공 강화',
+      name: '심부 관통 바렐',
       modules: [
         new ProjectileModule({
           type: 'pierce',
           pierceCount: 1,
-          pierceDamageFalloff: 0.15
+          pierceDamageFalloff: 0.14
         })
       ],
-      effect: '관통 횟수 +1',
+      effect: '관통 횟수 +1, 탄 크기 +8%',
       prerequisites: [],
       ncCostMultiplier: 0.09
     }),
 
-    // 3. 잔사 절개 (DM+SM)
+    // 3. 압축 중탄 챔버 (PM+DM)
     new UpgradeNode({
       id: 'piercebolt_node_3',
       nodeNumber: 3,
       position: 'branch',
-      name: '잔사 절개',
+      name: '압축 중탄 챔버',
       modules: [
-        new StatusModule({
-          statusType: 'acid',
-          statusValue: 0.10, // 10% DOT
-          statusDuration: 2
+        new ProjectileModule({
+          type: 'pierce',
+          pierceDamageFalloff: 0.10
+        }),
+        new DamageModule({
+          damageMultiplier: 1.10
         })
       ],
-      effect: '관통 후 잔여 피해 10%를 DOT(2초)로 전환',
+      effect: '탄 크기 +15%, 관통 피해 +10%',
       prerequisites: [],
       ncCostMultiplier: 0.10
     }),
 
-    // 4. 지방막 절단날 (TB+SM)
+    // 4. 지방막 절삭날 (TB+SM+DM)
     new UpgradeNode({
       id: 'piercebolt_node_4',
       nodeNumber: 4,
       position: 'mid',
-      name: '지방막 절단날',
+      name: '지방막 절삭날',
       modules: [
         new TagBonusModule({
           tagBonuses: {
-            fat: 1.25
+            fat: 1.08
           },
           tagEffects: {
             fat: {
               type: 'armorReduction',
-              value: 9,
+              value: 0.10,
               duration: 3
             }
           }
+        }),
+        new DamageModule({
+          damageMultiplier: 1.08,
+          conditionalCheck: (ctx) => ctx.food.tags?.includes('fat')
         })
       ],
-      effect: '지방 관통 시 방어 -9%(3초)',
-      prerequisites: [[1], [2]], // 1 또는 2
+      effect: 'fat 관통 시 방어 -10%(3초), 관통 피해 +8%',
+      prerequisites: [[1]],
       ncCostMultiplier: 0.12
     }),
 
-    // 5. 유당 분해 홈 (TB+PM)
+    // 5. 유당 도관 확장 (TB+PM)
     new UpgradeNode({
       id: 'piercebolt_node_5',
       nodeNumber: 5,
       position: 'mid',
-      name: '유당 분해 홈',
+      name: '유당 도관 확장',
       modules: [
         new TagBonusModule({
           tagBonuses: {
-            dairy: 1.3
+            dairy: 1.10
           }
         }),
         new ProjectileModule({
-          pierceDistanceBonus: 0.20
+          pierceDistanceBonus: 0.22
         })
       ],
-      effect: '유제품 관통 시 추가 관통거리 +20%',
-      prerequisites: [[1], [2]], // 1 또는 2
+      effect: 'dairy 관통 시 관통 거리 +22%, 탄 크기 +10%',
+      prerequisites: [[2]],
       ncCostMultiplier: 0.12
     }),
 
-    // 6. 단백질 결속 파열 (TB+DM)
+    // 6. 단백질 파열 천공 (TB+DM+PM)
     new UpgradeNode({
       id: 'piercebolt_node_6',
       nodeNumber: 6,
       position: 'mid',
-      name: '단백질 결속 파열',
+      name: '단백질 파열 천공',
       modules: [
         new TagBonusModule({
           tagBonuses: {
-            protein: 1.35
+            protein: 1.18
           }
         }),
         new DamageModule({
-          damageMultiplier: 1.15 // 뒤 타겟 증폭
+          damageMultiplier: 1.18,
+          conditionalCheck: (ctx) => ctx.food.tags?.includes('protein')
+        }),
+        new ProjectileModule({
+          pierceCount: 1
         })
       ],
-      effect: '단백질 관통 시 뒤 타겟 피해 증폭 15%',
-      prerequisites: [[1], [3]], // 1 또는 3
+      effect: 'protein 관통 시 후열 피해 +18%, 관통 횟수 +1',
+      prerequisites: [[3]],
       ncCostMultiplier: 0.13
     }),
 
-    // 7. 탄산 누출 밸브 (TB+SM+TR)
+    // 7. 탄산 장갑 침식 (TB+SM+TR)
     new UpgradeNode({
       id: 'piercebolt_node_7',
       nodeNumber: 7,
       position: 'mid',
-      name: '탄산 누출 밸브',
+      name: '탄산 장갑 침식',
       modules: [
         new TagBonusModule({
           tagBonuses: {
-            soda: 1.3
+            soda: 1.08
           },
           tagEffects: {
             soda: {
-              type: 'slow',
-              value: 0.3,
-              duration: 2
+              type: 'armorReduction',
+              value: 0.08,
+              duration: 3
             }
           }
+        }),
+        new StatusModule({
+          statusType: 'corrode',
+          statusValue: 0.08,
+          statusDuration: 3
+        }),
+        new TriggerModule({
+          triggerType: 'onHit',
+          triggerCondition: (ctx) => ctx.food.tags?.includes('soda'),
+          triggerEffect: () => ({
+            statusEffect: { type: 'corrode', value: 0.08, duration: 3 }
+          })
         })
       ],
-      effect: '탄산 처치 시 경로 감속 지대 생성',
-      prerequisites: [[1], [3]], // 1 또는 3
+      effect: 'soda 관통 시 방어 -8% 누적, 최대 3중첩',
+      prerequisites: [[4]],
       ncCostMultiplier: 0.14
     }),
 
-    // 8. 소장 곡선 보정 (PM+SF)
+    // 8. 직선 관통 유지장치 (PM+SF+DM)
     new UpgradeNode({
       id: 'piercebolt_node_8',
       nodeNumber: 8,
       position: 'mid',
-      name: '소장 곡선 보정',
+      name: '직선 관통 유지장치',
       modules: [
         new ProjectileModule({
-          curveCompensation: 0.35
+          curveCompensation: 0.40
+        }),
+        new SafetyModule({
+          minDamageGuarantee: 0.60
+        }),
+        new DamageModule({
+          damageMultiplier: 1.10
         })
       ],
-      effect: '곡선 구간 관통 손실 35% 감소',
-      prerequisites: [[4], [5], [6]], // 4 또는 5 또는 6
+      effect: '직선 구간 관통 손실 -40%, 관통 피해 +10%',
+      prerequisites: [[5]],
       ncCostMultiplier: 0.15
     }),
 
-    // 9. 대장 정체 해소 (SM+DM)
+    // 9. 중탄 압착 관통 (PM+DM+SM)
     new UpgradeNode({
       id: 'piercebolt_node_9',
       nodeNumber: 9,
       position: 'mid',
-      name: '대장 정체 해소',
+      name: '중탄 압착 관통',
       modules: [
+        new ProjectileModule({
+          pierceDamageFalloff: 0.08
+        }),
         new DamageModule({
-          damageMultiplier: 1.18
+          damageMultiplier: 1.20,
+          conditionalCheck: (ctx) => (ctx.food.armor || 0) >= 15
+        }),
+        new StatusModule({
+          statusType: 'corrode',
+          statusValue: 0.04,
+          statusDuration: 2
         })
       ],
-      effect: '정체 상태 적 피해 +18% (디버프 2개 이상)',
-      prerequisites: [[5], [6], [7]], // 5 또는 6 또는 7
+      effect: '탄 크기 +12%, 방어 높은 적(15+) 대상 피해 +20%',
+      prerequisites: [[6]],
       ncCostMultiplier: 0.16
     }),
 
-    // 10. 장내균 공명 (TR+DM)
+    // 10. 관통 공명 증폭기 (TR+PM+DM)
     new UpgradeNode({
       id: 'piercebolt_node_10',
       nodeNumber: 10,
       position: 'end',
-      name: '장내균 공명',
+      name: '관통 공명 증폭기',
       modules: [
+        new ProjectileModule({
+          type: 'pierce'
+        }),
+        new DamageModule({
+          damageMultiplier: 1.0
+        }),
         new TriggerModule({
           triggerType: 'onHit',
           triggerCondition: (ctx) => {
-            const debuffCount = ctx.food.statusEffects?.length || 0;
-            return debuffCount >= 2;
+            ctx.tower.pierceResonanceCounter = (ctx.tower.pierceResonanceCounter || 0) + 1;
+            return ctx.tower.pierceResonanceCounter >= 3;
           },
           triggerEffect: (ctx) => {
-            // 추가 히트 1회
-            return { additionalHit: true };
+            ctx.tower.pierceResonanceCounter = 0;
+            return { damageBonus: 0.65 };
           }
         })
       ],
-      effect: '디버프 2개 이상 적 관통 시 추가 히트 1회',
-      prerequisites: [[8]],
+      effect: '관통 3회 이상 샷에 추가 타격 1회(65%)',
+      prerequisites: [[7]],
       ncCostMultiplier: 0.18
     }),
 
-    // 11. 관문 일직선 방전 (TM+DM+TR)
+    // 11. 관문 일자 붕괴 (TM+DM+SM)
     new UpgradeNode({
       id: 'piercebolt_node_11',
       nodeNumber: 11,
       position: 'end',
-      name: '관문 일직선 방전',
+      name: '관문 일자 붕괴',
       modules: [
         new TargetingModule({
           priority: 'checkpoint'
         }),
         new DamageModule({
-          critMultiplierBonus: 0.6 // 치명타 배율 증가
+          damageMultiplier: 1.20
+        }),
+        new StatusModule({
+          statusType: 'corrode',
+          statusValue: 0.15,
+          statusDuration: 2
         })
       ],
-      effect: '체크포인트 축선 정렬 시 치명타 배율 +0.6',
-      prerequisites: [[9, 10]], // 9 + 10 (AND 조건)
+      effect: '관문 축선 정렬 시 방어 -15%(2초), 피해 +20%',
+      prerequisites: [[8]],
       ncCostMultiplier: 0.22
     }),
 
-    // 12. 잔류물 스윕 (TR+DM)
+    // 12. 초중량 라인 스윕 (PM+TR+DM)
     new UpgradeNode({
       id: 'piercebolt_node_12',
       nodeNumber: 12,
       position: 'end',
-      name: '잔류물 스윕',
+      name: '초중량 라인 스윕',
       modules: [
+        new ProjectileModule({
+          type: 'pierce',
+          pierceCount: 1
+        }),
+        new TriggerModule({
+          triggerType: 'onKill',
+          triggerEffect: (ctx) => {
+            ctx.tower.lineSweepStacks = Math.min((ctx.tower.lineSweepStacks || 0) + 1, 3);
+            return {};
+          }
+        }),
         new TriggerModule({
           triggerType: 'onHit',
           triggerEffect: (ctx) => {
-            // 관통 처치 카운트 기반 피해 증가
-            const killBonus = Math.min(ctx.tower.pierceKillCount * 0.05, 0.20);
-            ctx.tower.pierceKillCount = 0; // 리셋
-            return { damage: ctx.damage * (1 + killBonus) };
+            const stacks = ctx.tower.lineSweepStacks || 0;
+            if (stacks <= 0) return {};
+            ctx.tower.lineSweepStacks = 0;
+            return { damageBonus: Math.min(stacks * 0.10, 0.30) };
           }
+        }),
+        new DamageModule({
+          damageMultiplier: 1.0
         })
       ],
-      effect: '관통 처치 수만큼 다음 샷 피해 최대 +20%',
-      prerequisites: [[11]], // 단일 조건
+      effect: '탄 크기 +20%, 관통 횟수 +1, 관통 처치 기반 다음 샷 최대 +30%',
+      prerequisites: [[9]],
       ncCostMultiplier: 0.25
     })
   ];
