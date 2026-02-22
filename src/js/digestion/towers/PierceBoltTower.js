@@ -20,6 +20,7 @@ export class PierceBoltTower extends BaseTower {
 
     // 노드 10: 샷 카운트 기반 공명 타이밍
     this.pierceResonanceCounter = 0;
+
     // 노드 12: 관통 처치 기반 다음 샷 보너스
     this.lineSweepStacks = 0;
   }
@@ -269,7 +270,8 @@ export function createPierceBoltUpgradeNodes() {
           },
           triggerEffect: (ctx) => {
             ctx.tower.pierceResonanceCounter = 0;
-            return { damageBonus: 0.65 };
+            // damageBonus(현재 샷 증폭) 대신 secondaryDamage(별도 추가 타격 65%)로 발사
+            return { secondaryDamage: 0.65 };
           }
         })
       ],
@@ -314,19 +316,21 @@ export function createPierceBoltUpgradeNodes() {
           pierceCount: 1
         }),
         new TriggerModule({
-          triggerType: 'onKill',
-          triggerEffect: (ctx) => {
-            ctx.tower.lineSweepStacks = Math.min((ctx.tower.lineSweepStacks || 0) + 1, 3);
-            return {};
-          }
-        }),
-        new TriggerModule({
           triggerType: 'onHit',
+          // onHit이 onKill보다 먼저: 이전 샷에서 쌓인 스택을 소비하고,
+          // 이후 onKill이 현재 샷의 처치 스택을 다음 샷을 위해 적립한다.
           triggerEffect: (ctx) => {
             const stacks = ctx.tower.lineSweepStacks || 0;
             if (stacks <= 0) return {};
             ctx.tower.lineSweepStacks = 0;
             return { damageBonus: Math.min(stacks * 0.10, 0.30) };
+          }
+        }),
+        new TriggerModule({
+          triggerType: 'onKill',
+          triggerEffect: (ctx) => {
+            ctx.tower.lineSweepStacks = Math.min((ctx.tower.lineSweepStacks || 0) + 1, 3);
+            return {};
           }
         }),
         new DamageModule({

@@ -235,6 +235,11 @@ export class BaseTower {
     if (this.bulletSystem) {
       const bulletColor = this.getTowerBulletColor();
       const projectileSpeed = context.projectile?.speed || 300;
+      const pierceOptions = (context.projectile?.pierceCount > 0) ? {
+        pierceCount: context.projectile.pierceCount,
+        pierceDamageFalloff: context.projectile.pierceDamageFalloff,
+        pierceDistanceBonus: context.projectile.pierceDistanceBonus,
+      } : null;
 
       this.bulletSystem.createBullet(
         this.x,
@@ -244,8 +249,23 @@ export class BaseTower {
         bulletColor,
         projectileSpeed * this.auraBonuses.projectileSpeed,
         5,
-        true
+        true,
+        pierceOptions
       );
+
+      // 추가 타격 (노드 10 등 secondaryDamage)
+      if (context.secondaryDamage > 0) {
+        this.bulletSystem.createBullet(
+          this.x,
+          this.y,
+          food,
+          context.damage * context.secondaryDamage,
+          bulletColor,
+          projectileSpeed * this.auraBonuses.projectileSpeed,
+          4,
+          true
+        );
+      }
 
       if (this.particleSystem) {
         this.particleSystem.emitTowerAttackEffect(this.x, this.y, bulletColor);

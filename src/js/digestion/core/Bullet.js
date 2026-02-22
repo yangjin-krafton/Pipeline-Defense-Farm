@@ -14,7 +14,7 @@ export class Bullet {
    * @param {number} size - 총알 크기
    * @param {boolean} homing - 추적 여부
    */
-  constructor(x, y, target, damage, color, speed = 300, size = 5, homing = true) {
+  constructor(x, y, target, damage, color, speed = 300, size = 5, homing = true, pierceOptions = null) {
     this.x = x;
     this.y = y;
     this.target = target;
@@ -24,6 +24,14 @@ export class Bullet {
     this.size = size;
     this.homing = homing;
     this.alive = true;
+
+    // 관통 데이터
+    this.baseDamage = damage;
+    this.pierceCount = pierceOptions?.pierceCount || 0;
+    this.pierceDamageFalloff = pierceOptions?.pierceDamageFalloff ?? 0.15;
+    this.pierceDistanceBonus = pierceOptions?.pierceDistanceBonus || 0;
+    this.pierceIndex = 0;
+    this.hitTargets = new Set();
 
     // 직진 모드일 경우 초기 방향 저장
     if (!homing && target) {

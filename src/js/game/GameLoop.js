@@ -146,8 +146,8 @@ export class GameLoop {
     // Update existing systems
     this.towerManager.update(scaledDt, foodList, this.multiPathSystem, this.currentTime);
 
-    // NEW: Update bullet system
-    this.bulletSystem.update(scaledDt, this.multiPathSystem);
+    // NEW: Update bullet system (foodList 전달 → 관통 연속 처리에 사용)
+    this.bulletSystem.update(scaledDt, this.multiPathSystem, foodList);
 
     // NEW: Update particle system
     this.particleSystem.update(scaledDt);

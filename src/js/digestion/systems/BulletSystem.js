@@ -29,8 +29,8 @@ export class BulletSystem {
     this.bullets.push(bullet);
   }
 
-  createBullet(x, y, target, damage, color, speed = 300, size = 5, homing = true) {
-    const bullet = new Bullet(x, y, target, damage, color, speed, size, homing);
+  createBullet(x, y, target, damage, color, speed = 300, size = 5, homing = true, pierceOptions = null) {
+    const bullet = new Bullet(x, y, target, damage, color, speed, size, homing, pierceOptions);
     this.addBullet(bullet);
 
     if (this.uiSfxSystem && this.elapsedTime - this.lastShotSfxTime >= 0.04) {
@@ -41,7 +41,7 @@ export class BulletSystem {
     return bullet;
   }
 
-  update(dt, multiPathSystem) {
+  update(dt, multiPathSystem, foodList = null) {
     this.elapsedTime += dt;
 
     for (let i = this.bullets.length - 1; i >= 0; i--) {
@@ -66,11 +66,56 @@ export class BulletSystem {
           this.lastCritSfxTime = this.elapsedTime;
         }
 
-        this.bullets.splice(i, 1);
+        // 관통 처리: 남은 횟수가 있으면 다음 타겟으로 계속 진행
+        let pierced = false;
+        if (bullet.pierceCount > 0 && foodList) {
+          bullet.hitTargets.add(bullet.target);
+          bullet.pierceCount--;
+          bullet.pierceIndex++;
+          bullet.damage = bullet.baseDamage * Math.pow(1 - bullet.pierceDamageFalloff, bullet.pierceIndex);
+          const nextTarget = this._findPierceTarget(bullet, foodList, multiPathSystem);
+          if (nextTarget) {
+            bullet.target = nextTarget;
+            bullet.alive = true;
+            pierced = true;
+          }
+        }
+
+        if (!pierced) {
+          this.bullets.splice(i, 1);
+        }
       } else if (!bullet.alive) {
         this.bullets.splice(i, 1);
       }
     }
+  }
+
+  /**
+   * 관통 탄의 다음 타겟을 찾습니다.
+   * 이미 맞은 타겟을 제외하고 탄 현재 위치에서 가장 가까운 생존 적을 반환합니다.
+   */
+  _findPierceTarget(bullet, foodList, multiPathSystem) {
+    let bestTarget = null;
+    let bestDist = Infinity;
+    const maxRange = 300 * (1 + (bullet.pierceDistanceBonus || 0));
+
+    for (const food of foodList) {
+      if (food.hp <= 0) continue;
+      if (bullet.hitTargets.has(food)) continue;
+
+      const pos = multiPathSystem.samplePath(food.currentPath, food.d);
+      if (!pos) continue;
+
+      const dx = pos.x - bullet.x;
+      const dy = pos.y - bullet.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < maxRange && dist < bestDist) {
+        bestDist = dist;
+        bestTarget = food;
+      }
+    }
+    return bestTarget;
   }
 
   getBullets() {

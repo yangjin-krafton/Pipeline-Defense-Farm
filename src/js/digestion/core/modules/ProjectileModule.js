@@ -21,20 +21,40 @@ export class ProjectileModule extends BaseModule {
   }
 
   _applyEffect(context) {
-    const { tower, food } = context;
+    // 첫 PM이 초기화, 이후 PM은 누적
+    if (!context.projectile) {
+      context.projectile = {
+        type: 'normal',
+        speed: 300,
+        pierceCount: 0,
+        pierceDistanceBonus: 0,
+        pierceDamageFalloff: 0.15,
+        chainCount: 0,
+        chainRange: 0,
+        aoeRadius: 0,
+        curveCompensation: 0
+      };
+    }
 
-    // 투사체 설정 추가
-    context.projectile = {
-      type: this.type,
-      speed: this.speed,
-      pierceCount: this.pierceCount,
-      pierceDistanceBonus: this.pierceDistanceBonus,
-      pierceDamageFalloff: this.pierceDamageFalloff,
-      chainCount: this.chainCount,
-      chainRange: this.chainRange,
-      aoeRadius: this.aoeRadius,
-      curveCompensation: this.curveCompensation
-    };
+    // 가산 누적
+    context.projectile.pierceCount += this.pierceCount;
+    context.projectile.pierceDistanceBonus += this.pierceDistanceBonus;
+    context.projectile.chainCount += this.chainCount;
+    context.projectile.curveCompensation = Math.min(
+      1.0, context.projectile.curveCompensation + this.curveCompensation
+    );
+
+    // 최적값 선택 (속도: 큰 쪽, 피해 감소: 작은 쪽, 범위: 큰 쪽)
+    context.projectile.speed = Math.max(context.projectile.speed, this.speed);
+    context.projectile.pierceDamageFalloff = Math.min(
+      context.projectile.pierceDamageFalloff, this.pierceDamageFalloff
+    );
+    context.projectile.aoeRadius = Math.max(context.projectile.aoeRadius, this.aoeRadius);
+
+    // type: 'pierce' 등 비기본값 우선
+    if (this.type !== 'normal') {
+      context.projectile.type = this.type;
+    }
 
     return context;
   }
