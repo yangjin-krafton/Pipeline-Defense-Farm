@@ -26,6 +26,11 @@ export class Bullet {
     this.alive = true;
     this.renderStyle = { stretch: 1.0, thickness: 1.0, glow: 0.3 };
     this.customHitEffect = null;
+    this.arcUseDistanceProgress = false;
+    this.arcProgress = 0;
+    this.arcOriginX = x;
+    this.arcOriginY = y;
+    this.arcInitialTargetDistance = null;
 
     // 관통 데이터
     this.baseDamage = damage;
@@ -107,9 +112,18 @@ export class Bullet {
       this.lastDirY = dy / dist;
     }
 
+    if (this.arcUseDistanceProgress) {
+      if (!Number.isFinite(this.arcInitialTargetDistance) || this.arcInitialTargetDistance <= 0) {
+        this.arcInitialTargetDistance = Math.max(1, dist);
+      }
+    }
+
     // 충돌 판정 (타겟 크기 + 총알 크기)
     const collisionDist = (this.target.size || 24) / 2 + this.size;
     if (dist < collisionDist) {
+      if (this.arcUseDistanceProgress) {
+        this.arcProgress = 1;
+      }
       this.alive = false;
       return true; // 충돌!
     }
@@ -130,6 +144,11 @@ export class Bullet {
       if (dist > 500) {
         this.alive = false;
       }
+    }
+
+    if (this.arcUseDistanceProgress && Number.isFinite(this.arcInitialTargetDistance) && this.arcInitialTargetDistance > 0) {
+      const traveled = Math.hypot(this.x - this.arcOriginX, this.y - this.arcOriginY);
+      this.arcProgress = Math.max(0, Math.min(1, traveled / this.arcInitialTargetDistance));
     }
 
     // 트레일 효과 생성 (큰 총알만)

@@ -133,6 +133,66 @@ export class BulletRenderer extends InstancedRenderer {
     this.createInstanceBuffer('glow', 1, this.attribLocations.aInstanceGlow, 1);
   }
 
+  clamp01(value) {
+    return Math.max(0, Math.min(1, value));
+  }
+
+  getBulletFlightProgress(bullet) {
+    if (bullet.arcUseDistanceProgress && Number.isFinite(bullet.arcProgress)) {
+      return this.clamp01(bullet.arcProgress);
+    }
+
+    const duration = Number.isFinite(bullet.arcFlightDuration) && bullet.arcFlightDuration > 0
+      ? bullet.arcFlightDuration
+      : bullet.maxLifetime;
+    if (!Number.isFinite(duration) || duration <= 0) return 0;
+    return this.clamp01((bullet.lifetime || 0) / duration);
+  }
+
+  resolveArcPose(bullet) {
+    const profile = bullet.arcScaleProfile;
+    if (!profile) {
+      return { scale: 1.0, yOffset: 0, t: 0, arc01: 0 };
+    }
+
+    const t = this.getBulletFlightProgress(bullet);
+    const oneMinusT = 1 - t;
+    const startScale = Number.isFinite(profile.startScale) ? profile.startScale : 1.0;
+    const peakScale = Number.isFinite(profile.peakScale) ? profile.peakScale : 1.0;
+    const endScale = Number.isFinite(profile.endScale) ? profile.endScale : 1.0;
+    const liftPixels = Number.isFinite(profile.liftPixels) ? profile.liftPixels : 0;
+
+    // Quadratic bezier: start -> peak -> end (small -> big -> small).
+    const scale = oneMinusT * oneMinusT * startScale
+      + 2 * oneMinusT * t * peakScale
+      + t * t * endScale;
+
+    // Parabolic lift to fake a short airborne arc.
+    const arc01 = 4 * t * (1 - t);
+    const yOffset = -liftPixels * arc01;
+
+    return { scale, yOffset, t, arc01 };
+  }
+
+  resolveBulletColor(bullet, t) {
+    const profile = bullet.colorProfile;
+    if (!profile) return bullet.color;
+
+    const start = profile.start || bullet.color;
+    const peak = profile.peak || start;
+    const end = profile.end || start;
+    const oneMinusT = 1 - t;
+
+    const color = [0, 0, 0, 0];
+    for (let i = 0; i < 4; i++) {
+      const s = Number.isFinite(start[i]) ? start[i] : (bullet.color[i] ?? 0);
+      const p = Number.isFinite(peak[i]) ? peak[i] : s;
+      const e = Number.isFinite(end[i]) ? end[i] : s;
+      color[i] = oneMinusT * oneMinusT * s + 2 * oneMinusT * t * p + t * t * e;
+    }
+    return color;
+  }
+
   resolveRenderStyle(bullet) {
     const style = bullet.renderStyle || {};
 
@@ -167,16 +227,18 @@ export class BulletRenderer extends InstancedRenderer {
     for (let i = 0; i < count; i++) {
       const bullet = bullets[i];
       const style = this.resolveRenderStyle(bullet);
+      const arcPose = this.resolveArcPose(bullet);
+      const renderColor = this.resolveBulletColor(bullet, arcPose.t);
 
       this.tempPositions[i * 2] = bullet.x;
-      this.tempPositions[i * 2 + 1] = bullet.y;
+      this.tempPositions[i * 2 + 1] = bullet.y + arcPose.yOffset;
 
-      this.tempColors[i * 4] = bullet.color[0];
-      this.tempColors[i * 4 + 1] = bullet.color[1];
-      this.tempColors[i * 4 + 2] = bullet.color[2];
-      this.tempColors[i * 4 + 3] = bullet.color[3];
+      this.tempColors[i * 4] = renderColor[0];
+      this.tempColors[i * 4 + 1] = renderColor[1];
+      this.tempColors[i * 4 + 2] = renderColor[2];
+      this.tempColors[i * 4 + 3] = renderColor[3];
 
-      this.tempSizes[i] = bullet.size;
+      this.tempSizes[i] = bullet.size * arcPose.scale;
       this.tempRotations[i] = style.rotation;
       this.tempStretch[i] = style.stretch;
       this.tempThickness[i] = style.thickness;

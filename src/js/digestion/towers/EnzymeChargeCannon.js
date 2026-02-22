@@ -166,6 +166,255 @@ export class EnzymeChargeCannon extends BaseTower {
     }
   }
 
+  /**
+   * Heavy cannon shell style.
+   * Charged shots become thicker, brighter, and slightly more elongated.
+   */
+  getBulletRenderStyle(context, isSecondary = false) {
+    const maxCharge = context?.maxCharge || this.maxCharge || 100;
+    const chargeLevel = Number.isFinite(context?.chargeLevel) ? context.chargeLevel : this.chargeLevel;
+    const chargePct = Math.max(0, Math.min(1, chargeLevel / maxCharge));
+
+    if (isSecondary) {
+      return {
+        stretch: 1.45 + chargePct * 0.45,
+        thickness: 0.90 + chargePct * 0.18,
+        glow: 0.34 + chargePct * 0.22
+      };
+    }
+
+    return {
+      stretch: 1.25 + chargePct * 0.70,
+      thickness: 1.10 + chargePct * 0.30,
+      glow: 0.42 + chargePct * 0.35
+    };
+  }
+
+  /**
+   * Cannon muzzle effect: forward blast + back pressure smoke.
+   */
+  emitBulletSpawnEffect(bullet, context, isSecondary = false) {
+    if (!this.particleSystem) return;
+
+    const forward = Number.isFinite(bullet.rotation) ? bullet.rotation : 0;
+    const maxCharge = context?.maxCharge || this.maxCharge || 100;
+    const chargeLevel = Number.isFinite(context?.chargeLevel) ? context.chargeLevel : this.chargeLevel;
+    const chargePct = Math.max(0, Math.min(1, chargeLevel / maxCharge));
+    const isFullCharge = chargePct >= 0.999;
+
+    const coreColor = bullet.color || [0.2, 0.2, 0.2, 1.0];
+    const flashColor = [
+      Math.min(1, coreColor[0] + 0.45),
+      Math.min(1, coreColor[1] + 0.25),
+      Math.min(1, coreColor[2] + 0.2),
+      0.95
+    ];
+    const smokeColor = [
+      coreColor[0] * 0.45 + 0.20,
+      coreColor[1] * 0.50 + 0.20,
+      coreColor[2] * 0.50 + 0.20,
+      0.72
+    ];
+
+    this.particleSystem.emit(
+      bullet.x,
+      bullet.y,
+      isSecondary ? 5 : Math.floor(6 + chargePct * 6),
+      flashColor,
+      150 + chargePct * 180,
+      0.20 + chargePct * 0.10,
+      {
+        spread: Math.PI / 2.8,
+        direction: forward,
+        gravity: 60,
+        sizeMin: isSecondary ? 7 : 9,
+        sizeMax: isSecondary ? 11 + chargePct * 2 : 14 + chargePct * 5,
+        colorVariation: 0.16
+      }
+    );
+
+    this.particleSystem.emit(
+      bullet.x,
+      bullet.y,
+      isSecondary ? 7 : Math.floor(8 + chargePct * 8),
+      smokeColor,
+      70 + chargePct * 70,
+      0.28 + chargePct * 0.14,
+      {
+        spread: Math.PI / 2.2,
+        direction: forward + Math.PI,
+        gravity: 85,
+        sizeMin: isSecondary ? 8 : 10,
+        sizeMax: isSecondary ? 13 + chargePct * 2 : 17 + chargePct * 4,
+        colorVariation: 0.12
+      }
+    );
+
+    if (!isSecondary && this.particleSystem.emitChargeCannonEffect) {
+      this.particleSystem.emitChargeCannonEffect(this.x, this.y, coreColor, chargeLevel);
+    }
+
+    if (isFullCharge && !isSecondary) {
+      const overflash = [1.0, 1.0, 0.92, 0.9];
+      this.particleSystem.emit(
+        bullet.x,
+        bullet.y,
+        10,
+        overflash,
+        240,
+        0.18,
+        {
+          spread: Math.PI / 3,
+          direction: forward,
+          gravity: 20,
+          sizeMin: 5,
+          sizeMax: 9,
+          colorVariation: 0.08
+        }
+      );
+    }
+  }
+
+  /**
+   * Cannon impact effect: explosive burst with directional debris.
+   */
+  emitBulletHitEffect(bullet, target, particleSystem, context, isSecondary = false) {
+    if (!particleSystem) return;
+
+    const forward = Number.isFinite(bullet.rotation)
+      ? bullet.rotation
+      : Math.atan2(bullet.lastDirY || 0, bullet.lastDirX || 1);
+
+    const maxCharge = context?.maxCharge || this.maxCharge || 100;
+    const chargeLevel = Number.isFinite(context?.chargeLevel) ? context.chargeLevel : this.chargeLevel;
+    const chargePct = Math.max(0, Math.min(1, chargeLevel / maxCharge));
+
+    const coreColor = bullet.color || [0.2, 1.0, 0.8, 1.0];
+    const burstColor = [
+      Math.min(1, coreColor[0] + 0.35),
+      Math.min(1, coreColor[1] + 0.25),
+      Math.min(1, coreColor[2] + 0.2),
+      0.95
+    ];
+    const debrisColor = [
+      coreColor[0] * 0.80 + 0.08,
+      coreColor[1] * 0.80 + 0.08,
+      coreColor[2] * 0.80 + 0.08,
+      0.86
+    ];
+
+    particleSystem.emit(
+      bullet.x,
+      bullet.y,
+      isSecondary ? 6 : Math.floor(7 + chargePct * 8),
+      burstColor,
+      180 + chargePct * 170,
+      0.30 + chargePct * 0.14,
+      {
+        spread: Math.PI * 1.1,
+        direction: forward,
+        gravity: 250,
+        sizeMin: isSecondary ? 9 : 12,
+        sizeMax: isSecondary ? 14 + chargePct * 2 : 18 + chargePct * 4,
+        colorVariation: 0.18
+      }
+    );
+
+    particleSystem.emit(
+      bullet.x,
+      bullet.y,
+      isSecondary ? 8 : Math.floor(10 + chargePct * 10),
+      debrisColor,
+      130 + chargePct * 130,
+      0.34 + chargePct * 0.10,
+      {
+        spread: Math.PI * 1.7,
+        direction: forward + 0.08,
+        gravity: 300,
+        sizeMin: isSecondary ? 7 : 9,
+        sizeMax: isSecondary ? 12 + chargePct * 2 : 15 + chargePct * 3,
+        colorVariation: 0.2
+      }
+    );
+
+    particleSystem.emitHitEffect(bullet.x, bullet.y, bullet.color, bullet.damage);
+  }
+
+  /**
+   * Configure renderer-only projectile animation profile.
+   * - arcScaleProfile: small -> big -> small
+   * - colorProfile: start -> apex -> landing tint
+   */
+  configureBulletVisuals(bullet, context, isSecondary = false) {
+    super.configureBulletVisuals(bullet, context, isSecondary);
+
+    const chargeLevel = Number.isFinite(context?.chargeLevel) ? context.chargeLevel : this.chargeLevel;
+    bullet.arcScaleProfile = this.getBulletArcScaleProfile(chargeLevel, isSecondary);
+    bullet.colorProfile = this.getBulletColorProfile(chargeLevel, isSecondary);
+    bullet.arcUseDistanceProgress = true;
+  }
+
+  getArcFlightDuration(context, speedMultiplier = 1.0) {
+    const fireTransform = context?.fireTransform;
+    const food = context?.food;
+    const targetPos = fireTransform && food ? this.getTargetWorldPosition(food) : null;
+    const baseSpeed = Number.isFinite(context?.projectileSpeed) ? context.projectileSpeed : this.definition?.stats?.projectileSpeed;
+    const effectiveSpeed = Math.max(1, (baseSpeed || 300) * speedMultiplier);
+
+    if (targetPos && fireTransform) {
+      const dx = targetPos.x - fireTransform.x;
+      const dy = targetPos.y - fireTransform.y;
+      const distance = Math.hypot(dx, dy);
+      return Math.max(0.16, Math.min(0.55, distance / effectiveSpeed));
+    }
+
+    return 0.32;
+  }
+
+  getBulletArcScaleProfile(chargeLevel, isSecondary = false) {
+    const chargePct = Math.max(0, Math.min(1, chargeLevel / (this.maxCharge || 100)));
+
+    if (isSecondary) {
+      return {
+        startScale: 0.72,
+        peakScale: 1.18 + chargePct * 0.16,
+        endScale: 0.70,
+        liftPixels: 4 + chargePct * 3
+      };
+    }
+
+    return {
+      startScale: 0.76,
+      peakScale: 1.36 + chargePct * 0.24,
+      endScale: 0.74,
+      liftPixels: 6 + chargePct * 4
+    };
+  }
+
+  getBulletColorProfile(chargeLevel, isSecondary = false) {
+    const base = isSecondary
+      ? this.getSecondaryBulletColor(chargeLevel)
+      : this.getChargeBulletColor(chargeLevel);
+    const bright = [
+      Math.min(1, base[0] + 0.18),
+      Math.min(1, base[1] + 0.16),
+      Math.min(1, base[2] + 0.14),
+      Math.min(1, base[3] + 0.02)
+    ];
+    const land = [
+      Math.max(0, base[0] * 0.92),
+      Math.max(0, base[1] * 0.90),
+      Math.max(0, base[2] * 0.88),
+      Math.max(0.45, base[3] * 0.90)
+    ];
+
+    return {
+      start: base,
+      peak: bright,
+      end: land
+    };
+  }
+
   attack(food, currentTime = 0) {
     // 충전이 충분하지 않으면 공격 불가
     if (this.chargeLevel < this.minChargeToFire) return;
@@ -206,6 +455,10 @@ export class EnzymeChargeCannon extends BaseTower {
         gainNutrition: 0,
         gainEnergy: 0,
         chargeRefund: 0,
+        chargeLevel: this.chargeLevel,
+        maxCharge: this.maxCharge,
+        fireTransform,
+        projectileSpeed,
         // 이전 공격에서 설정된 버프 스냅샷 (same-attack 소모 방지)
         // 노드 3: onKill 버프가 이번 공격 전에 존재했는지 여부
         killBuffStacksPreAttack: (this.killBuffStacks || 0),
@@ -272,6 +525,8 @@ export class EnzymeChargeCannon extends BaseTower {
       if (bullet) {
         bullet.tower = this;
         bullet.rotation = fireTransform.fireAngle;
+        this.configureBulletVisuals(bullet, context, false);
+        this.emitBulletSpawnEffect(bullet, context, false);
       }
 
       // 2차 타격 적용 (노드 10: 완충 임계 붕괴 - 완충 샷이 체력 60%+ 대상에 추가 피해)
@@ -283,7 +538,7 @@ export class EnzymeChargeCannon extends BaseTower {
           fireTransform.y,
           food,
           context.secondaryDamage,
-          [0.6, 1.0, 0.5, 0.7], // 2차 타격 색상 (연두빛)
+          this.getSecondaryBulletColor(this.chargeLevel),
           projectileSpeed * 1.3,
           bulletSize * 0.6,
           true  // homing=true: samplePath 기반 추적
@@ -291,14 +546,9 @@ export class EnzymeChargeCannon extends BaseTower {
         if (secondaryBullet) {
           secondaryBullet.tower = this;
           secondaryBullet.rotation = fireTransform.fireAngle;
+          this.configureBulletVisuals(secondaryBullet, context, true);
+          this.emitBulletSpawnEffect(secondaryBullet, context, true);
         }
-      }
-
-      // 충전 발사 이펙트 (일반 공격 이펙트 대신)
-      if (this.particleSystem && this.particleSystem.emitChargeCannonEffect) {
-        this.particleSystem.emitChargeCannonEffect(this.x, this.y, bulletColor, this.chargeLevel);
-      } else if (this.particleSystem) {
-        this.particleSystem.emitTowerAttackEffect(this.x, this.y, bulletColor);
       }
 
       // Apply status effects to food
@@ -369,6 +619,16 @@ export class EnzymeChargeCannon extends BaseTower {
       // 저충전: 어두운 청록색
       return [0.1, 0.6, 0.55, 0.9];
     }
+  }
+
+  getSecondaryBulletColor(chargeLevel) {
+    const chargePct = Math.max(0, Math.min(1, chargeLevel / (this.maxCharge || 100)));
+    return [
+      0.45 + 0.20 * chargePct,
+      0.95 + 0.05 * chargePct,
+      0.40 + 0.18 * chargePct,
+      0.70 + 0.15 * chargePct
+    ];
   }
 
   /**
