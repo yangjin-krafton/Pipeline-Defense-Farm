@@ -43,7 +43,7 @@
         </div>
         <div class="controls-group">
           <div class="music-controls">
-            <button class="music-btn" id="musicToggle" title="Play/Pause Music">⏸️</button>
+            <button class="music-btn" id="musicToggle" title="Play/Pause Music">🔊</button>
           </div>
         </div>
       </header>
@@ -91,21 +91,33 @@
             <div class="tower-stats">
               <div class="stat-item">
                 <span class="stat-icon">⚔️</span>
+                <span class="stat-label">공격력</span>
                 <span class="stat-value" data-stat="attack">45</span>
               </div>
               <div class="stat-item">
-                <span class="stat-icon">⚡</span>
-                <span class="stat-value" data-stat="speed">1.2초</span>
+                <span class="stat-icon">⏱️</span>
+                <span class="stat-label" id="towerSpeedLabel">공격속도</span>
+                <span class="stat-value" data-stat="speed">1.25초</span>
               </div>
               <div class="stat-item">
                 <span class="stat-icon">📍</span>
+                <span class="stat-label">사거리</span>
                 <span class="stat-value" data-stat="range">180</span>
               </div>
               <div class="stat-item">
-                <span class="stat-icon">✨</span>
-                <span class="stat-value" data-stat="special">-</span>
+                <span class="stat-icon">🎲</span>
+                <span class="stat-label">치명타율</span>
+                <span class="stat-value" data-stat="critChance">0%</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-icon">💥</span>
+                <span class="stat-label">치명배율</span>
+                <span class="stat-value" data-stat="critMult">×2.0</span>
               </div>
             </div>
+
+            <!-- 음식 태그 추가 피해 -->
+            <div class="tower-tag-bonuses" id="towerTagBonuses"></div>
 
             <!-- 각인 (승급으로 획득한 영구 능력) -->
             <div class="tower-imprints hidden" id="towerImprintBlock">

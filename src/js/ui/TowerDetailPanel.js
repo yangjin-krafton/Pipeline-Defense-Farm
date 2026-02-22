@@ -6,6 +6,16 @@
 import { TOWER_DEFINITIONS } from '../digestion/data/towerDefinitions.js';
 import { formatTagText } from '../utils/TagFormatter.js';
 
+// 태그별 라벨/색상 메타
+const TAG_META = {
+  protein: { label: '단백질',   color: '#059669', bg: 'rgba(16,185,129,0.12)', border: '#10b981' },
+  fat:     { label: '지방',     color: '#b45309', bg: 'rgba(245,158,11,0.12)', border: '#f59e0b' },
+  carb:    { label: '탄수화물', color: '#1d4ed8', bg: 'rgba(59,130,246,0.12)', border: '#3b82f6' },
+  sugar:   { label: '당',       color: '#c2410c', bg: 'rgba(249,115,22,0.12)', border: '#f97316' },
+  fiber:   { label: '식이섬유', color: '#6d28d9', bg: 'rgba(139,92,246,0.12)', border: '#8b5cf6' },
+  vitamin: { label: '비타민',   color: '#0e7490', bg: 'rgba(6,182,212,0.12)',  border: '#06b6d4' },
+};
+
 export class TowerDetailPanel {
   constructor(uiController) {
     this.ui = uiController;
@@ -36,56 +46,133 @@ export class TowerDetailPanel {
 
     this._updateTowerGrowthInfo(tower);
 
-    // 별 보너스 반영 스탯 계산
-    const effectiveDamage = tower.definition.stats.damage * tower.starBonuses.damageMultiplier;
-    const effectiveAttackSpeed = tower.definition.stats.attackSpeed * tower.starBonuses.attackSpeedMultiplier;
-    const effectiveRange = tower.definition.stats.range * tower.starBonuses.rangeMultiplier;
+    const stats = this._computeStatsForUI(tower);
 
     this.updateTowerInfo({
       icon: tower.definition.emoji,
       name: tower.definition.name,
       level: tower.level || 1,
       description: tower.definition.description,
-      stats: {
-        attack:  { value: effectiveDamage.toFixed(1) },
-        speed:   { value: effectiveAttackSpeed.toFixed(2) + '초' },
-        range:   { value: Math.floor(effectiveRange).toString() },
-        special: {
-          value: tower.starBonuses.statusSuccessRate > 0
-            ? `+${(tower.starBonuses.statusSuccessRate * 100).toFixed(1)}%`
-            : '-'
-        }
-      }
+      stats,
     });
 
+    this._renderTagBonuses(tower);
     this._updateTowerActionButtons(tower);
     this._showTowerImprints(tower);
     this.ui._showUpgradeTree(tower);
   }
 
   /**
-   * 빈 슬롯 타워 설치 패널 표시 (_showTowerBuild)
+   * 공통 5개 스탯 + 음식 태그 보너스 계산
+   * @param {Object} tower
+   * @returns {Object} stats object
    */
-  showBuild() {
-    console.log('TowerDetailPanel: Showing tower build');
+  _computeStatsForUI(tower) {
+    const modules = tower.upgradeTree ? tower.upgradeTree.getAllActiveModules() : [];
 
-    if (this.ui.starUpgradeManager?.isCurrentlyUpgrading()) {
-      this.ui.starUpgradeManager.dismissUpgradeUI();
+    // ── 1. 공격력 ───────────────────────────────────────────
+    const damage = tower.damage * tower.starBonuses.damageMultiplier;
+
+    // ── 2. 공격속도 / 충전속도 ──────────────────────────────
+    const isEnzymeCharge = tower.type === 'enzymeCharge';
+    let speedLabel, speedValue;
+
+    if (isEnzymeCharge) {
+      // 충전 속도: chargeRate × (1 + chargeRateBonus 합산)
+      let chargeRateMultiplier = 1.0;
+      for (const m of modules) {
+        if (m.chargeRateBonus > 0) chargeRateMultiplier += m.chargeRateBonus;
+      }
+      const effectiveChargeRate = (tower.chargeRate ?? 25) * chargeRateMultiplier;
+      speedLabel = '충전속도';
+      speedValue = `${effectiveChargeRate.toFixed(1)}/초`;
+    } else {
+      // 공격 쿨다운: 1 / (attackSpeed × starMult × moduleSpeedMult)
+      let attackSpeedMult = 1.0;
+      for (const m of modules) {
+        if (m.attackSpeedMultiplier && m.attackSpeedMultiplier !== 1.0) {
+          attackSpeedMult *= m.attackSpeedMultiplier;
+        }
+      }
+      const effectiveSpeed =
+        tower.attackSpeed * tower.starBonuses.attackSpeedMultiplier * attackSpeedMult;
+      const cooldown = 1 / effectiveSpeed;
+      speedLabel = '공격속도';
+      speedValue = `${cooldown.toFixed(2)}초`;
     }
 
-    const starUpgradeUI = document.getElementById('tower-star-upgrade');
-    if (starUpgradeUI) starUpgradeUI.classList.add('hidden');
-
-    if (this.ui.towerDetailContent) {
-      this.ui.towerDetailContent.classList.add('hidden');
-      console.log('TowerDetailPanel: Hidden tower-detail');
+    // ── 3. 사거리 ────────────────────────────────────────────
+    let rangeModMult = 1.0;
+    for (const m of modules) {
+      if (m.rangeMultiplier && m.rangeMultiplier !== 1.0) rangeModMult *= m.rangeMultiplier;
     }
-    if (this.ui.towerBuildContent) {
-      this.ui.towerBuildContent.classList.remove('hidden');
-      console.log('TowerDetailPanel: Showing tower-build');
+    const range = Math.floor(
+      tower.range * tower.starBonuses.rangeMultiplier * rangeModMult
+    );
+
+    // ── 4. 치명타 확률 ───────────────────────────────────────
+    let critChance = 0;
+    for (const m of modules) {
+      if (m.critChance > 0)      critChance += m.critChance;
+      if (m.critChanceBonus > 0) critChance += m.critChanceBonus;
+    }
+    const critChancePct = Math.round(critChance * 100);
+
+    // ── 5. 치명타 배율 ───────────────────────────────────────
+    let critMultBonus = 0;
+    for (const m of modules) {
+      critMultBonus += m.critMultiplierBonus ?? 0;
+      critMultBonus += m.critDamageBonus ?? 0;
+    }
+    const critMult = 2.0 + critMultBonus;
+
+    return {
+      attack:    { value: damage.toFixed(1) },
+      speed:     { value: speedValue, label: speedLabel },
+      range:     { value: range.toString() },
+      critChance:{ value: critChancePct > 0 ? `${critChancePct}%` : '0%' },
+      critMult:  { value: `×${critMult.toFixed(1)}` },
+    };
+  }
+
+  /**
+   * 음식 태그 추가 피해 칩 렌더링
+   * @param {Object} tower
+   */
+  _renderTagBonuses(tower) {
+    const container = document.getElementById('towerTagBonuses');
+    if (!container) return;
+
+    // 타워 기본 태그 보너스 + TagBonusModule 추가 보너스 수집
+    const merged = { ...(tower.tagBonuses || {}) };
+    if (tower.upgradeTree) {
+      for (const m of tower.upgradeTree.getAllActiveModules()) {
+        if (m.tagBonuses && typeof m.tagBonuses === 'object') {
+          for (const [tag, mult] of Object.entries(m.tagBonuses)) {
+            // 각인/노드 태그 보너스는 곱연산 누적
+            merged[tag] = (merged[tag] ?? 1.0) * mult;
+          }
+        }
+      }
     }
 
-    this._setupTowerBuildButtons();
+    const entries = Object.entries(merged).filter(([, v]) => v && v !== 1.0);
+
+    if (entries.length === 0) {
+      container.hidden = true;
+      return;
+    }
+
+    container.hidden = false;
+    container.innerHTML = entries
+      .map(([tag, mult]) => {
+        const meta = TAG_META[tag] ?? { label: tag, color: '#555', bg: 'rgba(0,0,0,0.06)', border: '#aaa' };
+        const pct = Math.round((mult - 1) * 100);
+        return `<span class="tag-bonus-chip" style="color:${meta.color};background:${meta.bg};border-color:${meta.border}">
+          ${meta.label} <strong>+${pct}%</strong>
+        </span>`;
+      })
+      .join('');
   }
 
   /**
@@ -107,17 +194,24 @@ export class TowerDetailPanel {
     }
 
     if (towerData.stats) {
-      const attackStat = detailSection.querySelector('[data-stat="attack"]');
-      if (attackStat && towerData.stats.attack) attackStat.textContent = towerData.stats.attack.value;
+      const s = towerData.stats;
 
-      const speedStat = detailSection.querySelector('[data-stat="speed"]');
-      if (speedStat && towerData.stats.speed) speedStat.textContent = towerData.stats.speed.value;
+      const set = (dataStat, stat) => {
+        const el = detailSection.querySelector(`[data-stat="${dataStat}"]`);
+        if (el && stat) el.textContent = stat.value;
+      };
 
-      const rangeStat = detailSection.querySelector('[data-stat="range"]');
-      if (rangeStat && towerData.stats.range) rangeStat.textContent = towerData.stats.range.value;
+      set('attack',    s.attack);
+      set('speed',     s.speed);
+      set('range',     s.range);
+      set('critChance',s.critChance);
+      set('critMult',  s.critMult);
 
-      const specialStat = detailSection.querySelector('[data-stat="special"]');
-      if (specialStat && towerData.stats.special) specialStat.textContent = towerData.stats.special.value;
+      // 공격속도/충전속도 레이블 동적 교체
+      if (s.speed?.label) {
+        const labelEl = document.getElementById('towerSpeedLabel');
+        if (labelEl) labelEl.textContent = s.speed.label;
+      }
     }
   }
 

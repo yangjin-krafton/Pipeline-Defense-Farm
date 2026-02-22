@@ -11,6 +11,7 @@ import { UISfxSystem } from './systems/UISfxSystem.js';
 import { SaveSystem } from './digestion/systems/SaveSystem.js';
 import { GameLoop } from './game/GameLoop.js';
 import { UIController } from './ui/UIController.js';
+import { AudioSettingsPanel } from './ui/AudioSettingsPanel.js';
 import { ScaleManager } from './ui/ScaleManager.js';
 import { CameraController } from './ui/CameraController.js';
 import { appendCircle, buildPolylineMesh, hexToRgba } from './utils/geometry.js';
@@ -500,7 +501,9 @@ async function init() {
   gameLoop.start();
 
   // Setup music controls
-  setupMusicControls(audioSystem, uiSfxSystem);
+  const audioSettingsPanel = new AudioSettingsPanel(audioSystem, uiSfxSystem);
+  audioSettingsPanel.applyStoredSettings();
+  setupMusicControls(audioSettingsPanel);
 
   // Setup start overlay
   setupStartOverlay(audioSystem, gameLoop, uiSfxSystem);
@@ -837,18 +840,13 @@ function setupStartOverlay(audioSystem, gameLoop, uiSfxSystem = null) {
 }
 
 /**
- * Setup music control UI
+ * Setup music control UI — opens AudioSettingsPanel on click.
  */
-function setupMusicControls(audioSystem, uiSfxSystem = null) {
+function setupMusicControls(audioSettingsPanel) {
   const toggleBtn = document.getElementById('musicToggle');
-
   if (toggleBtn) {
     toggleBtn.addEventListener('click', () => {
-      if (uiSfxSystem) {
-        uiSfxSystem.play('ui_click', { volume: 0.75 });
-      }
-      audioSystem.toggle();
-      updateMusicButton(audioSystem.isPlaying);
+      audioSettingsPanel.toggle();
     });
   }
 }
@@ -859,7 +857,7 @@ function setupMusicControls(audioSystem, uiSfxSystem = null) {
 function updateMusicButton(isPlaying) {
   const toggleBtn = document.getElementById('musicToggle');
   if (toggleBtn) {
-    toggleBtn.textContent = isPlaying ? '⏸️' : '▶️';
+    toggleBtn.textContent = isPlaying ? '🔊' : '🔇';
     toggleBtn.title = isPlaying ? 'Pause Music' : 'Play Music';
   }
 }

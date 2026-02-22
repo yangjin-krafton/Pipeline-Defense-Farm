@@ -1,0 +1,168 @@
+/**
+ * Audio Settings Panel - Splatoon Style
+ * Floating panel that opens from the music-btn in the status bar.
+ */
+
+.audio-settings-panel {
+  position: absolute;
+  top: 82px; /* just below the 75px status bar + border */
+  right: 8px;
+  width: 268px;
+  background: white;
+  border: 4px solid var(--splat-dark);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 2px var(--splat-cyan),
+    0 6px 0 var(--splat-dark),
+    0 10px 30px rgba(0, 0, 0, 0.45);
+  padding: 14px 16px;
+  z-index: 200;
+
+  /* Hidden state */
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-6px) scale(0.97);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0s linear 0.15s;
+  pointer-events: none;
+}
+
+.audio-settings-panel.open {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0s linear 0s;
+  pointer-events: all;
+}
+
+/* ── Title ────────────────────────────────────────────────── */
+
+.asp-title {
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--splat-dark);
+  letter-spacing: 0.4px;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  border-bottom: 3px solid var(--splat-pink);
+  text-shadow: 1px 1px 0 rgba(233, 69, 96, 0.25);
+}
+
+/* ── Section ──────────────────────────────────────────────── */
+
+.asp-section {
+  margin-bottom: 12px;
+}
+
+.asp-section:last-child {
+  margin-bottom: 0;
+}
+
+.asp-label {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--splat-dark);
+  margin-bottom: 7px;
+  letter-spacing: 0.2px;
+  opacity: 0.75;
+}
+
+/* ── Row (toggle + slider + pct) ─────────────────────────── */
+
+.asp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Toggle button ────────────────────────────────────────── */
+
+.asp-toggle {
+  flex-shrink: 0;
+  width: 54px;
+  height: 28px;
+  border: 3px solid var(--splat-dark);
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--splat-cyan), var(--splat-cyan-dark));
+  color: white;
+  font-size: 11px;
+  font-weight: 900;
+  font-family: 'Arial Black', sans-serif;
+  cursor: pointer;
+  box-shadow: 0 3px 0 var(--splat-dark);
+  transition: all 0.12s;
+  position: relative;
+  top: 0;
+  user-select: none;
+}
+
+.asp-toggle:hover {
+  transform: scale(1.06);
+}
+
+.asp-toggle:active {
+  top: 2px;
+  box-shadow: 0 1px 0 var(--splat-dark);
+}
+
+.asp-toggle[data-active="false"] {
+  background: linear-gradient(135deg, #9ca3af, #6b7280);
+}
+
+/* ── Slider ───────────────────────────────────────────────── */
+
+.asp-slider-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.asp-slider {
+  width: 100%;
+  height: 8px;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+  border: 2px solid var(--splat-dark);
+  /* fill is set dynamically via JS */
+  background: linear-gradient(to right, var(--splat-cyan) 0%, var(--splat-cyan) 40%, #d1d5db 40%, #d1d5db 100%);
+}
+
+.asp-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, white, var(--splat-cyan));
+  border: 3px solid var(--splat-dark);
+  cursor: pointer;
+  box-shadow: 0 2px 0 var(--splat-dark);
+  transition: transform 0.1s;
+}
+
+.asp-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.asp-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, white, var(--splat-cyan));
+  border: 3px solid var(--splat-dark);
+  cursor: pointer;
+  box-shadow: 0 2px 0 var(--splat-dark);
+}
+
+/* ── Percentage label ─────────────────────────────────────── */
+
+.asp-pct {
+  flex-shrink: 0;
+  width: 38px;
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--splat-dark);
+  text-align: right;
+  font-family: 'Arial Black', sans-serif;
+}

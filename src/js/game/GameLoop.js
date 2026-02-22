@@ -75,8 +75,6 @@ export class GameLoop {
     this.bulletRenderer = new BulletRenderer(gl, 500, [360, 640]);
     this.hpBarRenderer = new HPBarRenderer(gl, 200, [360, 640]);
     this.particleRenderer = new ParticleRenderer(gl, 2000, [360, 640]);
-
-    // NEW: Initialize Canvas 2D status effect renderer
     this.statusEffectRenderer = new StatusEffectRenderer(emojiRenderer.ctx);
 
     this.currentTime = 0; // Track game time
@@ -444,11 +442,6 @@ export class GameLoop {
     const scale = renderer.getScale();
     const foods = this.multiPathSystem.getObjects();
 
-    // Draw status effects first (before emojis, but after clear)
-    if (foods.length > 0) {
-      this.statusEffectRenderer.render(foods, this.multiPathSystem, this.currentTime);
-    }
-
     // Draw food emojis
     for (let i = 0; i < foods.length; i += 1) {
       const f = foods[i];
@@ -458,6 +451,11 @@ export class GameLoop {
 
       const size = f.size * pulse;
       renderer.drawEmoji(f.emoji, p.x, p.y, size, scale);
+    }
+
+    // Draw HP bars + status icons above enemies on the same canvas layer.
+    if (foods.length > 0) {
+      this.statusEffectRenderer.render(foods, this.multiPathSystem, this.currentTime);
     }
 
     // Draw towers
@@ -489,17 +487,13 @@ export class GameLoop {
     // 1. WebGL: Background, paths, tower slots
     this.drawPath();
 
-    // 2. WebGL: HP bars (below food)
-    this.drawHPBars();
-
-    // 3. WebGL: Bullets
+    // 2. WebGL: Bullets
     this.drawBullets();
 
-    // 4. WebGL: Particles (rendered last in WebGL so hit/shot effects stay on top)
+    // 3. WebGL: Particles (rendered last in WebGL so hit/shot effects stay on top)
     this.drawParticles();
 
-    // 5. Canvas 2D: Status effects + Food emojis + Tower emojis
-    //    Status effects are rendered inside drawEmojis() to avoid being cleared
+    // 4. Canvas 2D: Food emojis + HP bars + status icons + Tower emojis
     this.drawEmojis();
 
     requestAnimationFrame((t) => this.frame(t));

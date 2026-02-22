@@ -12,6 +12,19 @@ import {
   SafetyModule
 } from '../core/modules/index.js';
 
+function hexToRgba(hex, alpha = 1.0) {
+  const normalized = hex.replace('#', '');
+  const fullHex = normalized.length === 3
+    ? normalized.split('').map((c) => c + c).join('')
+    : normalized;
+
+  const int = parseInt(fullHex, 16);
+  const r = ((int >> 16) & 255) / 255;
+  const g = ((int >> 8) & 255) / 255;
+  const b = (int & 255) / 255;
+  return [r, g, b, alpha];
+}
+
 /**
  * 위산 레일 주입기 (Acid Rail Injector)
  * 단일 화력 타워 - 보스/엘리트 1체 삭제 특화
@@ -56,25 +69,29 @@ export class AcidRailTower extends BaseTower {
     if (!this.particleSystem) return;
 
     const forward = Number.isFinite(bullet.rotation) ? bullet.rotation : 0;
-    const splashColor = [0.52, 0.96, 0.90, 0.95];
-    const mistColor = [0.90, 1.00, 0.98, 0.72];
+    const splashColor = hexToRgba('#38ff52', 1.0);
+    const mistColor = hexToRgba('#9effad', 0.9);
+    const x = bullet.x;
+    const y = bullet.y;
 
-    this.particleSystem.emit(this.x, this.y, isSecondary ? 7 : 10, splashColor, isSecondary ? 120 : 160, 0.22, {
-      spread: Math.PI / 2.8,
+    // Forward jet burst from muzzle.
+    this.particleSystem.emit(x, y, isSecondary ? 5 : 8, splashColor, isSecondary ? 180 : 230, 0.28, {
+      spread: Math.PI / 2.2,
       direction: forward,
-      gravity: 75,
-      sizeMin: 1.6,
-      sizeMax: isSecondary ? 3.8 : 4.8,
-      colorVariation: 0.16
+      gravity: 85,
+      sizeMin: 10.0,
+      sizeMax: isSecondary ? 14.6 : 16.2,
+      colorVariation: 0.2
     });
 
-    this.particleSystem.emit(this.x, this.y, isSecondary ? 4 : 6, mistColor, 90, 0.18, {
-      spread: Math.PI / 3.4,
+    // Back pressure mist for "pop" feeling.
+    this.particleSystem.emit(x, y, isSecondary ? 7 : 10, mistColor, 120, 0.24, {
+      spread: Math.PI / 2.8,
       direction: forward + Math.PI,
-      gravity: 35,
-      sizeMin: 1.2,
-      sizeMax: 2.8,
-      colorVariation: 0.08
+      gravity: 40,
+      sizeMin: 11.5,
+      sizeMax: isSecondary ? 14.2 : 15.6,
+      colorVariation: 0.1
     });
   }
 
@@ -88,26 +105,31 @@ export class AcidRailTower extends BaseTower {
       ? bullet.rotation
       : Math.atan2(bullet.lastDirY || 0, bullet.lastDirX || 1);
 
-    const impactColor = [0.34, 0.92, 0.82, 0.96];
-    const dropletColor = [0.72, 1.00, 0.92, 0.72];
+    const impactColor = hexToRgba('#2efb42', 1.0);
+    const dropletColor = hexToRgba('#8fff9e', 0.92);
 
-    particleSystem.emit(bullet.x, bullet.y, isSecondary ? 10 : 14, impactColor, isSecondary ? 130 : 180, 0.36, {
-      spread: Math.PI / 2.3,
+    // Main directional splash cone.
+    particleSystem.emit(bullet.x, bullet.y, isSecondary ? 4 : 6, impactColor, isSecondary ? 180 : 250, 0.42, {
+      spread: Math.PI / 1.9,
       direction: forward,
-      gravity: 220,
-      sizeMin: 1.8,
-      sizeMax: isSecondary ? 4.0 : 5.6,
-      colorVariation: 0.2
+      gravity: 240,
+      sizeMin: 12.2,
+      sizeMax: isSecondary ? 15.0 : 17.0,
+      colorVariation: 0.24
     });
 
-    particleSystem.emit(bullet.x, bullet.y, isSecondary ? 6 : 10, dropletColor, isSecondary ? 95 : 140, 0.30, {
-      spread: Math.PI * 0.9,
+    // Side droplets.
+    particleSystem.emit(bullet.x, bullet.y, isSecondary ? 10 : 16, dropletColor, isSecondary ? 130 : 180, 0.36, {
+      spread: Math.PI * 1.1,
       direction: forward + 0.12,
       gravity: 260,
-      sizeMin: 1.2,
-      sizeMax: isSecondary ? 3.2 : 4.2,
-      colorVariation: 0.2
+      sizeMin: 11.6,
+      sizeMax: isSecondary ? 14.2 : 15.6,
+      colorVariation: 0.24
     });
+
+    // Keep a small generic hit sparkle for readability.
+    particleSystem.emitHitEffect(bullet.x, bullet.y, bullet.color, bullet.damage);
   }
 }
 

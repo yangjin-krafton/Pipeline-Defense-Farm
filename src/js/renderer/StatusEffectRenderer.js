@@ -1,177 +1,144 @@
+import { VIRTUAL_W } from '../config.js';
+
 /**
- * StatusEffectRenderer - 음식의 상태 이상을 시각적으로 표시
- *
- * HP 바 위에 작은 아이콘으로 상태 이상을 표시합니다.
+ * StatusEffectRenderer - Canvas overlay renderer for enemy HP bars and status emojis.
+ * Draws after enemy emojis so overlays stay readable.
  */
 export class StatusEffectRenderer {
-  /**
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D 컨텍스트
-   */
   constructor(ctx) {
     this.ctx = ctx;
 
-    // 상태 이상 아이콘 설정
     this.statusIcons = {
-      expose: { emoji: '🎯', color: '#FF8C00', label: '취약' },
-      corrode: { emoji: '🧪', color: '#32CD32', label: '부식' },
-      shock: { emoji: '⚡', color: '#FFD700', label: '감전' },
-      mark: { emoji: '🔴', color: '#FF4500', label: '표식' },
-      clustered: { emoji: '👥', color: '#9370DB', label: '군집' },
-      stun: { emoji: '😵', color: '#808080', label: '기절' },
-      slow: { emoji: '🐌', color: '#4682B4', label: '둔화' }
+      expose: { emoji: '\uD83C\uDFAF', color: '#FF8C00' },
+      corrode: { emoji: '\uD83E\uDDEA', color: '#32CD32' },
+      shock: { emoji: '\u26A1', color: '#FFD700' },
+      mark: { emoji: '\uD83D\uDC89', color: '#cf0448' },
+      clustered: { emoji: '\uD83D\uDC65', color: '#9370DB' },
+      stun: { emoji: '\uD83D\uDE35', color: '#808080' },
+      slow: { emoji: '\uD83D\uDC0C', color: '#4682B4' }
     };
 
-    // 아이콘 크기
-    this.iconSize = 8;
+    // HP bar: horizontal length -30%, vertical size +30%
+    this.hpBarWidth = 21;
+    this.hpBarHeight = 5.2;
+    this.hpBarYOffset = -15;
+
+    // Status icons above HP bar: 2x size
+    this.iconSize = 18;
     this.iconSpacing = 10;
-    this.yOffsetFromBar = 8; // HP 바 위로 얼마나 띄울지
+    this.iconYOffset = 14;
   }
 
-  /**
-   * 상태 이상을 렌더링합니다.
-   * @param {Object[]} foods - 음식 배열
-   * @param {Object} multiPathSystem - 경로 시스템
-   * @param {number} currentTime - 현재 시간 (밀리초)
-   */
   render(foods, multiPathSystem, currentTime) {
     if (!foods || foods.length === 0) return;
 
     const ctx = this.ctx;
+    const scale = ctx.canvas.width / VIRTUAL_W;
     ctx.save();
 
     for (const food of foods) {
-      if (!food.statusEffects || food.statusEffects.length === 0) continue;
-
       const pos = multiPathSystem.samplePath(food.currentPath, food.d);
       if (!pos) continue;
 
-      // HP 바 위치 계산 (HPBarRenderer와 동일한 위치)
-      const hpBarY = pos.y - 15;
-      const statusY = hpBarY - this.yOffsetFromBar;
+      const hpPercent = Math.max(0, Math.min(1, food.hp / (food.maxHp || 1)));
+      const barX = pos.x;
+      const barY = pos.y + this.hpBarYOffset;
 
-      // 활성 상태 이상 필터링 (만료되지 않은 것만)
-      const activeEffects = this._getActiveEffects(food.statusEffects, currentTime);
+      this._renderHpBar(barX, barY, hpPercent, food, scale);
 
-      if (activeEffects.length === 0) continue;
-
-      // 상태 이상 중복 제거 (같은 타입은 하나만 표시)
-      const uniqueEffects = this._getUniqueEffects(activeEffects);
-
-      // 상태 이상 아이콘 렌더링
-      this._renderStatusIcons(pos.x, statusY, uniqueEffects);
+      const activeEffects = this._getActiveEffects(food.statusEffects || [], currentTime);
+      if (activeEffects.length > 0) {
+        const uniqueEffects = this._getUniqueEffects(activeEffects);
+        this._renderStatusIcons(barX, barY - this.iconYOffset, uniqueEffects, scale);
+      }
     }
 
     ctx.restore();
   }
 
-  /**
-   * 활성 상태 이상 필터링 (만료되지 않은 것만)
-   * @private
-   */
-  _getActiveEffects(statusEffects, currentTime) {
+  _renderHpBar(centerX, centerY, hpPercent, food, scale) {
+    const ctx = this.ctx;
+    const cx = centerX * scale;
+    const cy = centerY * scale;
+    const barW = this.hpBarWidth * scale;
+    const barH = this.hpBarHeight * scale;
+    const halfW = barW / 2;
+
+    ctx.fillStyle = 'rgba(77, 0, 0, 0.82)';
+    ctx.fillRect(cx - halfW, cy - barH / 2, barW, barH);
+
+    const fgWidth = barW * hpPercent;
+    const fgColor = this._getBarColor(food);
+    ctx.fillStyle = fgColor;
+    ctx.fillRect(cx - halfW, cy - barH / 2, fgWidth, barH);
+
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(cx - halfW, cy - barH / 2, barW, barH);
+  }
+
+  _getBarColor(food) {
+    const activeEffects = this._getActiveEffects(food.statusEffects || [], Date.now() / 1000);
+    for (const effect of activeEffects) {
+      switch (effect.type) {
+        case 'corrode': return '#55FF55';
+        case 'shock': return '#FFEE44';
+        case 'expose': return '#FFA238';
+        case 'mark': return '#bb0038';
+        case 'clustered': return '#58CCFF';
+        case 'stun': return '#A0A0A0';
+        default: break;
+      }
+    }
+    return '#FF5959';
+  }
+
+  _getActiveEffects(statusEffects, currentTimeSec) {
     return statusEffects.filter(effect => {
       if (!effect.appliedTime || !effect.duration) return false;
-      const elapsed = (currentTime - effect.appliedTime) / 1000; // 초 단위
+      const appliedSec = effect.appliedTime / 1000;
+      const elapsed = currentTimeSec - appliedSec;
       return elapsed < effect.duration;
     });
   }
 
-  /**
-   * 중복 제거 (같은 타입은 하나만)
-   * @private
-   */
   _getUniqueEffects(effects) {
-    const uniqueMap = new Map();
+    const map = new Map();
     for (const effect of effects) {
-      if (!uniqueMap.has(effect.type)) {
-        uniqueMap.set(effect.type, effect);
-      }
+      if (!map.has(effect.type)) map.set(effect.type, effect);
     }
-    return Array.from(uniqueMap.values());
+    return Array.from(map.values());
   }
 
-  /**
-   * 상태 이상 아이콘 렌더링
-   * @private
-   */
-  _renderStatusIcons(x, y, effects) {
+  _renderStatusIcons(centerX, y, effects, scale) {
     const ctx = this.ctx;
-    const totalWidth = effects.length * this.iconSpacing;
-    let startX = x - totalWidth / 2;
+    const visible = effects.slice(0, 4);
+    const iconSpacing = this.iconSpacing * scale;
+    const iconRadius = (this.iconSize * scale) / 2;
+    const totalWidth = (visible.length - 1) * iconSpacing;
+    let x = centerX * scale - totalWidth / 2;
+    const drawY = y * scale;
 
-    for (const effect of effects) {
-      const iconConfig = this.statusIcons[effect.type];
-      if (!iconConfig) continue;
+    for (const effect of visible) {
+      const icon = this.statusIcons[effect.type];
+      if (!icon) continue;
 
-      // 작은 원형 아이콘 그리기
       ctx.beginPath();
-      ctx.arc(startX, y, this.iconSize / 2, 0, Math.PI * 2);
-      ctx.fillStyle = iconConfig.color;
+      ctx.arc(x, drawY, iconRadius, 0, Math.PI * 2);
+      ctx.fillStyle = icon.color;
       ctx.fill();
 
-      // 테두리
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
       ctx.lineWidth = 1;
       ctx.stroke();
 
-      // 이모지 표시 (작게)
-      ctx.font = '8px Arial';
+      ctx.font = `${Math.max(16, Math.round(16 * scale))}px Arial`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#FFF';
-      ctx.fillText(iconConfig.emoji, startX, y);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText(icon.emoji, x, drawY + 0.2 * scale);
 
-      startX += this.iconSpacing;
+      x += iconSpacing;
     }
-  }
-
-  /**
-   * 상태 이상 툴팁 렌더링 (호버 시)
-   * @param {number} x - 마우스 X 좌표
-   * @param {number} y - 마우스 Y 좌표
-   * @param {Object[]} effects - 상태 이상 배열
-   */
-  renderTooltip(x, y, effects) {
-    if (!effects || effects.length === 0) return;
-
-    const ctx = this.ctx;
-    ctx.save();
-
-    // 툴팁 배경
-    const padding = 8;
-    const lineHeight = 16;
-    const tooltipHeight = effects.length * lineHeight + padding * 2;
-    const tooltipWidth = 120;
-
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
-    ctx.fillRect(x, y, tooltipWidth, tooltipHeight);
-
-    // 테두리
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x, y, tooltipWidth, tooltipHeight);
-
-    // 상태 이상 텍스트
-    ctx.font = '12px Arial';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-
-    let textY = y + padding;
-    for (const effect of effects) {
-      const iconConfig = this.statusIcons[effect.type];
-      if (!iconConfig) continue;
-
-      // 아이콘 색상 점
-      ctx.fillStyle = iconConfig.color;
-      ctx.fillRect(x + padding, textY + 4, 8, 8);
-
-      // 상태 이름
-      ctx.fillStyle = '#FFF';
-      ctx.fillText(`${iconConfig.label}`, x + padding + 12, textY);
-
-      textY += lineHeight;
-    }
-
-    ctx.restore();
   }
 }

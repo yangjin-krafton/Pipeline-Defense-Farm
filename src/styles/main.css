@@ -10,6 +10,7 @@
 /* Component Styles */
 @import './components/game-screen.css';
 @import './components/music-controls.css';
+@import './components/audio-settings.css';
 @import './components/start-overlay.css';
 @import './components/canvas-container.css';
 @import './components/status-bar.css';
