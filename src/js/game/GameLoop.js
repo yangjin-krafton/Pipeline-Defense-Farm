@@ -168,6 +168,7 @@ export class GameLoop {
         leaked: true,
         timeToKill
       });
+      this._triggerScreenShake();
     });
 
     // Handle food deaths (HP <= 0)
@@ -273,6 +274,16 @@ export class GameLoop {
     if (safeTarget > safeCurrent) return Math.min(5, safeCurrent + step);
     if (safeTarget < safeCurrent) return Math.max(0, safeCurrent - step);
     return safeCurrent;
+  }
+
+  _triggerScreenShake() {
+    const container = document.getElementById('scale-container');
+    if (!container) return;
+    // 애니메이션 재시작을 위해 클래스 제거 후 reflow → 재추가
+    container.classList.remove('screen-shake');
+    void container.offsetWidth;
+    container.classList.add('screen-shake');
+    setTimeout(() => container.classList.remove('screen-shake'), 450);
   }
 
   _playBattleSfx(eventName, volume = 1, cooldownSec = 0, timerKey = '') {

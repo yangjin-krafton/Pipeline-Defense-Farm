@@ -397,6 +397,30 @@
   }
 }
 
+/* SC Over-Cap: 보상으로 상한(80) 초과 시 */
+.sc-resource.over-cap {
+  outline: 2px solid #f59e0b;
+  outline-offset: 1px;
+}
+
+.sc-resource.over-cap .sc-bar-progress {
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+#scText.over-cap {
+  color: #f59e0b;
+  font-weight: 900;
+}
+
+@keyframes sc-over-cap-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.sc-resource.over-cap #scText {
+  animation: sc-over-cap-pulse 2s ease-in-out infinite;
+}
+
 /* ===== 1시간 SC 수령 버튼 ===== */
 .claim-btn {
   background: linear-gradient(135deg, #10b981, #059669);

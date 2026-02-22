@@ -34,8 +34,10 @@ export class ResourceDisplayUI {
       const currentSC = Math.floor(economyState.sc);
       const maxSC = economyState.scMax;
       const scFractional = economyState.scFractional || 0;
+      const isOverCap = economyState.scIsOverCap || currentSC > maxSC;
 
-      const progressPercent = scFractional * 100;
+      // 상한 초과 시 진행바 꽉 참, 미만이면 소수점 진행도 표시
+      const progressPercent = isOverCap ? 100 : scFractional * 100;
 
       const prevSC = scBarProgress?.dataset.prevSc ? parseInt(scBarProgress.dataset.prevSc) : currentSC;
       const isInitialized = scBarProgress?.dataset.initialized === 'true';
@@ -61,15 +63,27 @@ export class ResourceDisplayUI {
 
       if (scText) {
         scText.textContent = `${currentSC}/${maxSC}`;
+        if (isOverCap) {
+          scText.classList.add('over-cap');
+        } else {
+          scText.classList.remove('over-cap');
+        }
         if (isInitialized && currentSC > prevSC) {
           scText.classList.add('increase');
           setTimeout(() => scText.classList.remove('increase'), 400);
         }
       }
 
-      if (scResource && isInitialized && currentSC > prevSC) {
-        scResource.classList.add('show-particle');
-        setTimeout(() => scResource.classList.remove('show-particle'), 800);
+      if (scResource) {
+        if (isOverCap) {
+          scResource.classList.add('over-cap');
+        } else {
+          scResource.classList.remove('over-cap');
+        }
+        if (isInitialized && currentSC > prevSC) {
+          scResource.classList.add('show-particle');
+          setTimeout(() => scResource.classList.remove('show-particle'), 800);
+        }
       }
     }
   }

@@ -3,7 +3,7 @@ import { NC_CONFIG, SC_CONFIG, ZONE_REWARD_MULTIPLIERS } from '../data/economyDe
 /**
  * 2종 재화 시스템 (NC/SC)
  * - NC (Nutrition Credit): 누적형 재화, 상한 없음
- * - SC (Supply Charge): 회복형 재화, 상한 80
+ * - SC (Supply Charge): 회복형 재화, 자동충전 상한 80 / 보상은 80 초과 허용
  */
 export class EconomySystem {
   constructor() {
@@ -97,6 +97,20 @@ export class EconomySystem {
     }
   }
 
+  /**
+   * SC 보상 획득 — 상한(scMax) 초과 허용, NC 변환 없음
+   * 자동충전은 scMax에서 멈추지만 보상은 scMax를 넘어 쌓일 수 있음
+   * (예: 80/80 상태에서 +10 SC 보상 → 90/80)
+   */
+  earnSCBonus(amount) {
+    this.sc += amount;
+    return {
+      sc: amount,
+      ncFromOverflow: 0,
+      overflow: 0
+    };
+  }
+
   getSCBalance() {
     return this.sc;
   }
@@ -127,13 +141,18 @@ export class EconomySystem {
    * @param {number} dt - delta time (초)
    */
   update(dt) {
-    // SC 수급 (정수 단위로 1씩 증가)
+    // SC 수급 — scMax 이상이면 자동충전 중지 (보상으로만 초과 가능)
+    if (this.sc >= this.scMax) {
+      this.scFractional = 0;
+      return;
+    }
+
+    // 정수 단위로 1씩 증가
     const scPerSecond = SC_CONFIG.passiveRegenPerHour / 3600;
     this.scFractional += scPerSecond * dt;
 
-    // 1씩 증가할 때마다 실제 SC 증가
     while (this.scFractional >= 1.0) {
-      this.earnSCWithOverflow(1);  // 1씩 증가
+      this.earnSC(1);  // 상한 내에서만 충전
       this.scFractional -= 1.0;
     }
   }
@@ -181,7 +200,8 @@ export class EconomySystem {
       sc: this.sc,
       scMax: this.scMax,
       scPercent: (this.sc / this.scMax) * 100,
-      scFractional: this.scFractional  // 0-1 범위, 다음 1 SC까지의 진행도
+      scFractional: this.scFractional,  // 0-1 범위, 다음 1 SC까지의 진행도
+      scIsOverCap: this.sc > this.scMax  // 보상으로 상한 초과 시 true
     };
   }
 

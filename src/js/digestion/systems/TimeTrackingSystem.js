@@ -118,16 +118,13 @@ export class TimeTrackingSystem {
     }
 
     const bonus = SC_CONFIG.hourlyLoginBonus;  // 10 SC
-    const result = economySystem.earnSCWithOverflow(bonus);
+    economySystem.earnSCBonus(bonus);  // 상한 초과 허용
 
     this.hourlyBonusReady = false;
     this.hourlyBonusAccumulator -= 3600;  // 1시간 차감
     this.lastHourlyBonusTime = this.totalPlaytime;
 
     console.log(`[TimeTrackingSystem] Hourly bonus claimed: +${bonus} SC`);
-    if (result.ncFromOverflow > 0) {
-      console.log(`[TimeTrackingSystem] SC overflow -> +${result.ncFromOverflow} NC`);
-    }
 
     return {
       success: true,
@@ -150,14 +147,11 @@ export class TimeTrackingSystem {
     const scBonus = SC_CONFIG.dailyLoginBonus;
 
     economySystem.earnNC(ncBonus);
-    const scResult = economySystem.earnSCWithOverflow(scBonus);
+    economySystem.earnSCBonus(scBonus);  // 상한 초과 허용
 
     this.dailyBonusClaimed = true;
 
     console.log(`[TimeTrackingSystem] Daily bonus claimed: +${ncBonus} NC, +${scBonus} SC`);
-    if (scResult.ncFromOverflow > 0) {
-      console.log(`[TimeTrackingSystem] SC overflow -> +${scResult.ncFromOverflow} NC`);
-    }
 
     return true;
   }
@@ -275,17 +269,14 @@ export class TimeTrackingSystem {
       };
     }
 
-    // NC, SC 지급
+    // NC, SC 지급 (SC는 상한 초과 허용)
     economySystem.earnNC(available.nc);
-    const scResult = economySystem.earnSCWithOverflow(available.sc);
+    economySystem.earnSCBonus(available.sc);
 
     // 수령 완료 표시
     this.sixHourRewards.claimed[available.key] = true;
 
     console.log(`[TimeTrackingSystem] 6-hour reward claimed (${available.timeSlot}): +${available.nc} NC, +${available.sc} SC`);
-    if (scResult.ncFromOverflow > 0) {
-      console.log(`[TimeTrackingSystem] SC overflow -> +${scResult.ncFromOverflow} NC`);
-    }
 
     return {
       success: true,
