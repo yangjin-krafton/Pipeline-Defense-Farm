@@ -185,6 +185,11 @@ export class UIController {
     this.uiSfxSystem = uiSfxSystem || null;
   }
 
+  /** @param {import('./ResourceAbsorptionSystem.js').ResourceAbsorptionSystem} system */
+  setResourceAbsorptionSystem(system) {
+    this.resourceAbsorptionSystem = system;
+  }
+
   setGameLoop(gameLoop) {
     this.gameLoop = gameLoop;
 

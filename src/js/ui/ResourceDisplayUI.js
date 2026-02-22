@@ -145,6 +145,11 @@ export class ResourceDisplayUI {
         this.ui._showToast(`1시간 보상 수령! +${result.sc} SC`, 'success');
         this.updateNutrition(economySystem.getState());
         claimBtn.style.display = 'none';
+
+        // SC 토큰 흡수 연출
+        if (this.ui.resourceAbsorptionSystem && result.sc > 0) {
+          this.ui.resourceAbsorptionSystem.emitFromElement(claimBtn, 'sc', result.sc);
+        }
       } else {
         this.ui._showToast(result.reason || '보상을 수령할 수 없습니다', 'error');
       }
@@ -177,6 +182,18 @@ export class ResourceDisplayUI {
         this.ui._showToast(`${result.timeSlot} 보상 수령! +${result.nc} NC, +${result.sc} SC`, 'success');
         this.updateNutrition(economySystem.getState());
         claimBtn.style.display = 'none';
+
+        // NC·SC 토큰 흡수 연출 (약간 시차를 두어 순서 구분)
+        if (this.ui.resourceAbsorptionSystem) {
+          if (result.sc > 0) {
+            this.ui.resourceAbsorptionSystem.emitFromElement(claimBtn, 'sc', result.sc);
+          }
+          if (result.nc > 0) {
+            setTimeout(() => {
+              this.ui.resourceAbsorptionSystem.emitFromElement(claimBtn, 'nc', result.nc);
+            }, 200);
+          }
+        }
       } else {
         this.ui._showToast(result.reason || '보상을 수령할 수 없습니다', 'error');
       }

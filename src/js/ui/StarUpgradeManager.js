@@ -152,7 +152,7 @@ export class StarUpgradeManager {
           { element: statElements[0], value: this.starUpgradeState.currentStatRoll.damageMultiplier, min: 0.07, max: 0.11, grade: this.starUpgradeState.currentStatRoll.damageGrade },
           { element: statElements[1], value: this.starUpgradeState.currentStatRoll.attackSpeedMultiplier, min: 0.02, max: 0.04, grade: this.starUpgradeState.currentStatRoll.attackSpeedGrade },
           { element: statElements[2], value: this.starUpgradeState.currentStatRoll.rangeMultiplier, min: 0.01, max: 0.03, grade: this.starUpgradeState.currentStatRoll.rangeGrade },
-          { element: statElements[3], value: this.starUpgradeState.currentStatRoll.statusSuccessRate, min: 0.015, max: 0.03, grade: this.starUpgradeState.currentStatRoll.statusGrade }
+          { element: statElements[3], value: this.starUpgradeState.currentStatRoll.critChance, min: 0.01, max: 0.04, grade: this.starUpgradeState.currentStatRoll.critGrade }
         ];
 
         this.rollingAnimation.startRolling(stats, () => {
@@ -290,7 +290,7 @@ export class StarUpgradeManager {
           { element: statElements[0], value: state.currentStatRoll.damageMultiplier, min: 0.07, max: 0.11, grade: state.currentStatRoll.damageGrade },
           { element: statElements[1], value: state.currentStatRoll.attackSpeedMultiplier, min: 0.02, max: 0.04, grade: state.currentStatRoll.attackSpeedGrade },
           { element: statElements[2], value: state.currentStatRoll.rangeMultiplier, min: 0.01, max: 0.03, grade: state.currentStatRoll.rangeGrade },
-          { element: statElements[3], value: state.currentStatRoll.statusSuccessRate, min: 0.015, max: 0.03, grade: state.currentStatRoll.statusGrade }
+          { element: statElements[3], value: state.currentStatRoll.critChance, min: 0.01, max: 0.04, grade: state.currentStatRoll.critGrade }
         ];
 
         this._playUpgradeSfx('shot', 0.52);
@@ -373,7 +373,7 @@ export class StarUpgradeManager {
       },
       {
         name: '공격속도',
-        icon: '⚡',
+        icon: '⏱️',
         oldValue: oldBonuses.attackSpeedMultiplier,
         newGain: newGains.attackSpeedMultiplier,
         newGrade: newGains.attackSpeedGrade,
@@ -388,11 +388,11 @@ export class StarUpgradeManager {
         isMultiplier: true
       },
       {
-        name: '상태이상 성공률',
-        icon: '✨',
-        oldValue: oldBonuses.statusSuccessRate,
-        newGain: newGains.statusSuccessRate,
-        newGrade: newGains.statusGrade,
+        name: '치명타율',
+        icon: '🎲',
+        oldValue: oldBonuses.critChance || 0,
+        newGain: newGains.critChance,
+        newGrade: newGains.critGrade,
         isMultiplier: false
       }
     ];

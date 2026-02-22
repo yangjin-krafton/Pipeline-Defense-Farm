@@ -213,7 +213,7 @@ export class TowerGrowthSystem {
 
   /**
    * 랜덤 스탯 증가 롤
-   * @returns {{damageMultiplier, attackSpeedMultiplier, rangeMultiplier, statusSuccessRate}}
+   * @returns {{damageMultiplier, attackSpeedMultiplier, rangeMultiplier, critChance}}
    */
   _rollStatGains() {
     // 공격력: +5% ~ +11% (하한 +7%)
@@ -228,15 +228,15 @@ export class TowerGrowthSystem {
     let range = Math.random() * 0.03;
     if (range < 0.01) range = 0.01;
 
-    // 상태이상 성공률: +1%p ~ +3%p (하한 +1.5%p)
-    let statusRate = 0.01 + Math.random() * 0.02;
-    if (statusRate < 0.015) statusRate = 0.015;
+    // 치명타율: +1%p ~ +4%p (하한 +1%p)
+    let critChance = 0.01 + Math.random() * 0.03;
+    if (critChance < 0.01) critChance = 0.01;
 
     return {
       damageMultiplier: damage,
       attackSpeedMultiplier: attackSpeed,
       rangeMultiplier: range,
-      statusSuccessRate: statusRate
+      critChance: critChance
     };
   }
 
@@ -269,13 +269,11 @@ export class TowerGrowthSystem {
 
   /**
    * 스탯 롤 (등급 정보 포함)
-   * @returns {{damageMultiplier, damageGrade, attackSpeedMultiplier, attackSpeedGrade, rangeMultiplier, rangeGrade, statusSuccessRate, statusGrade}}
+   * @returns {{damageMultiplier, damageGrade, attackSpeedMultiplier, attackSpeedGrade, rangeMultiplier, rangeGrade, critChance, critGrade}}
    */
   _rollStatGainsWithGrades() {
-    // 기존 스탯 롤 로직 호출
     const gains = this._rollStatGains();
 
-    // 각 스탯에 등급 정보 추가
     return {
       damageMultiplier: gains.damageMultiplier,
       damageGrade: this.calculateStatGrade(gains.damageMultiplier, 0.07, 0.11),
@@ -286,8 +284,8 @@ export class TowerGrowthSystem {
       rangeMultiplier: gains.rangeMultiplier,
       rangeGrade: this.calculateStatGrade(gains.rangeMultiplier, 0.01, 0.03),
 
-      statusSuccessRate: gains.statusSuccessRate,
-      statusGrade: this.calculateStatGrade(gains.statusSuccessRate, 0.015, 0.03)
+      critChance: gains.critChance,
+      critGrade: this.calculateStatGrade(gains.critChance, 0.01, 0.04)
     };
   }
 
@@ -298,7 +296,7 @@ export class TowerGrowthSystem {
     tower.starBonuses.damageMultiplier *= (1 + gains.damageMultiplier);
     tower.starBonuses.attackSpeedMultiplier *= (1 + gains.attackSpeedMultiplier);
     tower.starBonuses.rangeMultiplier *= (1 + gains.rangeMultiplier);
-    tower.starBonuses.statusSuccessRate += gains.statusSuccessRate;
+    tower.starBonuses.critChance = (tower.starBonuses.critChance || 0) + gains.critChance;
   }
 
   /**
@@ -330,7 +328,7 @@ export class TowerGrowthSystem {
       tower.starBonuses.damageMultiplier /= (1 + lastGain.damageMultiplier);
       tower.starBonuses.attackSpeedMultiplier /= (1 + lastGain.attackSpeedMultiplier);
       tower.starBonuses.rangeMultiplier /= (1 + lastGain.rangeMultiplier);
-      tower.starBonuses.statusSuccessRate -= lastGain.statusSuccessRate;
+      tower.starBonuses.critChance = Math.max(0, (tower.starBonuses.critChance || 0) - (lastGain.critChance || 0));
     }
 
     // 새 스탯 롤

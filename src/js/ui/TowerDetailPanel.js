@@ -63,6 +63,29 @@ export class TowerDetailPanel {
   }
 
   /**
+   * 빈 슬롯 타워 설치 패널 표시 (_showTowerBuild)
+   */
+  showBuild() {
+    console.log('TowerDetailPanel: Showing tower build');
+
+    if (this.ui.starUpgradeManager?.isCurrentlyUpgrading()) {
+      this.ui.starUpgradeManager.dismissUpgradeUI();
+    }
+
+    const starUpgradeUI = document.getElementById('tower-star-upgrade');
+    if (starUpgradeUI) starUpgradeUI.classList.add('hidden');
+
+    if (this.ui.towerDetailContent) {
+      this.ui.towerDetailContent.classList.add('hidden');
+    }
+    if (this.ui.towerBuildContent) {
+      this.ui.towerBuildContent.classList.remove('hidden');
+    }
+
+    this._setupTowerBuildButtons();
+  }
+
+  /**
    * 공통 5개 스탯 + 음식 태그 보너스 계산
    * @param {Object} tower
    * @returns {Object} stats object
@@ -110,8 +133,8 @@ export class TowerDetailPanel {
       tower.range * tower.starBonuses.rangeMultiplier * rangeModMult
     );
 
-    // ── 4. 치명타 확률 ───────────────────────────────────────
-    let critChance = 0;
+    // ── 4. 치명타 확률 (star 기반 + 모듈 합산) ──────────────
+    let critChance = tower.starBonuses.critChance || 0;
     for (const m of modules) {
       if (m.critChance > 0)      critChance += m.critChance;
       if (m.critChanceBonus > 0) critChance += m.critChanceBonus;

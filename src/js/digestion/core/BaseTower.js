@@ -20,24 +20,24 @@ export class BaseTower {
     this.currentTarget = null;
     this.attackCooldown = 0;
 
-    // Growth system (????깆옣)
-    this.xp = 0;                    // ?꾩옱 XP
-    this.level = 1;                 // ?꾩옱 ?덈꺼
-    this.star = 1;                  // ?깃툒 (1~12)
-    this.upgradePoints = 1;         // ?낃렇?덉씠???ъ씤??(?덈꺼怨??숈씪, ?덈꺼?낅쭏??+1)
+    // 성장 시스템 (레벨업)
+    this.xp = 0;                    // 현재 XP
+    this.level = 1;                 // 현재 레벨
+    this.star = 1;                  // 성급 (1~12)
+    this.upgradePoints = 1;         // 업그레이드 포인트 (레벨과 동일, 레벨업마다 +1)
 
-    // Star bonuses (?밴툒 ?ㅽ꺈 ?꾩쟻)
+    // 성급 보너스 (기본 스탯 가중치)
     this.starBonuses = {
       damageMultiplier: 1.0,
       attackSpeedMultiplier: 1.0,
       rangeMultiplier: 1.0,
-      statusSuccessRate: 0.0
+      critChance: 0.0
     };
 
-    // Imprints (媛곸씤, ?ν썑 ImprintSystem?먯꽌 愿由?
+    // 각인 (추후 ImprintSystem에서 관리)
     this.imprints = [];
 
-    // Imprint count per node (?몃뱶蹂?媛곸씤 ?잛닔 異붿쟻)
+    // 노드별 각인 횟수 추적
     // Map<nodeNumber, count>
     this.imprintCounts = new Map();
 
@@ -147,7 +147,7 @@ export class BaseTower {
       damage: effectiveDamage,
       currentTime: currentTime,
       isCritical: false,
-      critChance: 0,
+      critChance: this.starBonuses.critChance || 0,  // star-level crit base
       statusEffects: [],
       onKillEffects: [],
       projectile: null,
@@ -174,7 +174,7 @@ export class BaseTower {
       }
     }
 
-    // ===== ?몃━嫄?蹂대꼫???꾩쟻 ?곸슜 =====
+    // ===== 트리거 보너스 누적 적용 =====
     // Apply accumulated damage bonuses from TriggerModules
     if (context.damageBonus) {
       context.damage *= (1 + context.damageBonus);
@@ -259,7 +259,7 @@ export class BaseTower {
         true,
         pierceOptions
       );
-      // 愿??泥댁씤 ?몃━嫄?onHit/onKill)瑜?泥섎━?섍린 ?꾪빐 ????덊띁?곗뒪 二쇱엯
+      // 관통 체인의 트리거(onHit/onKill)를 처리하기 위해 타워 참조를 주입
       if (bullet) {
         bullet.tower = this;
         bullet.rotation = fireTransform.fireAngle;
@@ -267,7 +267,7 @@ export class BaseTower {
         this.emitBulletSpawnEffect(bullet, context, false);
       }
 
-      // 異붽? ?寃?(?몃뱶 10 ??secondaryDamage)
+      // 추가 타격 (노드 10의 secondaryDamage)
       if (context.secondaryDamage > 0) {
         const secondaryBullet = this.bulletSystem.createBullet(
           fireTransform.x,
@@ -331,12 +331,13 @@ export class BaseTower {
   }
 
   /**
-   * 愿??泥댁씤?먯꽌 異붽? ?寃??곸쨷/泥섏튂 ???몃━嫄?紐⑤뱢??諛쒕룞?⑸땲??
-   * BaseTower.attack()怨??щ━ ?쇳빐 ?ш퀎?곗? ?섏? ?딄퀬, onHit/onKill ?ъ씠???댄럺?몃쭔 泥섎━?⑸땲??
+   * 관통 체인에서 추가 타격이 발생했을 때 onHit/onKill 트리거 모듈을 발동합니다.
+   * BaseTower.attack()과 분리된 흐름으로, 즉시 피해를 다시 계산하지 않고
+   * 트리거성 부가효과만 처리합니다.
    *
-   * applyDamage媛 ?대? ?몄텧???곹깭?먯꽌 ?ㅽ뻾?섎?濡?
-   *  - food.hp <= 0 ??泥섏튂 ?먯젙 (forceOnKillResult濡?TriggerModule???꾨떖)
-   *  - food.hp - context.damage 怨듭떇? ?대? 媛먯냼??hp ?뚮Ц???ㅽ뙋 媛?????ㅻ쾭?쇱씠???꾩슂
+   * applyDamage가 이미 호출된 상태에서 실행되므로:
+   *  - food.hp <= 0 이면 처치로 판단해 forceOnKillResult로 전달
+   *  - 남은 hp 기준으로 재판정하지 않아 중복 처리 위험을 줄임
    */
   firePierceHit(food, damage, currentTime = 0) {
     if (!this.upgradeTree) return;
@@ -354,7 +355,7 @@ export class BaseTower {
 
     const modules = this.upgradeTree.getAllActiveModules();
 
-    // onHit 癒쇱? (?ㅽ깮 ?뚮퉬), onKill ?섏쨷 (?ㅼ쓬 ?룹쓣 ?꾪븳 ?ㅽ깮 ?곷┰)
+    // onHit 먼저 적용(즉시 효과), 이후 onKill 적용(다음 처리용 효과 누적)
     for (const module of modules) {
       if (module.triggerType === 'onHit') {
         context = module.apply(context);
@@ -377,12 +378,10 @@ export class BaseTower {
    */
   getTowerBulletColor() {
     switch (this.type) {
-      case 'acidRail':
-        return [0.22, 1.0, 0.32, 1.0]; // Red-Orange (?꾩궛 ?덉씪)
       case 'enzymeCharge':
-        return [0.2, 1.0, 0.8, 1.0]; // Cyan (?⑥냼 異뺤쟾)
+        return [0.2, 1.0, 0.8, 1.0]; // Cyan (효소 충전)
       case 'pierceBolt':
-        return [0.8, 0.2, 1.0, 1.0]; // Purple (愿??蹂쇳듃)
+        return [0.8, 0.2, 1.0, 1.0]; // Purple (관통 볼트)
       default:
         return [1.0, 1.0, 1.0, 1.0]; // White
     }
@@ -518,7 +517,7 @@ export class BaseTower {
       damage: this.damage * this.starBonuses.damageMultiplier,
       attackSpeed: this.attackSpeed * this.starBonuses.attackSpeedMultiplier,
       range: this.range * this.starBonuses.rangeMultiplier,
-      statusSuccessRate: this.starBonuses.statusSuccessRate
+      critChance: this.starBonuses.critChance || 0
     };
   }
 }

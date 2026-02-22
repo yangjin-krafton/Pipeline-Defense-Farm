@@ -96,6 +96,14 @@ export class GameLoop {
     this.lastWaveClearSfxTime = -999;
     this.lastKillSfxTime = -999;
     this.lastBigKillSfxTime = -999;
+
+    // 재화 흡수 연출 시스템 (main.js에서 주입)
+    this.resourceAbsorptionSystem = null;
+  }
+
+  /** @param {import('../ui/ResourceAbsorptionSystem.js').ResourceAbsorptionSystem} system */
+  setResourceAbsorptionSystem(system) {
+    this.resourceAbsorptionSystem = system;
   }
 
   /**
@@ -428,6 +436,11 @@ export class GameLoop {
         }
 
         this.particleSystem.emitDeathEffect(pos.x, pos.y, color);
+
+        // 재화 흡수 연출 — NC 토큰이 적 사망 위치에서 NC 바로 날아감
+        if (this.resourceAbsorptionSystem && reward > 0) {
+          this.resourceAbsorptionSystem.emitFromGamePos(pos.x, pos.y, 'nc', reward);
+        }
       }
     }
   }

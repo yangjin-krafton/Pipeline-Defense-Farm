@@ -17,6 +17,7 @@ import { CameraController } from './ui/CameraController.js';
 import { appendCircle, buildPolylineMesh, hexToRgba } from './utils/geometry.js';
 import { PathEditor } from './editor/PathEditor.js';
 import { TowerSlotEditor } from './editor/TowerSlotEditor.js';
+import { ResourceAbsorptionSystem } from './ui/ResourceAbsorptionSystem.js';
 
 /**
  * Initialize canvas and context
@@ -522,6 +523,13 @@ async function init() {
 
   // Initialize Scale Manager
   const scaleManager = new ScaleManager();
+
+  // Initialize Resource Absorption System (재화 흡수 연출 모듈)
+  const gameScreen = document.getElementById('game-screen');
+  const resourceAbsorptionSystem = new ResourceAbsorptionSystem();
+  resourceAbsorptionSystem.init(gameScreen, pathCanvas, scaleManager);
+  gameLoop.setResourceAbsorptionSystem(resourceAbsorptionSystem);
+  uiController.setResourceAbsorptionSystem(resourceAbsorptionSystem);
 
   // Re-fit canvas on window resize for responsive scaling
   window.addEventListener('resize', () => {
