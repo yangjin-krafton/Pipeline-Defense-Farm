@@ -48,8 +48,10 @@ export class TriggerModule extends BaseModule {
         break;
 
       case 'onKill':
-        // 처치 시 트리거는 공격 후 체크 필요
-        shouldTrigger = food.hp - context.damage <= 0;
+        // 관통 체인에서 applyDamage 후 호출될 때는 forceOnKillResult로 정확한 값을 전달
+        shouldTrigger = 'forceOnKillResult' in context
+          ? context.forceOnKillResult
+          : food.hp - context.damage <= 0;
         break;
 
       case 'onCrit':

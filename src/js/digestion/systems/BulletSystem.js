@@ -69,12 +69,37 @@ export class BulletSystem {
         // 관통 처리: 남은 횟수가 있으면 다음 타겟으로 계속 진행
         let pierced = false;
         if (bullet.pierceCount > 0 && foodList) {
-          bullet.hitTargets.add(bullet.target);
+          const hitTarget = bullet.target;
+
+          // 적중/처치 트리거 발동 (노드12 스택 적립 등)
+          if (bullet.tower) {
+            bullet.tower.firePierceHit(hitTarget, bullet.damage);
+          }
+
+          bullet.hitTargets.add(hitTarget);
           bullet.pierceCount--;
           bullet.pierceIndex++;
           bullet.damage = bullet.baseDamage * Math.pow(1 - bullet.pierceDamageFalloff, bullet.pierceIndex);
+
           const nextTarget = this._findPierceTarget(bullet, foodList, multiPathSystem);
           if (nextTarget) {
+            // 곡선 구간 관통 손실: 이전 진행 방향과 다음 타겟 방향의 차이에 비례
+            if (bullet.curveCompensation < 1.0 && (bullet.lastDirX !== 0 || bullet.lastDirY !== 0)) {
+              const nextPos = multiPathSystem.samplePath(nextTarget.currentPath, nextTarget.d);
+              if (nextPos) {
+                const ndx = nextPos.x - bullet.x;
+                const ndy = nextPos.y - bullet.y;
+                const ndist = Math.sqrt(ndx * ndx + ndy * ndy);
+                if (ndist > 0) {
+                  const dot = (ndx / ndist) * bullet.lastDirX + (ndy / ndist) * bullet.lastDirY;
+                  // dot: 1=직선, -1=역방향. 방향 변화량을 [0,1] 스케일로 변환
+                  const curveFactor = (1 - Math.max(-1, Math.min(1, dot))) / 2;
+                  const effectivePenalty = curveFactor * (1 - bullet.curveCompensation);
+                  bullet.damage *= (1 - effectivePenalty);
+                }
+              }
+            }
+
             bullet.target = nextTarget;
             bullet.alive = true;
             pierced = true;

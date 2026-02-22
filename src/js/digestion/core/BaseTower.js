@@ -239,9 +239,10 @@ export class BaseTower {
         pierceCount: context.projectile.pierceCount,
         pierceDamageFalloff: context.projectile.pierceDamageFalloff,
         pierceDistanceBonus: context.projectile.pierceDistanceBonus,
+        curveCompensation: context.projectile.curveCompensation,
       } : null;
 
-      this.bulletSystem.createBullet(
+      const bullet = this.bulletSystem.createBullet(
         this.x,
         this.y,
         food,
@@ -252,6 +253,8 @@ export class BaseTower {
         true,
         pierceOptions
       );
+      // 관통 체인 트리거(onHit/onKill)를 처리하기 위해 타워 레퍼런스 주입
+      if (bullet) bullet.tower = this;
 
       // 추가 타격 (노드 10 등 secondaryDamage)
       if (context.secondaryDamage > 0) {
@@ -312,6 +315,47 @@ export class BaseTower {
   _applyOnKillEffects(food, effects) {
     // TODO: Implement explosion, chain effects, etc.
     // This requires access to nearby enemies and particle system
+  }
+
+  /**
+   * 관통 체인에서 추가 타겟 적중/처치 시 트리거 모듈을 발동합니다.
+   * BaseTower.attack()과 달리 피해 재계산은 하지 않고, onHit/onKill 사이드 이펙트만 처리합니다.
+   *
+   * applyDamage가 이미 호출된 상태에서 실행되므로:
+   *  - food.hp <= 0 → 처치 판정 (forceOnKillResult로 TriggerModule에 전달)
+   *  - food.hp - context.damage 공식은 이미 감소된 hp 때문에 오판 가능 → 오버라이드 필요
+   */
+  firePierceHit(food, damage) {
+    if (!this.upgradeTree) return;
+
+    const wasKill = food.hp <= 0;
+
+    let context = {
+      tower: this,
+      food,
+      damage,
+      currentTime: 0,
+      statusEffects: [],
+      forceOnKillResult: wasKill
+    };
+
+    const modules = this.upgradeTree.getAllActiveModules();
+
+    // onHit 먼저 (스택 소비), onKill 나중 (다음 샷을 위한 스택 적립)
+    for (const module of modules) {
+      if (module.triggerType === 'onHit') {
+        context = module.apply(context);
+      }
+    }
+    for (const module of modules) {
+      if (module.triggerType === 'onKill') {
+        context = module.apply(context);
+      }
+    }
+
+    if (context.statusEffects?.length > 0) {
+      this._applyStatusEffects(food, context.statusEffects);
+    }
   }
 
   /**

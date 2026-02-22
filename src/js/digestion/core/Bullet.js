@@ -30,8 +30,16 @@ export class Bullet {
     this.pierceCount = pierceOptions?.pierceCount || 0;
     this.pierceDamageFalloff = pierceOptions?.pierceDamageFalloff ?? 0.15;
     this.pierceDistanceBonus = pierceOptions?.pierceDistanceBonus || 0;
+    this.curveCompensation = pierceOptions?.curveCompensation || 0;
     this.pierceIndex = 0;
     this.hitTargets = new Set();
+
+    // 발사 타워 레퍼런스 (관통 체인 트리거 발동용, BaseTower.attack에서 주입)
+    this.tower = null;
+
+    // 마지막 이동 방향 (곡선 구간 관통 손실 계산용)
+    this.lastDirX = 0;
+    this.lastDirY = 0;
 
     // 직진 모드일 경우 초기 방향 저장
     if (!homing && target) {
@@ -90,6 +98,12 @@ export class Bullet {
     const dx = targetPos.x - this.x;
     const dy = targetPos.y - this.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
+
+    // 충돌 방향 추적 (관통 체인에서 곡선 손실 계산용)
+    if (dist > 0) {
+      this.lastDirX = dx / dist;
+      this.lastDirY = dy / dist;
+    }
 
     // 충돌 판정 (타겟 크기 + 총알 크기)
     const collisionDist = (this.target.size || 24) / 2 + this.size;

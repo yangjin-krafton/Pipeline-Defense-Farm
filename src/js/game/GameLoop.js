@@ -671,7 +671,7 @@ export class GameLoop {
       // 2. 오프라인 보상 적용
       if (offlineRewards) {
         if (offlineRewards.ncGained > 0) {
-          this.economySystem.gainNC(offlineRewards.ncGained);
+          this.economySystem.earnNC(offlineRewards.ncGained);
         }
         console.log('[GameLoop] Offline rewards applied:', offlineRewards);
       }
