@@ -948,6 +948,345 @@ function setupStartOverlay(audioSystem, gameLoop, uiSfxSystem = null) {
   }
   // ─────────────────────────────────────────────────────────
 
+  // ── 타이틀 화면 동안 게임 루프 일시정지 ──────────────────
+  gameLoop.pause();
+  // ─────────────────────────────────────────────────────────
+
+  // ── BGM 즉시 재생 시도 (브라우저 정책 대응) ───────────────
+  // AudioContext는 사용자 제스처 전까지 suspended 상태일 수 있음.
+  // 1) 바로 play() 시도 → 성공하면 바로 재생
+  // 2) 실패/막히면 오버레이 첫 클릭 시 재시도 (one-time)
+  function tryStartBGM() {
+    if (audioSystem.isPlaying) return;
+    audioSystem.play();
+    audioSystem.fadeIn(1.5);
+    updateMusicButton(true);
+  }
+
+  tryStartBGM();
+
+  // 브라우저 정책으로 막혔을 경우 첫 상호작용 시 재시도
+  if (!audioSystem.isPlaying && overlay) {
+    const onFirstInteraction = () => {
+      tryStartBGM();
+      overlay.removeEventListener('click',      onFirstInteraction);
+      overlay.removeEventListener('touchstart', onFirstInteraction);
+    };
+    overlay.addEventListener('click',      onFirstInteraction, { once: true });
+    overlay.addEventListener('touchstart', onFirstInteraction, { once: true });
+  }
+  // ─────────────────────────────────────────────────────────
+
+  // ── 타이틀 미니게임 공통 데이터 ──────────────────────────
+  const MINIGAME_FOODS = [
+    '🍕','🍔','🍜','🍣','🍱','🥩','🍗','🥟','🍢',
+    '🍛','🍝','🍲','🥘','🌮','🌯','🍿','🍩','🍪',
+    '🎂','🍰','🧁','🍫','🍬','🍭','🍤','🌽','🍉',
+    '🍇','🍎','🥐','🍦','🥗','🍞','🧆','🥞','🥚',
+    '🧀','🍮','🍖','🥑','🍊','🍓','🍡','🥮','🍙',
+  ];
+
+  const MINIGAME_RESPONSES = [
+    '역시! 위장에 비상이 걸렸어요 😅 타워 긴급 배치!',
+    '맛있었죠? 소화 파이프라인 가동! 🔬',
+    '그거 드셨어요? 효소 타워가 필요합니다 💉',
+    '많이 드셨죠? 지금 바로 소화 디펜스! ⚔️',
+    '그 음식 때문에 파이프가 막혔어요! 🚨',
+    '오… 과식하셨군요! 소화 작전 개시 🚀',
+    '명절 음식이 제일 위험해요! 타워 세우세요 🎯',
+    '소화 효소를 아직 안 뽑으셨어요?! 😱',
+    '위장이 SOS를 보내고 있어요! 🆘',
+    '그거 드셨으면… 효소가 3개는 필요해요 🧪',
+  ];
+  // ─────────────────────────────────────────────────────────
+
+  // ── 미니게임 1: 음식 선택 3×3 그리드 ────────────────────
+  (function setupPickMinigame() {
+    const mgGrid    = document.getElementById('minigameGrid');
+    const mgResult  = document.getElementById('minigameResult');
+    const mgShuffle = document.getElementById('minigameShuffleBtn');
+    if (!mgGrid) return;
+
+    function shuffle9() {
+      const pool = [...MINIGAME_FOODS].sort(() => Math.random() - 0.5).slice(0, 9);
+      mgGrid.innerHTML = '';
+      mgResult.classList.add('hidden');
+      mgResult.textContent = '';
+      pool.forEach(emoji => {
+        const btn = document.createElement('button');
+        btn.className = 'minigame-cell';
+        btn.textContent = emoji;
+        btn.type = 'button';
+        btn.setAttribute('aria-label', emoji);
+        btn.addEventListener('click', () => {
+          mgGrid.querySelectorAll('.minigame-cell').forEach(c => c.classList.remove('selected'));
+          btn.classList.add('selected');
+          const msg = MINIGAME_RESPONSES[Math.floor(Math.random() * MINIGAME_RESPONSES.length)];
+          mgResult.textContent = `${emoji} ${msg}`;
+          mgResult.classList.remove('hidden');
+          if (uiSfxSystem) uiSfxSystem.play('ui_click', { volume: 0.5 });
+        });
+        mgGrid.appendChild(btn);
+      });
+    }
+
+    shuffle9();
+    if (mgShuffle) mgShuffle.addEventListener('click', () => {
+      if (uiSfxSystem) uiSfxSystem.play('ui_click', { volume: 0.45 });
+      shuffle9();
+    });
+  })();
+
+  // ── 미니게임 2: 음식 방어 (얼굴을 음식으로부터 지켜라!) ──
+  let defenseStop = null; // 나중에 cleanup 용
+
+  (function setupDefenseMinigame() {
+    const arena       = document.getElementById('defenseArena');
+    const faceEl      = document.getElementById('defenseFace');
+    const absorbedEl  = document.getElementById('defenseAbsorbed');
+    const blockedEl   = document.getElementById('defenseBlocked');
+    const restartBtn  = document.getElementById('defenseRestartBtn');
+    if (!arena || !faceEl) return;
+
+    // 표정 단계: [임계값, 이모지]
+    const FACES = [
+      [0,  '😐'],
+      [1,  '😋'],
+      [3,  '😄'],
+      [5,  '😅'],
+      [7,  '😰'],
+      [9,  '😩'],
+      [11, '🤢'],
+    ];
+
+    // 웨이브 정의: { 총 스폰 수, 스폰 간격(ms), 한 번에 나오는 수, 이동 속도 }
+    const WAVES = [
+      { count:  5, ms: 1800, burst: 1, speed: 0.28 },  // Wave 1 — 여유롭게
+      { count:  8, ms: 1200, burst: 1, speed: 0.36 },  // Wave 2 — 빨라짐
+      { count: 12, ms:  800, burst: 2, speed: 0.45 },  // Wave 3 — 쏟아진다
+      { count: 16, ms:  500, burst: 3, speed: 0.55 },  // Wave 4 — 화면 가득!
+      { count: 22, ms:  320, burst: 4, speed: 0.65 },  // Wave 5 — 대혼란 💥
+    ];
+
+    const ABSORB_R        = 28;    // 흡수 반경 (px)
+    const RECOVER_DELAY   = 3200;  // 마지막 흡수 후 회복 시작까지 대기 (ms)
+    const RECOVER_STEP_MS = 1400;  // 회복 1단계 간격 (ms)
+
+    let absorbed = 0, blocked = 0;
+    let lastAbsorbTime  = 0;
+    let lastRecoverTime = 0;
+    let activeFood = [];
+    let spawnTimerId = null;
+    let rafId = null;
+    let running = false;
+    let currentSpeed  = WAVES[0].speed;
+    let currentWaveIdx = 0;
+
+    const waveEl = document.getElementById('defenseWave');
+
+    function getFaceEmoji() {
+      let emoji = FACES[0][1];
+      for (const [thresh, em] of FACES) {
+        if (absorbed >= thresh) emoji = em;
+      }
+      return emoji;
+    }
+
+    function updateFace() {
+      const next = getFaceEmoji();
+      if (faceEl.textContent !== next) {
+        faceEl.textContent = next;
+        faceEl.classList.remove('face-change');
+        void faceEl.offsetWidth; // reflow to restart animation
+        faceEl.classList.add('face-change');
+      }
+      absorbedEl.textContent = absorbed;
+    }
+
+    function showWaveAnnounce(text) {
+      const el = document.createElement('div');
+      el.className = 'defense-wave-announce';
+      el.textContent = text;
+      arena.appendChild(el);
+      setTimeout(() => el.remove(), 1600);
+    }
+
+    function spawnOne(intense = false) {
+      if (!running) return;
+      const W = arena.offsetWidth;
+      const H = arena.offsetHeight;
+      const side = Math.floor(Math.random() * 4);
+      let x, y;
+      if      (side === 0) { x = Math.random() * W; y = -14; }
+      else if (side === 1) { x = W + 14;             y = Math.random() * H; }
+      else if (side === 2) { x = Math.random() * W; y = H + 14; }
+      else                 { x = -14;                y = Math.random() * H; }
+
+      const el = document.createElement('button');
+      el.className = intense ? 'defense-food intense' : 'defense-food';
+      el.type = 'button';
+      el.textContent = MINIGAME_FOODS[Math.floor(Math.random() * MINIGAME_FOODS.length)];
+      el.style.left = x + 'px';
+      el.style.top  = y + 'px';
+
+      const item = { el, x, y };
+
+      el.addEventListener('click', () => {
+        if (el.classList.contains('popping')) return;
+        el.classList.add('popping');
+        blocked++;
+        blockedEl.textContent = blocked;
+        activeFood = activeFood.filter(f => f !== item);
+        if (uiSfxSystem) uiSfxSystem.play('ui_click', { volume: 0.4 });
+        setTimeout(() => el.remove(), 300);
+      });
+
+      arena.appendChild(el);
+      activeFood.push(item);
+    }
+
+    function startWave(waveIdx) {
+      if (!running) return;
+      const w = WAVES[Math.min(waveIdx, WAVES.length - 1)];
+      currentWaveIdx = waveIdx;
+      currentSpeed   = w.speed;
+      const intense  = waveIdx >= 3;
+      let spawnsLeft = w.count;
+
+      if (waveEl) waveEl.textContent = Math.min(waveIdx + 1, WAVES.length);
+
+      if (spawnTimerId) { clearInterval(spawnTimerId); spawnTimerId = null; }
+
+      spawnTimerId = setInterval(() => {
+        if (!running) return;
+        for (let i = 0; i < w.burst && spawnsLeft > 0; i++) {
+          spawnOne(intense);
+          spawnsLeft--;
+        }
+        if (spawnsLeft <= 0) {
+          clearInterval(spawnTimerId);
+          spawnTimerId = null;
+          // 다음 웨이브 예약 — 현재 음식이 정리될 시간(2s) 후 알림 표시
+          setTimeout(() => {
+            if (!running) return;
+            const nextIdx  = waveIdx + 1;
+            const isMaxWave = nextIdx >= WAVES.length;
+            const label = isMaxWave
+              ? '🔥 MAX WAVE!'
+              : `WAVE ${Math.min(nextIdx + 1, WAVES.length)} ▶`;
+            showWaveAnnounce(label);
+            setTimeout(() => { if (running) startWave(nextIdx); }, 1500);
+          }, 2000);
+        }
+      }, w.ms);
+    }
+
+    function frame() {
+      if (!running) return;
+      const W  = arena.offsetWidth;
+      const H  = arena.offsetHeight;
+      const cx = W / 2;
+      const cy = H / 2;
+      const toRemove = [];
+
+      for (const item of activeFood) {
+        const dx   = cx - item.x;
+        const dy   = cy - item.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < ABSORB_R) {
+          item.el.remove();
+          absorbed++;
+          lastAbsorbTime  = Date.now();
+          lastRecoverTime = lastAbsorbTime; // 흡수 직후엔 회복 타이머 리셋
+          toRemove.push(item);
+          updateFace();
+        } else {
+          item.x += (dx / dist) * currentSpeed;
+          item.y += (dy / dist) * currentSpeed;
+          item.el.style.left = item.x + 'px';
+          item.el.style.top  = item.y + 'px';
+        }
+      }
+      if (toRemove.length) activeFood = activeFood.filter(f => !toRemove.includes(f));
+
+      // ── 회복 로직: 일정 시간 음식을 안 먹으면 표정이 한 단계씩 회복 ──
+      if (absorbed > 0) {
+        const now = Date.now();
+        if ((now - lastAbsorbTime) > RECOVER_DELAY &&
+            (now - lastRecoverTime) > RECOVER_STEP_MS) {
+          absorbed--;
+          lastRecoverTime = now;
+          updateFace();
+        }
+      }
+
+      rafId = requestAnimationFrame(frame);
+    }
+
+    function start() {
+      absorbed        = 0;
+      blocked         = 0;
+      lastAbsorbTime  = Date.now();
+      lastRecoverTime = Date.now();
+      running         = true;
+      activeFood.forEach(f => f.el.remove());
+      activeFood = [];
+      faceEl.textContent = '😐';
+      absorbedEl.textContent = '0';
+      blockedEl.textContent  = '0';
+      if (spawnTimerId) { clearInterval(spawnTimerId); spawnTimerId = null; }
+      if (rafId) cancelAnimationFrame(rafId);
+      currentSpeed   = WAVES[0].speed;
+      currentWaveIdx = 0;
+      if (waveEl) waveEl.textContent = '1';
+      showWaveAnnounce('WAVE 1 ▶');
+      setTimeout(() => { if (running) startWave(0); }, 1200);
+      rafId = requestAnimationFrame(frame);
+    }
+
+    function stop() {
+      running = false;
+      if (spawnTimerId) { clearInterval(spawnTimerId); spawnTimerId = null; }
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+      activeFood.forEach(f => f.el.remove());
+      activeFood = [];
+    }
+
+    defenseStop = stop;
+    if (restartBtn) restartBtn.addEventListener('click', () => {
+      if (uiSfxSystem) uiSfxSystem.play('ui_click', { volume: 0.45 });
+      start();
+    });
+
+    // 미니게임2가 표시될 때만 실행 — 나중에 showGame()에서 호출
+    arena._start = start;
+    arena._stop  = stop;
+  })();
+
+  // ── 랜덤 미니게임 선택 & 전환 ─────────────────────────────
+  (function setupMinigameSwitcher() {
+    const g1 = document.getElementById('minigame1');
+    const g2 = document.getElementById('minigame2');
+    const arena = document.getElementById('defenseArena');
+    if (!g1 || !g2) return;
+
+    function showGame(id) {
+      if (id === 1) {
+        g1.classList.remove('hidden');
+        g2.classList.add('hidden');
+        if (arena && arena._stop) arena._stop();
+      } else {
+        g1.classList.add('hidden');
+        g2.classList.remove('hidden');
+        if (arena && arena._start) arena._start();
+      }
+    }
+
+    // 페이지 접속 시 랜덤 선택 (버튼 없이 자동)
+    showGame(Math.random() < 0.5 ? 1 : 2);
+  })();
+  // ─────────────────────────────────────────────────────────
+
   // ── Tutorial page navigation ──────────────────────────────
   let currentPage = 0;
 
@@ -979,14 +1318,15 @@ function setupStartOverlay(audioSystem, gameLoop, uiSfxSystem = null) {
       clearInterval(rainIntervalId);
       rainIntervalId = null;
     }
+    // 디펜스 게임 정리
+    if (defenseStop) { defenseStop(); defenseStop = null; }
 
     overlay.classList.add('hidden');
 
     setTimeout(() => {
       if (uiSfxSystem) uiSfxSystem.play('wave_start', { volume: 0.8 });
-      audioSystem.play();
-      audioSystem.fadeIn(1.5);
-      updateMusicButton(true);
+      // BGM은 이미 startBtn 클릭 시점에 시작됨 — 여기서는 게임 루프만 재개
+      gameLoop.resume();
     }, 300);
 
     setTimeout(() => overlay.remove(), 800);
@@ -997,6 +1337,9 @@ function setupStartOverlay(audioSystem, gameLoop, uiSfxSystem = null) {
   if (startBtn && overlay) {
     startBtn.addEventListener('click', () => {
       if (uiSfxSystem) uiSfxSystem.play('ui_click', { volume: 0.85 });
+
+      // BGM이 아직 안 시작됐으면 여기서 시작 (사용자 제스처 보장)
+      tryStartBGM();
 
       const showTutorial = tutToggle ? tutToggle.checked : false;
       if (showTutorial && tutOverlay) {

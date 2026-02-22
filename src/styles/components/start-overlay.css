@@ -178,6 +178,306 @@
   transform: skewX(-4deg);
 }
 
+/* ─── Mini-game ─────────────────────────────────────────────── */
+.start-minigame {
+  margin: 0 0 14px;
+  padding: 11px 12px 10px;
+  border-radius: 16px;
+  border: 3px solid var(--splat-dark);
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(0, 217, 255, 0.12));
+  box-shadow: 0 5px 0 rgba(26, 26, 46, 0.4);
+}
+
+.minigame-prompt {
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--splat-dark);
+  text-align: center;
+  margin: 0 0 8px;
+  letter-spacing: 0.2px;
+}
+
+.minigame-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.minigame-cell {
+  background: white;
+  border: 3px solid var(--splat-dark);
+  border-radius: 10px;
+  font-size: clamp(28px, 8vw, 40px);
+  padding: 4px 0;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  box-shadow: 0 3px 0 var(--splat-dark);
+  position: relative;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  font-family: inherit;
+  line-height: 1;
+}
+
+.minigame-cell:hover {
+  transform: scale(1.1) rotate(-4deg);
+  background: var(--splat-yellow);
+  box-shadow: 0 5px 0 var(--splat-dark), 0 0 14px rgba(255, 215, 0, 0.55);
+  z-index: 1;
+}
+
+.minigame-cell:active {
+  top: 2px;
+  transform: scale(0.93);
+  box-shadow: 0 1px 0 var(--splat-dark);
+}
+
+.minigame-cell.selected {
+  background: var(--splat-cyan);
+  color: white;
+  box-shadow:
+    0 0 0 2px white,
+    0 3px 0 var(--splat-dark),
+    0 0 16px rgba(0, 217, 255, 0.7);
+  transform: scale(1.08);
+  animation: cell-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes cell-pop {
+  0%   { transform: scale(0.75) rotate(-8deg); }
+  60%  { transform: scale(1.15) rotate(4deg); }
+  100% { transform: scale(1.08) rotate(0deg); }
+}
+
+.minigame-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 22px;
+}
+
+.minigame-result {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--splat-dark);
+  margin: 0;
+  flex: 1;
+  line-height: 1.35;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.minigame-result.hidden {
+  display: none;
+}
+
+.minigame-shuffle-btn {
+  flex-shrink: 0;
+  background: white;
+  border: 2px solid var(--splat-dark);
+  border-radius: 10px;
+  font-size: 14px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 0 var(--splat-dark);
+  transition: all 0.15s ease;
+  position: relative;
+  top: 0;
+  padding: 0;
+}
+
+.minigame-shuffle-btn:hover {
+  background: var(--splat-pink);
+  transform: rotate(20deg) scale(1.1);
+}
+
+.minigame-shuffle-btn:active {
+  top: 1px;
+  box-shadow: 0 1px 0 var(--splat-dark);
+  transform: rotate(180deg);
+}
+
+/* hidden class for mini-games */
+#minigame1.hidden,
+#minigame2.hidden {
+  display: none;
+}
+
+/* ─── Defense Mini-game ──────────────────────────────────────── */
+.start-minigame-defense .defense-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.start-minigame-defense .minigame-prompt {
+  margin: 0;
+  flex: 1;
+}
+
+.defense-arena {
+  position: relative;
+  height: 150px;
+  overflow: hidden;
+  border: 3px solid var(--splat-dark);
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 215, 0, 0.12) 0%, transparent 65%),
+    white;
+  box-shadow:
+    0 3px 0 var(--splat-dark),
+    inset 0 2px 8px rgba(0, 0, 0, 0.06);
+  margin-bottom: 6px;
+  cursor: default;
+}
+
+.defense-face {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 38px;
+  line-height: 1;
+  z-index: 2;
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.2));
+  transition: font-size 0.2s ease;
+}
+
+.defense-face.face-change {
+  animation: face-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes face-pop {
+  0%   { transform: translate(-50%, -50%) scale(0.7); }
+  60%  { transform: translate(-50%, -50%) scale(1.25); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+
+/* 위험 존 표시 (얼굴 주변 원) */
+.defense-arena::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 58px;
+  height: 58px;
+  border: 2px dashed rgba(233, 69, 96, 0.25);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.defense-food {
+  position: absolute;
+  font-size: 22px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  z-index: 3;
+  transform: translate(-50%, -50%);
+  transition: filter 0.1s ease;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.15));
+  will-change: left, top;
+}
+
+.defense-food:hover {
+  filter: drop-shadow(0 0 8px rgba(233, 69, 96, 0.9)) brightness(1.15);
+  transform: translate(-50%, -50%) scale(1.25);
+}
+
+.defense-food.popping {
+  pointer-events: none;
+  animation: food-splat 0.28s ease-out forwards;
+}
+
+@keyframes food-splat {
+  0%   { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
+  50%  { transform: translate(-50%, -50%) scale(1.6) rotate(-15deg); opacity: 0.8; }
+  100% { transform: translate(-50%, -50%) scale(0.1) rotate(30deg); opacity: 0; }
+}
+
+.defense-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.defense-stat {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--splat-dark-deep);
+}
+
+.defense-stat strong {
+  color: var(--splat-dark);
+  font-size: 13px;
+}
+
+.defense-stat.wave-badge {
+  background: var(--splat-pink);
+  color: white;
+  padding: 2px 8px;
+  border: 2px solid var(--splat-dark);
+  border-radius: 8px;
+  box-shadow: 0 2px 0 var(--splat-dark);
+  transform: skewX(-4deg);
+}
+
+.defense-stat.wave-badge strong {
+  color: white;
+}
+
+/* 웨이브 알림 오버레이 */
+.defense-wave-announce {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 22px;
+  font-weight: 900;
+  color: white;
+  text-shadow:
+    2px 2px 0 var(--splat-pink),
+    -1px -1px 0 var(--splat-cyan);
+  pointer-events: none;
+  z-index: 10;
+  white-space: nowrap;
+  animation: wave-announce 1.5s ease-out forwards;
+}
+
+@keyframes wave-announce {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.4) rotate(-8deg); }
+  35%  { opacity: 1; transform: translate(-50%, -50%) scale(1.15) rotate(2deg); }
+  65%  { opacity: 1; transform: translate(-50%, -50%) scale(1.0) rotate(0deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.85) rotate(0deg); }
+}
+
+/* 고강도 웨이브 음식 — 더 크고 위협적 */
+.defense-food.intense {
+  font-size: 26px;
+  filter: drop-shadow(0 0 6px rgba(233, 69, 96, 0.55));
+}
+
+.defense-food.intense:hover {
+  filter: drop-shadow(0 0 10px rgba(233, 69, 96, 1)) brightness(1.2);
+}
+
 /* ─── Currency Row ──────────────────────────────────────────── */
 .start-currency-row {
   display: flex;

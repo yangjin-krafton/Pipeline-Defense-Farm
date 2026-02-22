@@ -40,20 +40,37 @@
         <p class="start-tagline">I Ate Like Every Relative Was Feeding Me.</p>
       </div>
 
-      <!-- Numbered play guide -->
-      <div class="start-guide-compact" aria-label="기본 플레이 안내">
-        <div class="guide-item">
-          <span class="guide-num">01</span>
-          <span>슬롯 탭 → <strong>효소 타워</strong> 배치</span>
+      <!-- Mini-games wrapper (랜덤으로 하나 표시) -->
+      <div id="startMinigamesWrap">
+
+        <!-- Game 1: 음식 선택 -->
+        <div class="start-minigame" id="minigame1" aria-label="음식 선택 미니게임">
+          <p class="minigame-prompt">🍽️ 마지막으로 드신 음식을 골라보세요!</p>
+          <div class="minigame-grid" id="minigameGrid" role="group" aria-label="음식 선택 그리드">
+            <!-- JS로 채워짐 -->
+          </div>
+          <div class="minigame-footer">
+            <p class="minigame-result hidden" id="minigameResult" aria-live="polite"></p>
+            <button class="minigame-shuffle-btn" id="minigameShuffleBtn" type="button" title="다시 섞기">🔀</button>
+          </div>
         </div>
-        <div class="guide-item">
-          <span class="guide-num">02</span>
-          <span>적 출현 → <strong>자동 전투</strong> 진행</span>
+
+        <!-- Game 2: 음식 방어 -->
+        <div class="start-minigame start-minigame-defense hidden" id="minigame2" aria-label="음식 방어 미니게임">
+          <div class="defense-header">
+            <p class="minigame-prompt">😱 얼굴에 쏟아지는 음식을 막아주세요!</p>
+            <button class="minigame-shuffle-btn" id="defenseRestartBtn" type="button" title="다시 시작">🔄</button>
+          </div>
+          <div class="defense-arena" id="defenseArena" aria-label="방어 게임 영역">
+            <div class="defense-face" id="defenseFace" aria-live="polite">😐</div>
+          </div>
+          <div class="defense-footer">
+            <span class="defense-stat wave-badge">WAVE <strong id="defenseWave">1</strong></span>
+            <span class="defense-stat">먹어버린: <strong id="defenseAbsorbed">0</strong></span>
+            <span class="defense-stat">막은: <strong id="defenseBlocked">0</strong></span>
+          </div>
         </div>
-        <div class="guide-item">
-          <span class="guide-num">03</span>
-          <span><strong>NC/SC</strong> 모아서 업그레이드!</span>
-        </div>
+
       </div>
 
       <!-- Currency chips -->
