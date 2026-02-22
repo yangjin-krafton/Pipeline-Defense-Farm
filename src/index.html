@@ -23,38 +23,139 @@
 
   <!-- Start Overlay for autoplay -->
   <div class="start-overlay" id="startOverlay">
+    <!-- Food emoji particle rain background -->
+    <div class="food-rain-container" id="foodRainContainer" aria-hidden="true"></div>
+
     <div class="start-content">
-      <h1>🎉 명절 과식 디펜스</h1>
-      <p class="start-tagline">I Ate Like Every Relative Was Feeding Me.</p>
-      <p class="start-subtitle">명절 폭식 후유증을 막는 소화 파이프라인 디펜스</p>
+      <!-- HUD corner brackets -->
+      <span class="hud-corner hud-tl" aria-hidden="true"></span>
+      <span class="hud-corner hud-tr" aria-hidden="true"></span>
+      <span class="hud-corner hud-bl" aria-hidden="true"></span>
+      <span class="hud-corner hud-br" aria-hidden="true"></span>
 
-      <div class="start-play-guide" aria-label="기본 플레이 소개">
-        <h2 class="start-guide-title">🎮 기본 플레이</h2>
-        <ul class="start-guide-list">
-          <li>🧪 타워 설치: 슬롯을 눌러 효소 타워를 배치하세요.</li>
-          <li>💥 자동 전투: 적이 경로를 따라 오면 자동으로 공격합니다.</li>
-          <li>🚀 성장 핵심: NC/SC를 모아 업그레이드하면 판이 훨씬 쉬워져요.</li>
-        </ul>
+      <!-- Title section -->
+      <div class="start-title-section">
+        <div class="start-game-badge">🎮 TOWER DEFENSE</div>
+        <h1 class="start-main-title">명절 과식<br><span class="title-accent">디펜스</span></h1>
+        <p class="start-tagline">I Ate Like Every Relative Was Feeding Me.</p>
       </div>
 
-      <div class="start-currency-guide" aria-label="재화 설명">
-        <h2 class="start-guide-title">💱 재화 가이드</h2>
-        <ul class="start-currency-list">
-          <li>
-            <span class="currency-label">🍎 NC (영양 크레딧)</span>
-            <span class="currency-desc">용도: 타워 설치/노드 강화/승급 비용</span>
-            <span class="currency-desc">획득: 적 처치, 웨이브 보상, 오프라인 보상</span>
-          </li>
-          <li>
-            <span class="currency-label">⚡ SC (보급 차지)</span>
-            <span class="currency-desc">용도: 리롤, 선택지 확장, 배속/부스트</span>
-            <span class="currency-desc">획득: 시간 회복, 1시간/6시간 보상 수령</span>
-          </li>
-        </ul>
+      <!-- Numbered play guide -->
+      <div class="start-guide-compact" aria-label="기본 플레이 안내">
+        <div class="guide-item">
+          <span class="guide-num">01</span>
+          <span>슬롯 탭 → <strong>효소 타워</strong> 배치</span>
+        </div>
+        <div class="guide-item">
+          <span class="guide-num">02</span>
+          <span>적 출현 → <strong>자동 전투</strong> 진행</span>
+        </div>
+        <div class="guide-item">
+          <span class="guide-num">03</span>
+          <span><strong>NC/SC</strong> 모아서 업그레이드!</span>
+        </div>
       </div>
 
-      <button class="start-btn" id="startBtn">게임 시작</button>
-      <div class="start-hint">클릭해서 음악과 함께 소화 작전을 시작하세요</div>
+      <!-- Currency chips -->
+      <div class="start-currency-row" aria-label="재화 안내">
+        <div class="currency-chip">🍎 <strong>NC</strong> 타워·강화 비용</div>
+        <div class="currency-chip">⚡ <strong>SC</strong> 리롤·부스트</div>
+      </div>
+
+      <!-- Tutorial toggle -->
+      <label class="tutorial-toggle-label" for="tutorialToggle">
+        <div class="tutorial-toggle-switch">
+          <input type="checkbox" id="tutorialToggle" checked>
+          <span class="tutorial-toggle-track">
+            <span class="tutorial-toggle-thumb"></span>
+          </span>
+        </div>
+        <span>튜토리얼 보고 시작</span>
+      </label>
+
+      <button class="start-btn" id="startBtn">▶&nbsp; 게임 시작</button>
+      <div class="start-hint">탭해서 음악과 함께 소화 작전 시작!</div>
+    </div>
+  </div>
+
+  <!-- Tutorial Overlay (3-page) -->
+  <div class="tutorial-overlay hidden" id="tutorialOverlay">
+    <div class="tutorial-modal">
+
+      <!-- Step progress bar -->
+      <div class="tutorial-steps" aria-label="튜토리얼 진행 단계">
+        <span class="tutorial-step active" aria-hidden="true"></span>
+        <span class="tutorial-step" aria-hidden="true"></span>
+        <span class="tutorial-step" aria-hidden="true"></span>
+      </div>
+
+      <!-- Page 1: 타워 설치 -->
+      <div class="tutorial-page active" id="tutPage0">
+        <div class="tutorial-page-header">
+          <span class="tutorial-page-num">1 / 3</span>
+          <h2 class="tutorial-page-title">🧪 타워 설치하기</h2>
+        </div>
+        <div class="tutorial-gif-frame">
+          <img src="./assets/t_01.gif" alt="타워 설치 튜토리얼" class="tutorial-gif">
+          <div class="tutorial-desc">
+            <p class="tutorial-desc-main">빈 슬롯을 탭하면 타워 설치 메뉴가 열립니다.</p>
+            <ul class="tutorial-tips">
+              <li>💉 <strong>위산 레일</strong> — 빠른 연사 · 산성 데미지</li>
+              <li>🔋 <strong>효소 축전</strong> — 범위 폭발 · 지속 데미지</li>
+              <li>🎯 <strong>관통 볼트</strong> — 직선 관통 · 다중 타격</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Page 2: 스킬 트리 -->
+      <div class="tutorial-page" id="tutPage1">
+        <div class="tutorial-page-header">
+          <span class="tutorial-page-num">2 / 3</span>
+          <h2 class="tutorial-page-title">📈 타워 성장 &amp; 스킬 트리</h2>
+        </div>
+        <div class="tutorial-gif-frame">
+          <img src="./assets/t_02.gif" alt="스킬 트리 튜토리얼" class="tutorial-gif">
+          <div class="tutorial-desc">
+            <p class="tutorial-desc-main">설치된 타워를 탭하면 상세 패널이 열립니다.</p>
+            <ul class="tutorial-tips">
+              <li>⏱️ 시간이 지나면 자동으로 <strong>경험치</strong>가 쌓입니다</li>
+              <li>🔼 레벨업 후 <strong>스킬 포인트</strong>로 업그레이드 노드를 선택하세요</li>
+              <li>🚀 포인트를 먼저 쓸수록 타워가 빠르게 강해집니다</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Page 3: 타워 승급 -->
+      <div class="tutorial-page" id="tutPage2">
+        <div class="tutorial-page-header">
+          <span class="tutorial-page-num">3 / 3</span>
+          <h2 class="tutorial-page-title">⭐ 타워 승급</h2>
+        </div>
+        <div class="tutorial-gif-frame">
+          <img src="./assets/t_03.gif" alt="타워 승급 튜토리얼" class="tutorial-gif">
+          <div class="tutorial-desc">
+            <p class="tutorial-desc-main">스킬 포인트를 모두 쓰면 승급 버튼이 활성화됩니다.</p>
+            <ul class="tutorial-tips">
+              <li>✨ 승급 패널에서 강력한 <strong>각인 효과</strong>를 선택하세요</li>
+              <li>🔒 각인은 타워에 <strong>영구 적용</strong>됩니다</li>
+              <li>⚡ SC로 선택지를 추가하거나 다시 뽑을 수 있습니다</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="tutorial-nav">
+        <button class="tut-btn tut-skip" id="tutSkipBtn">건너뛰기</button>
+        <div class="tutorial-nav-right">
+          <button class="tut-btn tut-prev hidden" id="tutPrevBtn">◀ 이전</button>
+          <button class="tut-btn tut-next" id="tutNextBtn">다음 ▶</button>
+          <button class="tut-btn tut-start hidden" id="tutStartBtn">🎮 게임 시작!</button>
+        </div>
+      </div>
+
     </div>
   </div>
 

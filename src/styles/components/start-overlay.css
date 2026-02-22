@@ -1,7 +1,9 @@
 /**
- * Start Overlay Component - Splatoon Style
+ * Start Overlay - Splatoon Style (status-bar 통일)
+ * 흰 카드 + 두꺼운 다크 테두리 + 멀티링 shadow + skew 기울기
  */
 
+/* ─── Overlay Background ────────────────────────────────────── */
 .start-overlay {
   position: fixed;
   top: 0;
@@ -14,144 +16,265 @@
   justify-content: center;
   z-index: 9999;
   animation: fadeIn 0.5s ease-out;
+  overflow: hidden;
 }
 
 .start-overlay.hidden {
-  animation: fadeOut 0.5s ease-out forwards;
+  animation: title-exit 0.45s ease-in forwards;
   pointer-events: none;
 }
 
+@keyframes title-exit {
+  0%   { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.06); }
+}
+
+/* ─── Food Emoji Rain ───────────────────────────────────────── */
+.food-rain-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.food-emoji-particle {
+  position: absolute;
+  top: -64px;
+  user-select: none;
+  pointer-events: none;
+  line-height: 1;
+  animation: food-fall linear forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes food-fall {
+  0%   { transform: translateY(0) rotate(0deg) translateX(0px); opacity: 0; }
+  8%   { opacity: var(--p-opacity, 0.55); }
+  88%  { opacity: var(--p-opacity, 0.55); }
+  100% { transform: translateY(115vh) rotate(var(--p-rot, 300deg)) translateX(var(--p-drift, 20px)); opacity: 0; }
+}
+
+/* ─── Content Card (white splatoon style) ───────────────────── */
 .start-content {
-  text-align: center;
-  padding: 50px 40px;
-  background: radial-gradient(circle at top left, rgba(233, 69, 96, 0.3), transparent),
-              radial-gradient(circle at bottom right, rgba(0, 217, 255, 0.3), transparent),
-              white;
-  border: 8px solid white;
-  border-radius: 30px;
-  box-shadow: 0 0 0 4px var(--splat-pink),
-              0 0 0 8px var(--splat-cyan),
-              0 20px 60px rgba(0, 0, 0, 0.5);
-  max-width: 450px;
   position: relative;
-  animation: splat-intro 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 1;
+  text-align: center;
+  padding: 32px 28px 24px;
+  width: 92vw;
+  max-width: 400px;
+  background: white;
+  border: 6px solid var(--splat-dark);
+  border-radius: 24px;
+  box-shadow:
+    0 0 0 4px var(--splat-pink),
+    0 0 0 8px var(--splat-cyan),
+    0 20px 60px rgba(0, 0, 0, 0.55);
+  animation: card-intro 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-@keyframes splat-intro {
-  0% {
-    transform: scale(0) rotate(-180deg);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(1) rotate(0deg);
-    opacity: 1;
-  }
+@keyframes card-intro {
+  0%   { transform: scale(0.6) rotate(-8deg); opacity: 0; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
 
-.start-content h1 {
-  font-size: 42px;
-  color: var(--splat-dark);
-  margin: 0 0 20px 0;
+/* HUD 코너 브라켓은 흰 카드 스타일에 불필요 */
+.hud-corner { display: none; }
+
+/* ─── Title Section ─────────────────────────────────────────── */
+.start-title-section {
+  margin-bottom: 18px;
+}
+
+.start-game-badge {
+  display: inline-block;
+  padding: 5px 16px;
+  margin-bottom: 12px;
+  background: var(--splat-pink);
+  color: white;
+  font-size: 11px;
   font-weight: 900;
-  letter-spacing: -1px;
-  text-shadow: 3px 3px 0 var(--splat-pink),
-               -2px -2px 0 var(--splat-cyan);
-  animation: splat-bounce 2s infinite;
+  letter-spacing: 2px;
+  border: 3px solid var(--splat-dark);
+  border-radius: 20px;
+  box-shadow:
+    0 0 0 2px white,
+    0 4px 0 var(--splat-dark);
+  transform: skewX(-5deg);
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.3);
 }
 
-.start-content p {
-  font-size: 18px;
-  color: var(--splat-dark-deep);
-  margin: 0 0 30px 0;
-  line-height: 1.6;
-  font-weight: 700;
+.start-main-title {
+  font-size: 44px;
+  font-weight: 900;
+  line-height: 1.05;
+  margin: 0 0 10px;
+  color: var(--splat-dark);
+  letter-spacing: -1px;
+  text-shadow:
+    3px 3px 0 var(--splat-pink),
+    -2px -2px 0 var(--splat-cyan);
+  animation: splat-bounce 2.5s ease-in-out infinite;
+}
+
+.title-accent {
+  color: var(--splat-pink);
+  text-shadow:
+    2px 2px 0 var(--splat-dark),
+    -1px -1px 0 var(--splat-cyan);
 }
 
 .start-tagline {
-  margin: 0 0 8px 0;
-  font-size: 16px;
-  color: var(--splat-dark);
-  letter-spacing: 0.3px;
-}
-
-.start-subtitle {
-  margin: 0 0 20px 0;
-  font-size: 15px;
+  font-size: 11px;
   color: var(--splat-dark-deep);
-  line-height: 1.45;
+  letter-spacing: 0.3px;
+  margin: 0;
+  font-weight: 700;
+  opacity: 0.65;
 }
 
-.start-play-guide {
-  margin: 0 0 26px;
-  padding: 14px 16px 12px;
+/* ─── Guide Compact ─────────────────────────────────────────── */
+.start-guide-compact {
+  margin: 0 0 14px;
+  padding: 12px 14px;
   border-radius: 16px;
   border: 3px solid var(--splat-dark);
-  background: linear-gradient(135deg, rgba(0, 217, 255, 0.18), rgba(233, 69, 96, 0.16));
-  text-align: left;
-  box-shadow: 0 5px 0 rgba(26, 26, 46, 0.55);
-}
-
-.start-guide-title {
-  margin: 0 0 8px 0;
-  color: var(--splat-dark);
-  font-size: 17px;
-  line-height: 1.1;
-  letter-spacing: 0.2px;
-}
-
-.start-guide-list {
-  margin: 0;
-  padding-left: 0;
-  list-style: none;
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.18), rgba(233, 69, 96, 0.12));
+  box-shadow: 0 5px 0 rgba(26, 26, 46, 0.4);
   display: grid;
-  gap: 6px;
+  gap: 7px;
+  text-align: left;
 }
 
-.start-guide-list li {
+.guide-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   color: var(--splat-dark-deep);
   font-size: 13px;
-  line-height: 1.45;
   font-weight: 800;
+  line-height: 1.35;
 }
 
-.start-currency-guide {
-  margin: 0 0 26px;
-  padding: 14px 16px 12px;
-  border-radius: 16px;
-  border: 3px solid var(--splat-dark);
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(0, 217, 255, 0.12));
-  text-align: left;
-  box-shadow: 0 5px 0 rgba(26, 26, 46, 0.55);
-}
-
-.start-currency-list {
-  margin: 0;
-  padding-left: 0;
-  list-style: none;
-  display: grid;
-  gap: 10px;
-}
-
-.start-currency-list li {
-  display: grid;
-  gap: 2px;
-}
-
-.currency-label {
+.guide-item strong {
   color: var(--splat-dark);
-  font-size: 14px;
+}
+
+.guide-num {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  background: var(--splat-cyan);
+  color: var(--splat-dark);
+  font-size: 10px;
   font-weight: 900;
+  border: 2px solid var(--splat-dark);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 0 var(--splat-dark);
+  transform: skewX(-4deg);
 }
 
-.currency-desc {
-  color: var(--splat-dark-deep);
+/* ─── Currency Row ──────────────────────────────────────────── */
+.start-currency-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  justify-content: center;
+}
+
+.currency-chip {
+  flex: 1;
+  padding: 8px 10px;
+  background: white;
+  border: 3px solid var(--splat-dark);
+  border-radius: 14px;
   font-size: 12px;
+  font-weight: 800;
+  color: var(--splat-dark);
   line-height: 1.4;
-  font-weight: 700;
+  box-shadow:
+    0 0 0 2px var(--splat-cyan),
+    0 4px 0 var(--splat-dark);
+  transform: skewX(-3deg);
 }
 
+.currency-chip strong {
+  color: var(--splat-dark);
+  display: block;
+  font-size: 13px;
+  margin-bottom: 1px;
+}
+
+/* ─── Tutorial Toggle ───────────────────────────────────────── */
+.tutorial-toggle-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tutorial-toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.tutorial-toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.tutorial-toggle-track {
+  position: absolute;
+  inset: 0;
+  background: #ddd;
+  border: 3px solid var(--splat-dark);
+  border-radius: 12px;
+  transition: background 0.2s ease;
+  box-shadow: 0 2px 0 var(--splat-dark);
+}
+
+.tutorial-toggle-switch input:checked + .tutorial-toggle-track {
+  background: var(--splat-cyan);
+}
+
+.tutorial-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  background: white;
+  border: 2px solid var(--splat-dark);
+  border-radius: 50%;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 1px 0 var(--splat-dark);
+}
+
+.tutorial-toggle-switch input:checked + .tutorial-toggle-track .tutorial-toggle-thumb {
+  transform: translateX(20px);
+}
+
+.tutorial-toggle-label > span {
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--splat-dark-deep);
+}
+
+/* ─── Start Button ──────────────────────────────────────────── */
 .start-btn {
-  padding: 18px 48px;
+  width: 100%;
+  padding: 16px 24px;
   font-size: 20px;
   font-weight: 900;
   color: white;
@@ -159,124 +282,473 @@
   border: 5px solid var(--splat-dark);
   border-radius: 50px;
   cursor: pointer;
-  box-shadow: 0 0 0 3px white,
-              0 8px 0 var(--splat-dark),
-              0 12px 30px rgba(0, 217, 255, 0.5);
-  transition: all 0.2s ease;
   letter-spacing: 1px;
   text-transform: uppercase;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+  box-shadow:
+    0 0 0 3px white,
+    0 8px 0 var(--splat-dark),
+    0 12px 30px rgba(0, 217, 255, 0.5);
   position: relative;
   top: 0;
-  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.start-btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  animation: btn-shine 2.5s ease-in-out infinite;
+}
+
+@keyframes btn-shine {
+  0%   { left: -100%; }
+  50%  { left: 150%; }
+  100% { left: 150%; }
 }
 
 .start-btn:hover {
   transform: scale(1.08) rotate(-2deg);
-  box-shadow: 0 0 0 3px white,
-              0 12px 0 var(--splat-dark),
-              0 16px 40px rgba(0, 217, 255, 0.7);
+  box-shadow:
+    0 0 0 3px white,
+    0 12px 0 var(--splat-dark),
+    0 16px 40px rgba(0, 217, 255, 0.7);
   background: linear-gradient(135deg, var(--splat-yellow), var(--splat-pink));
 }
 
 .start-btn:active {
   top: 4px;
   transform: scale(1) rotate(0deg);
-  box-shadow: 0 0 0 3px white,
-              0 4px 0 var(--splat-dark),
-              0 8px 20px rgba(0, 217, 255, 0.4);
+  box-shadow:
+    0 0 0 3px white,
+    0 4px 0 var(--splat-dark),
+    0 8px 20px rgba(0, 217, 255, 0.4);
 }
 
+/* ─── Hint Text ─────────────────────────────────────────────── */
 .start-hint {
-  margin-top: 20px;
-  font-size: 13px;
+  margin-top: 16px;
+  font-size: 12px;
   color: var(--splat-dark);
   font-weight: 700;
-  opacity: 0.6;
+  opacity: 0.45;
   letter-spacing: 0.5px;
-  animation: splat-bounce 2s infinite;
+  animation: splat-bounce 2.5s ease-in-out infinite;
   animation-delay: 0.3s;
 }
 
-@media (max-width: 480px) {
-  .start-content {
-    max-width: 94vw;
-    padding: 34px 22px;
-  }
-
-  .start-content h1 {
-    font-size: 34px;
-    margin-bottom: 14px;
-  }
-
-  .start-content p {
-    font-size: 15px;
-    margin-bottom: 18px;
-  }
-
-  .start-tagline {
-    font-size: 13px;
-  }
-
-  .start-subtitle {
-    font-size: 13px;
-    margin-bottom: 14px;
-  }
-
-  .start-guide-list li {
-    font-size: 12px;
-  }
-
-  .currency-label {
-    font-size: 13px;
-  }
-
-  .currency-desc {
-    font-size: 11px;
-  }
-
-  .start-btn {
-    width: 100%;
-    font-size: 18px;
-    padding: 16px 24px;
-  }
+/* ─── Responsive (start card) ───────────────────────────────── */
+@media (max-width: 380px) {
+  .start-content { padding: 26px 20px 20px; }
+  .start-main-title { font-size: 36px; }
+  .start-game-badge { font-size: 10px; }
+  .start-btn { font-size: 17px; padding: 14px 20px; }
+  .guide-item { font-size: 12px; }
+  .currency-chip { font-size: 11px; }
 }
 
-/* Decorative elements */
-.start-content::before,
-.start-content::after {
-  content: '💥';
+@media (max-height: 640px) {
+  .start-main-title { font-size: 36px; margin-bottom: 8px; }
+  .start-title-section { margin-bottom: 12px; }
+  .start-guide-compact { margin-bottom: 10px; padding: 10px 12px; gap: 5px; }
+  .start-currency-row { margin-bottom: 12px; }
+}
+
+/* ─── Tutorial Overlay ──────────────────────────────────────── */
+.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 26, 46, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.tutorial-overlay.hidden {
+  display: none;
+}
+
+/* Tutorial modal — upgrade-block dark style (대각선 스트라이프 + 노랑 링) */
+.tutorial-modal {
+  width: 92vw;
+  max-width: 420px;
+  max-height: 96vh;
+  display: flex;
+  flex-direction: column;
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      rgba(233, 69, 96, 0.08),
+      rgba(233, 69, 96, 0.08) 10px,
+      rgba(0, 217, 255, 0.08) 10px,
+      rgba(0, 217, 255, 0.08) 20px
+    ),
+    rgba(26, 26, 46, 0.97);
+  border: 6px solid var(--splat-dark);
+  border-radius: 22px;
+  box-shadow:
+    0 0 0 4px var(--splat-yellow),
+    0 10px 0 var(--splat-dark),
+    0 14px 40px rgba(255, 215, 0, 0.4),
+    inset 0 2px 12px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  position: relative;
+  animation: card-intro 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 상단 무지개 바 (upgrade-block::before) */
+.tutorial-modal::before {
+  content: '';
   position: absolute;
-  font-size: 40px;
-  animation: splat-bounce 1.5s infinite;
-  filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.8));
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--splat-pink), var(--splat-cyan), var(--splat-yellow), var(--splat-pink));
+  background-size: 200% 100%;
+  animation: gradient-slide 3s linear infinite;
+  z-index: 10;
 }
 
-.start-content::before {
-  top: -20px;
-  left: -20px;
-  animation-delay: 0s;
+/* Step progress bars — pink stripe header (status-bar style) */
+.tutorial-steps {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px 12px;
+  flex-shrink: 0;
+  background: var(--bg-stripe-pink);
+  border-bottom: 4px solid var(--splat-dark);
 }
 
-.start-content::after {
-  bottom: -20px;
-  right: -20px;
-  animation-delay: 0.5s;
+.tutorial-step {
+  height: 7px;
+  flex: 1;
+  max-width: 70px;
+  background: rgba(255, 255, 255, 0.25);
+  border: 2px solid var(--splat-dark);
+  border-radius: 4px;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 2px 0 var(--splat-dark);
 }
 
+.tutorial-step.active {
+  background: white;
+  box-shadow:
+    0 0 0 1px var(--splat-yellow),
+    0 2px 0 var(--splat-dark),
+    0 0 10px rgba(255, 215, 0, 0.6);
+}
+
+.tutorial-step.done {
+  background: var(--splat-cyan);
+}
+
+/* Pages */
+.tutorial-page {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.tutorial-page.active {
+  display: flex;
+}
+
+/* Page header — dark with colored chip */
+.tutorial-page-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 3px solid var(--splat-dark);
+  flex-shrink: 0;
+}
+
+.tutorial-page-num {
+  font-size: 10px;
+  font-weight: 900;
+  color: var(--splat-dark);
+  letter-spacing: 1px;
+  flex-shrink: 0;
+  background: var(--splat-yellow);
+  padding: 2px 8px;
+  border: 2px solid var(--splat-dark);
+  border-radius: 8px;
+  box-shadow: 0 2px 0 var(--splat-dark);
+}
+
+.tutorial-page-title {
+  font-size: 15px;
+  font-weight: 900;
+  color: white;
+  margin: 0;
+  text-shadow:
+    2px 2px 0 var(--splat-pink),
+    -1px -1px 0 rgba(0, 217, 255, 0.5);
+}
+
+/* GIF frame — relative container, fills remaining space */
+.tutorial-gif-frame {
+  flex: 1;
+  min-height: 0;
+  background: #000;
+  position: relative;
+  overflow: hidden;
+}
+
+.tutorial-gif {
+  /* Portrait 497×812: width 100%, height auto → fills frame width */
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  /* 살짝 어둡게 dim 처리 */
+  filter: brightness(0.75);
+}
+
+/* Description — absolute overlay at the bottom, gradient backdrop */
+.tutorial-desc {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 40px 14px 14px;
+  background: linear-gradient(
+    to top,
+    rgba(10, 10, 28, 0.97) 0%,
+    rgba(10, 10, 28, 0.88) 40%,
+    rgba(10, 10, 28, 0.5)  70%,
+    transparent             100%
+  );
+  overflow-y: auto;
+  max-height: 62%;
+}
+
+.tutorial-desc-main {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 800;
+  margin: 0 0 8px;
+  line-height: 1.5;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* Tower list (page 1) — semi-transparent cards on gradient overlay */
+.tutorial-tower-list {
+  display: grid;
+  gap: 5px;
+}
+
+.tut-tower-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-left: 3px solid var(--splat-cyan);
+  border-radius: 10px;
+  backdrop-filter: blur(4px);
+}
+
+.tut-tower-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  line-height: 1;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.8));
+}
+
+.tut-tower-item div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.tut-tower-item strong {
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--splat-cyan);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+}
+
+.tut-tower-item span {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* Tips list (pages 2, 3) — semi-transparent on gradient */
+.tutorial-tips {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.tutorial-tips li {
+  font-size: 13px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.5;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-left: 3px solid var(--splat-cyan);
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.tutorial-tips strong {
+  color: var(--splat-yellow);
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+/* Navigation — dark stripe + status-bar button style */
+.tutorial-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-top: 4px solid var(--splat-dark);
+  background: var(--bg-stripe-dark);
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.tutorial-nav-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Base tut button */
+.tut-btn {
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 900;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  position: relative;
+  top: 0;
+  font-family: 'Arial Black', Arial, sans-serif;
+}
+
+.tut-skip {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  font-size: 12px;
+  padding: 8px 12px;
+}
+
+.tut-skip:hover {
+  color: rgba(255, 255, 255, 0.7);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* 이전 버튼 — 흰 카드 (status-bar resource style) */
+.tut-prev {
+  background: white;
+  color: var(--splat-dark);
+  border: 3px solid var(--splat-dark);
+  box-shadow: 0 4px 0 var(--splat-dark);
+  transform: skewX(-3deg);
+}
+
+.tut-prev:hover { transform: skewX(-3deg) scale(1.05); }
+.tut-prev:active { top: 2px; box-shadow: 0 2px 0 var(--splat-dark); }
+
+/* 다음 버튼 — cyan (status-bar active button) */
+.tut-next {
+  background: linear-gradient(135deg, var(--splat-cyan), var(--splat-cyan-dark));
+  color: white;
+  border: 4px solid var(--splat-dark);
+  box-shadow:
+    0 0 0 2px white,
+    0 5px 0 var(--splat-dark),
+    0 8px 20px rgba(0, 217, 255, 0.5);
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.3);
+  transform: skewX(-3deg);
+}
+
+.tut-next:hover {
+  transform: skewX(-3deg) scale(1.08);
+  box-shadow:
+    0 0 0 2px white,
+    0 7px 0 var(--splat-dark),
+    0 10px 28px rgba(0, 217, 255, 0.8);
+}
+
+.tut-next:active {
+  top: 3px;
+  box-shadow: 0 0 0 2px white, 0 2px 0 var(--splat-dark);
+}
+
+/* 게임 시작 버튼 — claim-btn gold style */
+.tut-start {
+  background: linear-gradient(135deg, var(--splat-yellow), #f59e0b);
+  color: var(--splat-dark);
+  border: 4px solid var(--splat-dark);
+  box-shadow:
+    0 0 0 2px white,
+    0 5px 0 var(--splat-dark),
+    0 8px 25px rgba(255, 215, 0, 0.6);
+  text-shadow: none;
+  transform: skewX(-3deg);
+  animation: splat-glow 2s ease-in-out infinite;
+}
+
+.tut-start:hover {
+  transform: skewX(-3deg) scale(1.08);
+  box-shadow:
+    0 0 0 2px white,
+    0 7px 0 var(--splat-dark),
+    0 10px 35px rgba(255, 215, 0, 0.9);
+}
+
+.tut-start:active {
+  top: 3px;
+  box-shadow: 0 0 0 2px white, 0 2px 0 var(--splat-dark);
+}
+
+.tut-btn.hidden {
+  display: none;
+}
+
+/* Responsive (tutorial) */
+@media (max-height: 680px) {
+  .tutorial-desc { max-height: 55%; padding: 30px 12px 10px; }
+  .tutorial-tips li { padding: 5px 10px; font-size: 12px; }
+  .tutorial-tower-list { gap: 4px; }
+  .tut-tower-item { padding: 5px 8px; }
+}
+
+@media (max-height: 560px) {
+  .tutorial-desc { max-height: 50%; }
+  .tutorial-steps { padding: 8px 16px 6px; }
+  .tutorial-page-header { padding: 7px 14px; }
+  .tutorial-nav { padding: 7px 12px; }
+  .tut-tower-icon { font-size: 17px; }
+}
+
+/* ─── Base Keyframes ────────────────────────────────────────── */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes fadeOut {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }

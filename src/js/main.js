@@ -894,31 +894,144 @@ function setupDevCommands(gameLoop, uiController) {
  * Setup start overlay
  */
 function setupStartOverlay(audioSystem, gameLoop, uiSfxSystem = null) {
-  const overlay = document.getElementById('startOverlay');
-  const startBtn = document.getElementById('startBtn');
+  const overlay        = document.getElementById('startOverlay');
+  const startBtn       = document.getElementById('startBtn');
+  const tutToggle      = document.getElementById('tutorialToggle');
+  const tutOverlay     = document.getElementById('tutorialOverlay');
+  const tutPrevBtn     = document.getElementById('tutPrevBtn');
+  const tutNextBtn     = document.getElementById('tutNextBtn');
+  const tutStartBtn    = document.getElementById('tutStartBtn');
+  const tutSkipBtn     = document.getElementById('tutSkipBtn');
+  const tutSteps       = document.querySelectorAll('.tutorial-step');
+  const tutPages       = document.querySelectorAll('.tutorial-page');
+  const TOTAL_TUT_PAGES = tutPages.length;
 
+  // ── Food emoji particle rain ──────────────────────────────
+  const FOOD_EMOJIS = [
+    '🍜','🍕','🍔','🍣','🍱','🥩','🍗','🍖','🥟','🍢',
+    '🍛','🍝','🍲','🥘','🌮','🌯','🍿','🥞','🍩','🍪',
+    '🎂','🍰','🧁','🍫','🍬','🍭','🍤','🌽','🍉','🍇',
+    '🍎','🥐','🍦','🥗','🍞','🧆','🧇','🥚','🧀','🍮',
+  ];
+
+  const rainContainer = document.getElementById('foodRainContainer');
+  let rainIntervalId = null;
+
+  function spawnFoodParticle() {
+    if (!rainContainer) return;
+    const el = document.createElement('span');
+    el.className = 'food-emoji-particle';
+    el.textContent = FOOD_EMOJIS[Math.floor(Math.random() * FOOD_EMOJIS.length)];
+
+    const size     = 18 + Math.random() * 28;
+    const opacity  = 0.25 + Math.random() * 0.45;
+    const duration = 4.5 + Math.random() * 5;
+    const drift    = (Math.random() - 0.5) * 80;
+    const rot      = (Math.random() > 0.5 ? 1 : -1) * (180 + Math.random() * 360);
+
+    el.style.cssText = `
+      left: ${Math.random() * 105 - 2.5}%;
+      font-size: ${size}px;
+      --p-opacity: ${opacity};
+      --p-drift: ${drift}px;
+      --p-rot: ${rot}deg;
+      animation-duration: ${duration}s;
+    `;
+
+    rainContainer.appendChild(el);
+    setTimeout(() => el.remove(), (duration + 0.5) * 1000);
+  }
+
+  if (rainContainer) {
+    for (let i = 0; i < 12; i++) setTimeout(spawnFoodParticle, i * 120);
+    rainIntervalId = setInterval(spawnFoodParticle, 280);
+  }
+  // ─────────────────────────────────────────────────────────
+
+  // ── Tutorial page navigation ──────────────────────────────
+  let currentPage = 0;
+
+  function showTutPage(page) {
+    currentPage = page;
+
+    tutPages.forEach((el, i) => el.classList.toggle('active', i === page));
+
+    tutSteps.forEach((el, i) => {
+      el.classList.toggle('active', i === page);
+      el.classList.toggle('done',   i < page);
+    });
+
+    const isLast = page === TOTAL_TUT_PAGES - 1;
+    tutPrevBtn.classList.toggle('hidden', page === 0);
+    tutNextBtn.classList.toggle('hidden', isLast);
+    tutStartBtn.classList.toggle('hidden', !isLast);
+  }
+
+  function openTutorial() {
+    tutOverlay.classList.remove('hidden');
+    showTutPage(0);
+  }
+  // ─────────────────────────────────────────────────────────
+
+  // ── Final game-start sequence ─────────────────────────────
+  function launchGame() {
+    if (rainIntervalId !== null) {
+      clearInterval(rainIntervalId);
+      rainIntervalId = null;
+    }
+
+    overlay.classList.add('hidden');
+
+    setTimeout(() => {
+      if (uiSfxSystem) uiSfxSystem.play('wave_start', { volume: 0.8 });
+      audioSystem.play();
+      audioSystem.fadeIn(1.5);
+      updateMusicButton(true);
+    }, 300);
+
+    setTimeout(() => overlay.remove(), 800);
+  }
+  // ─────────────────────────────────────────────────────────
+
+  // ── Start button ──────────────────────────────────────────
   if (startBtn && overlay) {
     startBtn.addEventListener('click', () => {
-      if (uiSfxSystem) {
-        uiSfxSystem.play('ui_click', { volume: 0.85 });
+      if (uiSfxSystem) uiSfxSystem.play('ui_click', { volume: 0.85 });
+
+      const showTutorial = tutToggle ? tutToggle.checked : false;
+      if (showTutorial && tutOverlay) {
+        openTutorial();
+      } else {
+        launchGame();
       }
-      // Hide overlay
-      overlay.classList.add('hidden');
+    });
+  }
 
-      // Start music after a short delay
-      setTimeout(() => {
-        if (uiSfxSystem) {
-          uiSfxSystem.play('wave_start', { volume: 0.8 });
-        }
-        audioSystem.play();
-        audioSystem.fadeIn(1.5);
-        updateMusicButton(true);
-      }, 300);
+  // ── Tutorial button events ────────────────────────────────
+  if (tutNextBtn) {
+    tutNextBtn.addEventListener('click', () => {
+      if (currentPage < TOTAL_TUT_PAGES - 1) showTutPage(currentPage + 1);
+    });
+  }
 
-      // Remove overlay from DOM after animation
-      setTimeout(() => {
-        overlay.remove();
-      }, 800);
+  if (tutPrevBtn) {
+    tutPrevBtn.addEventListener('click', () => {
+      if (currentPage > 0) showTutPage(currentPage - 1);
+    });
+  }
+
+  if (tutStartBtn) {
+    tutStartBtn.addEventListener('click', () => {
+      if (uiSfxSystem) uiSfxSystem.play('ui_click', { volume: 0.85 });
+      tutOverlay.classList.add('hidden');
+      launchGame();
+    });
+  }
+
+  if (tutSkipBtn) {
+    tutSkipBtn.addEventListener('click', () => {
+      tutOverlay.classList.add('hidden');
+      launchGame();
     });
   }
 }
