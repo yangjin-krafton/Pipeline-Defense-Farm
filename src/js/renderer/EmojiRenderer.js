@@ -193,9 +193,7 @@ export class EmojiRenderer {
     // 알림 상태: 미사용 포인트(회전 pingpong) / 승급 가능(스케일 pingpong)
     const hasUnusedPoints = tower.upgradeTree &&
                             tower.upgradePoints > tower.upgradeTree.usedPoints;
-    const canPromote = tower.level >= maxLevel &&
-                       tower.star < 7 &&
-                       (!tower.upgradeTree || tower.upgradePoints <= tower.upgradeTree.usedPoints);
+    const canPromote = tower.level >= maxLevel && tower.star < 7;
 
     // 변환 행렬 계산 (setTransform으로 현재 캔버스 상태와 무관하게 명시적 적용)
     let rotAngle = 0;
