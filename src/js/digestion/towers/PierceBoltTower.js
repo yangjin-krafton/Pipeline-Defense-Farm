@@ -1,13 +1,9 @@
 import { BaseTower } from '../core/BaseTower.js';
 import { UpgradeNode } from '../core/UpgradeNode.js';
 import {
-  TargetingModule,
   DamageModule,
   ProjectileModule,
-  TagBonusModule,
-  StatusModule,
-  TriggerModule,
-  SafetyModule
+  TagBonusModule
 } from '../core/modules/index.js';
 
 /**
@@ -17,12 +13,6 @@ import {
 export class PierceBoltTower extends BaseTower {
   constructor(slotData, definition, bulletSystem = null, particleSystem = null) {
     super(slotData, definition, bulletSystem, particleSystem);
-
-    // 노드 10: 샷 카운트 기반 공명 타이밍
-    this.pierceResonanceCounter = 0;
-
-    // 노드 12: 관통 처치 기반 다음 샷 보너스
-    this.lineSweepStacks = 0;
   }
 
   // Default muzzle local angle for this emoji.

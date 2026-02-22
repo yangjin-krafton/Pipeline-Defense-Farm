@@ -69,7 +69,8 @@ export class ParticleRenderer extends InstancedRenderer {
 
       void main() {
         // 원형 모양 만들기
-        vec2 coord = vTexCoord * 2.0 - 1.0; // -1 ~ 1 범위
+        // vTexCoord는 메시 정점 범위 [-0.5, 0.5]이므로 ×2 → [-1, 1]
+        vec2 coord = vTexCoord * 2.0;
         float dist = length(coord);
 
         // 부드러운 엣지
