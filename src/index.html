@@ -8,6 +8,19 @@
   <link rel="stylesheet" href="./styles/main.css">
 </head>
 <body>
+  <!-- Resource Loading Overlay -->
+  <div class="resource-loading-overlay" id="resourceLoadingOverlay">
+    <div class="resource-loading-content">
+      <div class="resource-loading-badge">SYNC</div>
+      <h2 class="resource-loading-title">Game Resource Routing</h2>
+      <p class="resource-loading-message" id="resourceLoadingMessage">핵심 시스템을 준비하는 중...</p>
+      <div class="resource-loading-progress-wrap" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="resource-loading-progress-bar" id="resourceLoadingProgressBar"></div>
+      </div>
+      <div class="resource-loading-percent" id="resourceLoadingPercent">0%</div>
+    </div>
+  </div>
+
   <!-- Start Overlay for autoplay -->
   <div class="start-overlay" id="startOverlay">
     <div class="start-content">

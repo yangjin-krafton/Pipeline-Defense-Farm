@@ -179,318 +179,238 @@ export class PierceBoltTower extends BaseTower {
 
 /**
  * 연동 관통 볼트기 업그레이드 노드 생성
- * 2026-02-22 개정: 직선관통 라인형 리뉴얼
+ * 2026-02-22 재설계: 3x4 고정 구조 (A=기본공격형 / B=치명가속형 / C=다중관통형)
+ * - A 라인 (1→4→7→10): 공격력 + 사거리 집중
+ * - B 라인 (2→5→8→11): 치명타 + 공격속도 집중
+ * - C 라인 (3→6→9→12): 관통 횟수 집중
+ *
+ * 각인 중복 메커니즘:
+ * - DamageModule.damageMultiplier: 곱연산 중첩 (1.07 × 1.07 × ...)
+ * - DamageModule.critChanceBonus: 가산 중첩 (+4%p × n)
+ * - DamageModule.critMultiplierBonus: 가산 중첩 (+0.06 × n)
+ * - DamageModule.attackSpeedMultiplier: 곱연산 중첩 (1.06 × 1.06 × ...)
+ * - ProjectileModule.rangeMultiplier: 곱연산 중첩 (1.05 × 1.05 × ...)
+ * - ProjectileModule.pierceCount: 가산 중첩 (+1 × n)
+ * - TagBonusModule: 곱연산 중첩
+ * - 각인 중복 비용 곡선: x1.0 → x1.5 → x2.2 → x3.2 → x4.5 → x6.2 → x8.5
  */
 export function createPierceBoltUpgradeNodes() {
   return [
-    // 1. 축선 천공 핀 (TM+PM)
+    // ── A 라인: 기본공격 (공격력 + 사거리) ────────────────────
+
+    // 1. 정밀 탄두 기점 (분기 A) - DM+PM
     new UpgradeNode({
       id: 'piercebolt_node_1',
       nodeNumber: 1,
       position: 'branch',
-      name: '축선 천공 핀',
+      name: '정밀 탄두 기점',
       modules: [
-        new TargetingModule({
-          priority: 'first'
+        new DamageModule({
+          damageMultiplier: 1.07  // 공격력 +7% [각인 중복: 곱연산]
         }),
         new ProjectileModule({
-          type: 'pierce',
-          pierceDistanceBonus: 0.10
+          rangeMultiplier: 1.05   // 사거리 +5% [각인 중복: 곱연산]
         })
       ],
-      effect: '직선 축선 적중 보정 +12%, 관통 거리 +10%',
+      effect: '공격력 +7%, 사거리 +5%',
       prerequisites: [],
       ncCostMultiplier: 0.08
     }),
 
-    // 2. 심부 관통 바렐 (PM)
-    new UpgradeNode({
-      id: 'piercebolt_node_2',
-      nodeNumber: 2,
-      position: 'branch',
-      name: '심부 관통 바렐',
-      modules: [
-        new ProjectileModule({
-          type: 'pierce',
-          pierceCount: 1,
-          pierceDamageFalloff: 0.14
-        })
-      ],
-      effect: '관통 횟수 +1, 탄 크기 +8%',
-      prerequisites: [],
-      ncCostMultiplier: 0.09
-    }),
-
-    // 3. 압축 중탄 챔버 (PM+DM)
-    new UpgradeNode({
-      id: 'piercebolt_node_3',
-      nodeNumber: 3,
-      position: 'branch',
-      name: '압축 중탄 챔버',
-      modules: [
-        new ProjectileModule({
-          type: 'pierce',
-          pierceDamageFalloff: 0.10
-        }),
-        new DamageModule({
-          damageMultiplier: 1.10
-        })
-      ],
-      effect: '탄 크기 +15%, 관통 피해 +10%',
-      prerequisites: [],
-      ncCostMultiplier: 0.10
-    }),
-
-    // 4. 지방막 절삭날 (TB+SM+DM)
+    // 4. 정밀 탄두 I (중간 A) - DM+PM+TB
     new UpgradeNode({
       id: 'piercebolt_node_4',
       nodeNumber: 4,
       position: 'mid',
-      name: '지방막 절삭날',
+      name: '정밀 탄두 I',
       modules: [
-        new TagBonusModule({
-          tagBonuses: {
-            fat: 1.08
-          },
-          tagEffects: {
-            fat: {
-              type: 'armorReduction',
-              value: 0.10,
-              duration: 3
-            }
-          }
-        }),
         new DamageModule({
-          damageMultiplier: 1.08,
-          conditionalCheck: (ctx) => ctx.food.tags?.includes('fat')
-        })
+          damageMultiplier: 1.06  // 공격력 +6% [각인 중복: 곱연산]
+        }),
+        new TagBonusModule({ carb: 1.12 })  // carb 대상 추가 피해 +12% [각인 중복: 곱연산]
       ],
-      effect: 'fat 관통 시 방어 -10%(3초), 관통 피해 +8%',
+      effect: '공격력 +6%, carb 대상 추가 피해 +12%',
       prerequisites: [[1]],
-      ncCostMultiplier: 0.12
+      ncCostMultiplier: 0.10
     }),
 
-    // 5. 유당 도관 확장 (TB+PM)
-    new UpgradeNode({
-      id: 'piercebolt_node_5',
-      nodeNumber: 5,
-      position: 'mid',
-      name: '유당 도관 확장',
-      modules: [
-        new TagBonusModule({
-          tagBonuses: {
-            dairy: 1.10
-          }
-        }),
-        new ProjectileModule({
-          pierceDistanceBonus: 0.22
-        })
-      ],
-      effect: 'dairy 관통 시 관통 거리 +22%, 탄 크기 +10%',
-      prerequisites: [[2]],
-      ncCostMultiplier: 0.12
-    }),
-
-    // 6. 단백질 파열 천공 (TB+DM+PM)
-    new UpgradeNode({
-      id: 'piercebolt_node_6',
-      nodeNumber: 6,
-      position: 'mid',
-      name: '단백질 파열 천공',
-      modules: [
-        new TagBonusModule({
-          tagBonuses: {
-            protein: 1.18
-          }
-        }),
-        new DamageModule({
-          damageMultiplier: 1.18,
-          conditionalCheck: (ctx) => ctx.food.tags?.includes('protein')
-        }),
-        new ProjectileModule({
-          pierceCount: 1
-        })
-      ],
-      effect: 'protein 관통 시 후열 피해 +18%, 관통 횟수 +1',
-      prerequisites: [[3]],
-      ncCostMultiplier: 0.13
-    }),
-
-    // 7. 탄산 장갑 침식 (TB+SM+TR)
+    // 7. 정밀 탄두 II (중간 A) - DM+PM+TB
     new UpgradeNode({
       id: 'piercebolt_node_7',
       nodeNumber: 7,
       position: 'mid',
-      name: '탄산 장갑 침식',
+      name: '정밀 탄두 II',
       modules: [
-        new TagBonusModule({
-          tagBonuses: {
-            soda: 1.08
-          },
-          tagEffects: {
-            soda: {
-              type: 'armorReduction',
-              value: 0.08,
-              duration: 3
-            }
-          }
+        new DamageModule({
+          damageMultiplier: 1.08  // 공격력 +8% [각인 중복: 곱연산]
         }),
-        new StatusModule({
-          statusType: 'corrode',
-          statusValue: 0.08,
-          statusDuration: 3
-        }),
-        new TriggerModule({
-          triggerType: 'onHit',
-          triggerCondition: (ctx) => ctx.food.tags?.includes('soda'),
-          triggerEffect: () => ({
-            statusEffect: { type: 'corrode', value: 0.08, duration: 3 }
-          })
-        })
+        new TagBonusModule({ protein: 1.16 })  // protein 대상 추가 피해 +16% [각인 중복: 곱연산]
       ],
-      effect: 'soda 관통 시 방어 -8% 누적, 최대 3중첩',
+      effect: '공격력 +8%, protein 대상 추가 피해 +16%',
       prerequisites: [[4]],
-      ncCostMultiplier: 0.14
+      ncCostMultiplier: 0.13
     }),
 
-    // 8. 직선 관통 유지장치 (PM+SF+DM)
-    new UpgradeNode({
-      id: 'piercebolt_node_8',
-      nodeNumber: 8,
-      position: 'mid',
-      name: '직선 관통 유지장치',
-      modules: [
-        new ProjectileModule({
-          curveCompensation: 0.40
-        }),
-        new SafetyModule({
-          minDamageGuarantee: 0.60
-        }),
-        new DamageModule({
-          damageMultiplier: 1.10
-        })
-      ],
-      effect: '직선 구간 관통 손실 -40%, 관통 피해 +10%',
-      prerequisites: [[5]],
-      ncCostMultiplier: 0.15
-    }),
-
-    // 9. 중탄 압착 관통 (PM+DM+SM)
-    new UpgradeNode({
-      id: 'piercebolt_node_9',
-      nodeNumber: 9,
-      position: 'mid',
-      name: '중탄 압착 관통',
-      modules: [
-        new ProjectileModule({
-          pierceDamageFalloff: 0.08
-        }),
-        new DamageModule({
-          damageMultiplier: 1.20,
-          conditionalCheck: (ctx) => (ctx.food.armor || 0) >= 15
-        }),
-        new StatusModule({
-          statusType: 'corrode',
-          statusValue: 0.04,
-          statusDuration: 2
-        })
-      ],
-      effect: '탄 크기 +12%, 방어 높은 적(15+) 대상 피해 +20%',
-      prerequisites: [[6]],
-      ncCostMultiplier: 0.16
-    }),
-
-    // 10. 관통 공명 증폭기 (TR+PM+DM)
+    // 10. 정밀 포격 필살 (끝 A) - DM+PM+TR
     new UpgradeNode({
       id: 'piercebolt_node_10',
       nodeNumber: 10,
       position: 'end',
-      name: '관통 공명 증폭기',
+      name: '정밀 포격 필살',
       modules: [
-        new ProjectileModule({
-          type: 'pierce'
-        }),
         new DamageModule({
-          damageMultiplier: 1.0
+          damageMultiplier: 1.10,    // 공격력 +10% [각인 중복: 곱연산]
+          critMultiplierBonus: 0.04  // 치명타 피해 +4% [각인 중복: 가산]
         }),
-        new TriggerModule({
-          triggerType: 'onHit',
-          triggerCondition: (ctx) => {
-            ctx.tower.pierceResonanceCounter = (ctx.tower.pierceResonanceCounter || 0) + 1;
-            return ctx.tower.pierceResonanceCounter >= 3;
-          },
-          triggerEffect: (ctx) => {
-            ctx.tower.pierceResonanceCounter = 0;
-            // damageBonus(현재 샷 증폭) 대신 secondaryDamage(별도 추가 타격 65%)로 발사
-            return { secondaryDamage: 0.65 };
-          }
+        new ProjectileModule({
+          rangeMultiplier: 1.08  // 사거리 +8% [각인 중복: 곱연산]
         })
       ],
-      effect: '관통 3회 이상 샷에 추가 타격 1회(65%)',
+      effect: '공격력 +10%, 사거리 +8%, 치명타 피해 +4%',
       prerequisites: [[7]],
       ncCostMultiplier: 0.18
     }),
 
-    // 11. 관문 일자 붕괴 (TM+DM+SM)
+    // ── B 라인: 치명가속 (치명타 + 공격속도) ──────────────────
+
+    // 2. 급소 연사 기점 (분기 B) - DM+SF
+    new UpgradeNode({
+      id: 'piercebolt_node_2',
+      nodeNumber: 2,
+      position: 'branch',
+      name: '급소 연사 기점',
+      modules: [
+        new DamageModule({
+          critChanceBonus: 0.04,       // 치명타 확률 +4%p [각인 중복: 가산]
+          attackSpeedMultiplier: 1.06  // 공격속도 +6% [각인 중복: 곱연산]
+        })
+      ],
+      effect: '치명타 확률 +4%, 공격속도 +6%',
+      prerequisites: [],
+      ncCostMultiplier: 0.08
+    }),
+
+    // 5. 급소 연사 I (중간 B) - DM+SF+TB
+    new UpgradeNode({
+      id: 'piercebolt_node_5',
+      nodeNumber: 5,
+      position: 'mid',
+      name: '급소 연사 I',
+      modules: [
+        new DamageModule({
+          critChanceBonus: 0.03  // 치명타 확률 +3%p [각인 중복: 가산]
+        }),
+        new TagBonusModule({ spicy: 1.14 })  // spicy 대상 추가 피해 +14% [각인 중복: 곱연산]
+      ],
+      effect: '치명타 확률 +3%, spicy 대상 추가 피해 +14%',
+      prerequisites: [[2]],
+      ncCostMultiplier: 0.10
+    }),
+
+    // 8. 급소 연사 II (중간 B) - DM+SF+TB
+    new UpgradeNode({
+      id: 'piercebolt_node_8',
+      nodeNumber: 8,
+      position: 'mid',
+      name: '급소 연사 II',
+      modules: [
+        new DamageModule({
+          critMultiplierBonus: 0.06  // 치명타 피해 +6% [각인 중복: 가산]
+        }),
+        new TagBonusModule({ dairy: 1.13 })  // dairy 대상 추가 피해 +13% [각인 중복: 곱연산]
+      ],
+      effect: '치명타 피해 +6%, dairy 대상 추가 피해 +13%',
+      prerequisites: [[5]],
+      ncCostMultiplier: 0.13
+    }),
+
+    // 11. 급소 연사 필살 (끝 B) - DM+SF+TR
     new UpgradeNode({
       id: 'piercebolt_node_11',
       nodeNumber: 11,
       position: 'end',
-      name: '관문 일자 붕괴',
+      name: '급소 연사 필살',
       modules: [
-        new TargetingModule({
-          priority: 'checkpoint'
-        }),
         new DamageModule({
-          damageMultiplier: 1.20
-        }),
-        new StatusModule({
-          statusType: 'corrode',
-          statusValue: 0.15,
-          statusDuration: 2
+          critChanceBonus: 0.05,       // 치명타 확률 +5%p [각인 중복: 가산]
+          critMultiplierBonus: 0.08,   // 치명타 피해 +8% [각인 중복: 가산]
+          attackSpeedMultiplier: 1.08  // 공격속도 +8% [각인 중복: 곱연산]
         })
       ],
-      effect: '관문 축선 정렬 시 방어 -15%(2초), 피해 +20%',
+      effect: '치명타 확률 +5%, 치명타 피해 +8%, 공격속도 +8%',
       prerequisites: [[8]],
-      ncCostMultiplier: 0.22
+      ncCostMultiplier: 0.20
     }),
 
-    // 12. 초중량 라인 스윕 (PM+TR+DM)
+    // ── C 라인: 다중관통 (관통 횟수 + TB) ────────────────────
+
+    // 3. 다중 관통 기점 (분기 C) - PM+DM
+    new UpgradeNode({
+      id: 'piercebolt_node_3',
+      nodeNumber: 3,
+      position: 'branch',
+      name: '다중 관통 기점',
+      modules: [
+        new ProjectileModule({
+          pierceCount: 1  // 관통 횟수 +1 [각인 중복: 가산]
+        })
+      ],
+      effect: '관통 횟수 +1',
+      prerequisites: [],
+      ncCostMultiplier: 0.08
+    }),
+
+    // 6. 다중 관통 I (중간 C) - PM+TB
+    new UpgradeNode({
+      id: 'piercebolt_node_6',
+      nodeNumber: 6,
+      position: 'mid',
+      name: '다중 관통 I',
+      modules: [
+        new ProjectileModule({
+          pierceCount: 1  // 관통 횟수 +1 [각인 중복: 가산]
+        }),
+        new TagBonusModule({ fat: 1.10 })  // fat 대상 추가 피해 +10% [각인 중복: 곱연산]
+      ],
+      effect: '관통 횟수 +1, fat 대상 추가 피해 +10%',
+      prerequisites: [[3]],
+      ncCostMultiplier: 0.10
+    }),
+
+    // 9. 다중 관통 II (중간 C) - PM+DM+TB
+    new UpgradeNode({
+      id: 'piercebolt_node_9',
+      nodeNumber: 9,
+      position: 'mid',
+      name: '다중 관통 II',
+      modules: [
+        new ProjectileModule({
+          pierceCount: 1  // 관통 횟수 +1 [각인 중복: 가산]
+        }),
+        new TagBonusModule({ fermented: 1.15 })  // fermented 대상 추가 피해 +15% [각인 중복: 곱연산]
+      ],
+      effect: '관통 횟수 +1, fermented 대상 추가 피해 +15%',
+      prerequisites: [[6]],
+      ncCostMultiplier: 0.13
+    }),
+
+    // 12. 다중 관통 필살 (끝 C) - PM+DM+TR
     new UpgradeNode({
       id: 'piercebolt_node_12',
       nodeNumber: 12,
       position: 'end',
-      name: '초중량 라인 스윕',
+      name: '다중 관통 필살',
       modules: [
-        new ProjectileModule({
-          type: 'pierce',
-          pierceCount: 1
-        }),
-        new TriggerModule({
-          triggerType: 'onHit',
-          // onHit이 onKill보다 먼저: 이전 샷에서 쌓인 스택을 소비하고,
-          // 이후 onKill이 현재 샷의 처치 스택을 다음 샷을 위해 적립한다.
-          triggerEffect: (ctx) => {
-            const stacks = ctx.tower.lineSweepStacks || 0;
-            if (stacks <= 0) return {};
-            ctx.tower.lineSweepStacks = 0;
-            return { damageBonus: Math.min(stacks * 0.10, 0.30) };
-          }
-        }),
-        new TriggerModule({
-          triggerType: 'onKill',
-          triggerEffect: (ctx) => {
-            ctx.tower.lineSweepStacks = Math.min((ctx.tower.lineSweepStacks || 0) + 1, 3);
-            return {};
-          }
-        }),
         new DamageModule({
-          damageMultiplier: 1.0
+          damageMultiplier: 1.10  // 공격력 +10% [각인 중복: 곱연산]
+        }),
+        new ProjectileModule({
+          pierceCount: 2  // 관통 횟수 +2 [각인 중복: 가산]
         })
       ],
-      effect: '탄 크기 +20%, 관통 횟수 +1, 관통 처치 기반 다음 샷 최대 +30%',
+      effect: '공격력 +10%, 관통 횟수 +2',
       prerequisites: [[9]],
-      ncCostMultiplier: 0.25
+      ncCostMultiplier: 0.22
     })
   ];
 }

@@ -422,15 +422,77 @@ function setupTowerSlotClicks(pathCanvas, uiController, scaleManager, cameraCont
   });
 }
 
+function setupResourceLoadingOverlay() {
+  return {
+    overlay: document.getElementById('resourceLoadingOverlay'),
+    message: document.getElementById('resourceLoadingMessage'),
+    progressBar: document.getElementById('resourceLoadingProgressBar'),
+    percent: document.getElementById('resourceLoadingPercent')
+  };
+}
+
+function updateResourceLoadingStatus(loadingUI, progress, message) {
+  if (!loadingUI?.overlay) {
+    return;
+  }
+
+  const clamped = Math.max(0, Math.min(100, Math.round(progress)));
+
+  if (loadingUI.progressBar) {
+    loadingUI.progressBar.style.width = `${clamped}%`;
+    const progressWrap = loadingUI.progressBar.parentElement;
+    progressWrap?.setAttribute('aria-valuenow', String(clamped));
+  }
+  if (loadingUI.percent) {
+    loadingUI.percent.textContent = `${clamped}%`;
+  }
+  if (loadingUI.message && message) {
+    loadingUI.message.textContent = message;
+  }
+}
+
+function hideResourceLoadingOverlay(loadingUI) {
+  if (!loadingUI?.overlay) {
+    return;
+  }
+
+  loadingUI.overlay.classList.add('hidden');
+  setTimeout(() => {
+    loadingUI.overlay.remove();
+  }, 300);
+}
+
+function showResourceLoadingError(loadingUI) {
+  if (!loadingUI?.overlay) {
+    return;
+  }
+
+  updateResourceLoadingStatus(
+    loadingUI,
+    100,
+    '리소스 로딩 중 오류가 발생했습니다. 새로고침 후 다시 시도해주세요.'
+  );
+  loadingUI.overlay.classList.remove('hidden');
+}
+
 /**
  * Main initialization function
  */
 async function init() {
+  const loadingUI = setupResourceLoadingOverlay();
+  const setLoading = (progress, message) => {
+    updateResourceLoadingStatus(loadingUI, progress, message);
+  };
+
+  try {
+    setLoading(8, '렌더 캔버스를 준비하는 중...');
+
   // Initialize canvas
   const { pathCanvas, emojiCanvas, container, gl } = initCanvas();
 
   // Fit canvas to fixed game area (only needs to run once)
   fitCanvas(pathCanvas, emojiCanvas, container, gl);
+  setLoading(18, '렌더러와 경로 시스템을 구성하는 중...');
 
   // Initialize systems
   const multiPathSystem = new MultiPathFollowerSystem(PATHS);
@@ -442,17 +504,21 @@ async function init() {
   const flowSystem = new FlowSystem(multiPathSystem.getPathSystem('rice_stomach'));
 
   // Initialize audio system
+  setLoading(30, '오디오 엔진 초기화 중...');
   const audioSystem = new AudioSystem();
   await audioSystem.init();
+  setLoading(42, '배경음 리소스를 로드하는 중...');
   await audioSystem.loadBGM('./assets/bgm/game_theme.wav');
   audioSystem.setVolume(0.4); // 40% volume
   audioSystem.setLoop(true);
   audioSystem.setVariationOptions({ gainRandomRange: 0.03, sectionDynamicsDepth: 0.2, fillBoostRange: 0.06 });
 
   // Initialize UI SFX system (non-blocking fallback)
+  setLoading(56, 'UI 사운드 리소스를 연결하는 중...');
   const uiSfxSystem = new UISfxSystem();
   try {
     await uiSfxSystem.init(audioSystem.audioContext);
+    setLoading(66, '효과음 매니페스트를 로드하는 중...');
     await uiSfxSystem.loadFromManifest('./assets/sfx/sfx_manifest.json', './assets/sfx');
     uiSfxSystem.setVolume(0.52);
   } catch (error) {
@@ -474,6 +540,7 @@ async function init() {
   );
 
   // Load saved game if exists
+  setLoading(76, '저장 데이터를 확인하는 중...');
   const savedGame = saveSystem.loadGame();
   if (savedGame) {
     console.log('[Main] Loading saved game...');
@@ -500,6 +567,7 @@ async function init() {
   }
 
   gameLoop.start();
+  setLoading(86, 'UI 레이어를 동기화하는 중...');
 
   // Setup music controls
   const audioSettingsPanel = new AudioSettingsPanel(audioSystem, uiSfxSystem);
@@ -618,6 +686,13 @@ async function init() {
 
   // Development console commands
   setupDevCommands(gameLoop, uiController);
+  setLoading(100, '준비 완료. 접속을 마무리하는 중...');
+  hideResourceLoadingOverlay(loadingUI);
+  } catch (error) {
+    showResourceLoadingError(loadingUI);
+    console.error('[Main] Initialization failed:', error);
+    throw error;
+  }
 }
 
 /**
@@ -910,9 +985,15 @@ function showOfflineRewardsModal(rewards) {
 // Store as global for other modules
 window.updateMusicButton = updateMusicButton;
 
+function boot() {
+  init().catch((error) => {
+    console.error('[Main] Boot failed:', error);
+  });
+}
+
 // Start the game when DOM is loaded
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', boot);
 } else {
-  init();
+  boot();
 }
