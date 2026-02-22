@@ -148,11 +148,13 @@ export class StarUpgradeManager {
       setTimeout(() => {
         this._playUpgradeSfx('shot', 0.5);
         const statElements = document.querySelectorAll('.stat-comparison-values .new-value');
+        const roll = this.starUpgradeState.currentStatRoll;
         const stats = [
-          { element: statElements[0], value: this.starUpgradeState.currentStatRoll.damageMultiplier, min: 0.07, max: 0.11, grade: this.starUpgradeState.currentStatRoll.damageGrade },
-          { element: statElements[1], value: this.starUpgradeState.currentStatRoll.attackSpeedMultiplier, min: 0.02, max: 0.04, grade: this.starUpgradeState.currentStatRoll.attackSpeedGrade },
-          { element: statElements[2], value: this.starUpgradeState.currentStatRoll.rangeMultiplier, min: 0.01, max: 0.03, grade: this.starUpgradeState.currentStatRoll.rangeGrade },
-          { element: statElements[3], value: this.starUpgradeState.currentStatRoll.critChance, min: 0.01, max: 0.04, grade: this.starUpgradeState.currentStatRoll.critGrade }
+          { element: statElements[0], value: roll.damageMultiplier,      min: 0.07, max: 0.11, grade: roll.damageGrade },
+          { element: statElements[1], value: roll.attackSpeedMultiplier, min: 0.02, max: 0.04, grade: roll.attackSpeedGrade },
+          { element: statElements[2], value: roll.rangeMultiplier,        min: 0.01, max: 0.03, grade: roll.rangeGrade },
+          { element: statElements[3], value: roll.critChance,             min: 0.01, max: 0.04, grade: roll.critGrade },
+          { element: statElements[4], value: roll.critMultBonus,          min: 0.10, max: 0.40, grade: roll.critMultGrade }
         ];
 
         this.rollingAnimation.startRolling(stats, () => {
@@ -264,6 +266,11 @@ export class StarUpgradeManager {
         state.rerollCount++;
         this._playUpgradeSfx('tower_upgrade', 0.66);
 
+        // SC 소비 낙하 연출
+        if (this.uiController.resourceAbsorptionSystem) {
+          this.uiController.resourceAbsorptionSystem.emitDrop('sc', rerollCost);
+        }
+
         // Re-roll stats (등급 정보 포함)
         state.currentStatRoll = towerGrowthSystem._rollStatGainsWithGrades();
 
@@ -286,11 +293,13 @@ export class StarUpgradeManager {
 
         // 스탯 롤링 애니메이션 시작
         const statElements = document.querySelectorAll('.stat-comparison-values .new-value');
+        const roll = state.currentStatRoll;
         const stats = [
-          { element: statElements[0], value: state.currentStatRoll.damageMultiplier, min: 0.07, max: 0.11, grade: state.currentStatRoll.damageGrade },
-          { element: statElements[1], value: state.currentStatRoll.attackSpeedMultiplier, min: 0.02, max: 0.04, grade: state.currentStatRoll.attackSpeedGrade },
-          { element: statElements[2], value: state.currentStatRoll.rangeMultiplier, min: 0.01, max: 0.03, grade: state.currentStatRoll.rangeGrade },
-          { element: statElements[3], value: state.currentStatRoll.critChance, min: 0.01, max: 0.04, grade: state.currentStatRoll.critGrade }
+          { element: statElements[0], value: roll.damageMultiplier,      min: 0.07, max: 0.11, grade: roll.damageGrade },
+          { element: statElements[1], value: roll.attackSpeedMultiplier, min: 0.02, max: 0.04, grade: roll.attackSpeedGrade },
+          { element: statElements[2], value: roll.rangeMultiplier,        min: 0.01, max: 0.03, grade: roll.rangeGrade },
+          { element: statElements[3], value: roll.critChance,             min: 0.01, max: 0.04, grade: roll.critGrade },
+          { element: statElements[4], value: roll.critMultBonus,          min: 0.10, max: 0.40, grade: roll.critMultGrade }
         ];
 
         this._playUpgradeSfx('shot', 0.52);
@@ -305,36 +314,37 @@ export class StarUpgradeManager {
     // Update imprint cards
     this._updateImprintCards();
 
-    // Update expand choice button
-    const expandCost = 30;
+    // Update expand choice button (횟수 제한 없음, 비용 2배씩 증가)
+    const expandCost = this._getExpandCost(state.expandCount);
     const expandBtn = document.getElementById('expandChoiceBtn');
     const expandCountInfo = document.getElementById('expandCountInfo');
+    const expandCostDisplay = document.getElementById('expandCostDisplay');
 
-    if (expandCountInfo) expandCountInfo.textContent = `${state.expandCount}/2`;
+    if (expandCountInfo) expandCountInfo.textContent = `${state.expandCount}회`;
+    if (expandCostDisplay) expandCostDisplay.textContent = `⚡ ${expandCost}`;
 
     if (expandBtn) {
-      const canExpand = state.expandCount < 2;
       const canAffordExpand = economySystem.canAffordSC(expandCost);
-      const canUseExpand = canExpand && canAffordExpand;
 
-      expandBtn.disabled = !canUseExpand;
-      expandBtn.style.opacity = canUseExpand ? '1' : '0.5';
-      expandBtn.style.cursor = canUseExpand ? 'pointer' : 'not-allowed';
+      expandBtn.disabled = !canAffordExpand;
+      expandBtn.style.opacity = canAffordExpand ? '1' : '0.5';
+      expandBtn.style.cursor = canAffordExpand ? 'pointer' : 'not-allowed';
 
       expandBtn.onclick = () => {
         this._playUpgradeSfx('ui_click', 0.6);
-        if (!canUseExpand) {
-          if (!canExpand) {
-            this.uiController._showToast('최대 2개까지 추가 가능', 'error');
-          } else {
-            this.uiController._showToast('⚡ SC 부족', 'error');
-          }
+        if (!canAffordExpand) {
+          this.uiController._showToast('⚡ SC 부족', 'error');
           return;
         }
 
         economySystem.spendSC(expandCost);
         state.expandCount++;
         this._playUpgradeSfx('tower_upgrade', 0.62);
+
+        // SC 소비 낙하 연출
+        if (this.uiController.resourceAbsorptionSystem) {
+          this.uiController.resourceAbsorptionSystem.emitDrop('sc', expandCost);
+        }
 
         // Generate 1 more imprint option
         this._generateImprintOptions(tower, 1);
@@ -354,76 +364,64 @@ export class StarUpgradeManager {
   }
 
   /**
-   * Update stat comparison display (스탯 비교 표시)
+   * Update stat comparison display — 5-column card grid (tower-stats 스타일)
    * @param {Object} oldBonuses - Original star bonuses
-   * @param {Object} newGains - New stat gains from roll
+   * @param {Object} newGains   - New stat gains from roll
    */
   _updateStatComparison(oldBonuses, newGains) {
     const statComparisonGrid = document.getElementById('statComparisonGrid');
     if (!statComparisonGrid) return;
 
+    // 포맷 헬퍼: 승수형(×) vs 가산형(+%p)
+    const fmtMult = (oldV, gain) => {
+      const oldPct  = ((oldV - 1) * 100).toFixed(1);
+      const total   = oldV * (1 + gain);
+      const totPct  = ((total - 1) * 100).toFixed(1);
+      const gainPct = (gain * 100).toFixed(1);
+      return { old: `+${oldPct}%`, new: `+${totPct}%`, gain: `+${gainPct}%` };
+    };
+    const fmtAdd = (oldV, gain) => {
+      const oldPct  = (oldV * 100).toFixed(1);
+      const totPct  = ((oldV + gain) * 100).toFixed(1);
+      const gainPct = (gain * 100).toFixed(1);
+      return { old: `+${oldPct}%`, new: `+${totPct}%`, gain: `+${gainPct}%` };
+    };
+    const fmtCritMult = (oldV, gain) => {
+      const base = 2.0;
+      return {
+        old:  `×${(base + oldV).toFixed(2)}`,
+        new:  `×${(base + oldV + gain).toFixed(2)}`,
+        gain: `+${gain.toFixed(2)}`
+      };
+    };
+
     const stats = [
-      {
-        name: '공격력',
-        icon: '⚔️',
-        oldValue: oldBonuses.damageMultiplier,
-        newGain: newGains.damageMultiplier,
-        newGrade: newGains.damageGrade,
-        isMultiplier: true
-      },
-      {
-        name: '공격속도',
-        icon: '⏱️',
-        oldValue: oldBonuses.attackSpeedMultiplier,
-        newGain: newGains.attackSpeedMultiplier,
-        newGrade: newGains.attackSpeedGrade,
-        isMultiplier: true
-      },
-      {
-        name: '사거리',
-        icon: '📍',
-        oldValue: oldBonuses.rangeMultiplier,
-        newGain: newGains.rangeMultiplier,
-        newGrade: newGains.rangeGrade,
-        isMultiplier: true
-      },
-      {
-        name: '치명타율',
-        icon: '🎲',
-        oldValue: oldBonuses.critChance || 0,
-        newGain: newGains.critChance,
-        newGrade: newGains.critGrade,
-        isMultiplier: false
-      }
+      { icon: '⚔️', name: '공격력',   fmt: fmtMult,     oldV: oldBonuses.damageMultiplier,      gain: newGains.damageMultiplier,      grade: newGains.damageGrade },
+      { icon: '⏱️', name: '공격속도', fmt: fmtMult,     oldV: oldBonuses.attackSpeedMultiplier, gain: newGains.attackSpeedMultiplier, grade: newGains.attackSpeedGrade },
+      { icon: '📍', name: '사거리',   fmt: fmtMult,     oldV: oldBonuses.rangeMultiplier,       gain: newGains.rangeMultiplier,       grade: newGains.rangeGrade },
+      { icon: '🎲', name: '치명타율', fmt: fmtAdd,      oldV: oldBonuses.critChance || 0,       gain: newGains.critChance,            grade: newGains.critGrade },
+      { icon: '💥', name: '치명배율', fmt: fmtCritMult, oldV: oldBonuses.critMultBonus || 0,    gain: newGains.critMultBonus,         grade: newGains.critMultGrade }
     ];
 
     statComparisonGrid.innerHTML = '';
 
     stats.forEach(stat => {
-      const oldPercent = stat.isMultiplier ? ((stat.oldValue - 1) * 100) : (stat.oldValue * 100);
-      const newGainPercent = stat.isMultiplier ? (stat.newGain * 100) : (stat.newGain * 100);
-      const newTotalValue = stat.isMultiplier ? (stat.oldValue * (1 + stat.newGain)) : (stat.oldValue + stat.newGain);
-      const newTotalPercent = stat.isMultiplier ? ((newTotalValue - 1) * 100) : (newTotalValue * 100);
-
-      const statRow = document.createElement('div');
-      statRow.className = 'stat-comparison-row';
-      statRow.innerHTML = `
-        <div class="stat-comparison-name">
-          <span class="stat-icon">${stat.icon}</span>
-          <span>${stat.name}</span>
-        </div>
+      const f = stat.fmt(stat.oldV, stat.gain);
+      const card = document.createElement('div');
+      // stat-comparison-row 유지 → StatRollingAnimation의 flash 효과 호환
+      card.className = 'stat-comp-card stat-comparison-row';
+      card.innerHTML = `
+        <span class="stat-comp-icon">${stat.icon}</span>
+        <span class="stat-comp-old">${f.old}</span>
         <div class="stat-comparison-values">
-          <span class="old-value">+${oldPercent.toFixed(1)}%</span>
-          <span class="arrow">→</span>
-          <span class="new-value">+${newTotalPercent.toFixed(1)}%</span>
-          <span class="gain">(+${newGainPercent.toFixed(1)}%)</span>
-          <div class="stat-grade-badge" style="background: ${stat.newGrade.color}">
-            <span class="grade-emoji">${stat.newGrade.emoji}</span>
-            <span class="grade-text">${stat.newGrade.grade}</span>
-          </div>
+          <span class="new-value stat-comp-new">${f.new}</span>
+        </div>
+        <div class="stat-grade-badge" style="background:${stat.grade.color}">
+          <span class="grade-emoji">${stat.grade.emoji}</span>
+          <span class="grade-text">${stat.grade.grade}</span>
         </div>
       `;
-      statComparisonGrid.appendChild(statRow);
+      statComparisonGrid.appendChild(card);
     });
   }
 
@@ -622,13 +620,18 @@ export class StarUpgradeManager {
   }
 
   /**
-   * Get reroll cost based on reroll count (리롤 비용 계산 - 횟수마다 증가)
-   * @param {number} rerollCount - Current reroll count
-   * @returns {number} SC cost
+   * 리롤 비용 계산: 기본 20 SC × 1.2^count (횟수 제한 없음)
+   * 예: 3 → 5 → 7 → 10 → 15 → 23 ...
    */
   _getRerollCost(rerollCount) {
-    // 첫 리롤: 20 SC
-    // 이후 리롤: +10 SC씩 증가 (20, 30, 40, 50, ...)
-    return 20 + (rerollCount * 10);
+    return Math.max(1, Math.round(3 * Math.pow(1.5, rerollCount)));
+  }
+
+  /**
+   * 선택지 추가 비용 계산: 기본 30 SC × 2^count (횟수 제한 없음)
+   * 예: 10 → 20 → 40 → 80 ...
+   */
+  _getExpandCost(expandCount) {
+    return Math.round(10 * Math.pow(2.0, expandCount));
   }
 }

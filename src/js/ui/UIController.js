@@ -190,6 +190,10 @@ export class UIController {
     this.resourceAbsorptionSystem = system;
   }
 
+  setCameraController(cc) {
+    this.cameraController = cc;
+  }
+
   setGameLoop(gameLoop) {
     this.gameLoop = gameLoop;
 

@@ -25,7 +25,7 @@ export class UpgradeNodeCard {
 
     const imprintCount = tower.imprintCounts.get(node.nodeNumber) || 0;
     const imprintSuffix = imprintCount > 0
-      ? `<span style="color: #ffd700; font-weight: 900;">+${imprintCount}</span>`
+      ? `<span style="background:#ffd700;color:#1a1a2e;font-weight:900;padding:2px 7px;border-radius:8px;border:2px solid #1a1a2e;box-shadow:0 2px 0 #1a1a2e;white-space:nowrap;">+${imprintCount}</span>`
       : '';
 
     const towerBaseCost = tower.definition.cost;
@@ -170,6 +170,12 @@ export class UpgradeNodeCard {
             this.ui._showToast(`노드 활성화: -🍎 ${ncCost} NC`, 'success');
             this.ui.updateNutritionDisplay(economySystem.getState());
             this.ui._triggerSave();
+
+            // NC 소비 낙하 연출
+            if (this.ui.resourceAbsorptionSystem && ncCost > 0) {
+              this.ui.resourceAbsorptionSystem.emitDrop('nc', ncCost);
+            }
+
             setTimeout(() => { this.ui._showUpgradeTree(tower); }, 200);
           }
         }
@@ -334,7 +340,7 @@ export class UpgradeNodeCard {
           ? `(+${totalBonus.toFixed(1)})`
           : `(+${totalBonus.toFixed(1)}%)${pattern.regex.source.includes('%p') ? 'p' : ''}`;
 
-        const replacement = `${m.fullMatch} <span style="color: #ffd700;">${bonusText}</span>`;
+        const replacement = `${m.fullMatch} <span style="background:#ffd700;color:#1a1a2e;font-weight:900;padding:1px 5px;border-radius:5px;border:2px solid #1a1a2e;">${bonusText}</span>`;
         enhancedText = enhancedText.substring(0, m.index)
           + replacement
           + enhancedText.substring(m.index + m.fullMatch.length);

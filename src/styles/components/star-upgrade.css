@@ -42,62 +42,65 @@
   margin-bottom: 15px;
 }
 
+/* ── 5-column stat comparison grid (tower-stats 동일 스타일) ── */
 .stat-comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+/* ── 카드: Row1 아이콘 / Row2 이전 수치 / Row3 변동 수치 / Row4 티어 ── */
+.stat-comp-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-
-.stat-comparison-row {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
+  gap: 6px;
+  padding: 12px 4px;
   background: #fff;
-  border: 4px solid #1a1a2e;
+  border: 3px solid #1a1a2e;
   border-radius: 12px;
-  box-shadow: 0 4px 0 #1a1a2e;
+  box-shadow: 0 3px 0 #1a1a2e;
+  text-align: center;
+  transition: all 0.2s;
 }
 
-.stat-comparison-name {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.stat-comp-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 0 #1a1a2e, 0 7px 12px rgba(0,217,255,0.25);
+}
+
+/* Row 1: 아이콘 */
+.stat-comp-icon {
+  font-size: 30px;
+  line-height: 1;
+  filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.15));
+}
+
+/* Row 2: 이전 수치 */
+.stat-comp-old {
+  font-size: 15px;
+  color: #999;
   font-weight: 700;
-  color: #1a1a2e;
+  line-height: 1;
 }
 
-.stat-comparison-name .stat-icon {
-  font-size: 20px;
-}
-
+/* Row 3: 변동 수치 (StatRollingAnimation이 직접 textContent 수정) */
 .stat-comparison-values {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 600;
+  justify-content: center;
 }
 
-.stat-comparison-values .old-value {
-  color: #666;
-  font-size: 14px;
-}
-
-.stat-comparison-values .arrow {
+.stat-comp-new {
   color: #00d9ff;
+  font-size: 19px;
   font-weight: 900;
+  line-height: 1;
 }
 
-.stat-comparison-values .new-value {
-  color: #00d9ff;
-  font-size: 16px;
-  font-weight: 900;
-}
-
-.stat-comparison-values .gain {
-  color: #4caf50;
-  font-size: 12px;
-  font-weight: 700;
+/* 기존 row 클래스: flash 애니메이션 호환용 유지 */
+.stat-comparison-row {
+  /* 카드 위에 덮어씌울 것 없음 — stat-comp-card가 레이아웃 담당 */
 }
 
 /* 각인 카드 컨테이너 (스탯 비교 섹션 안) */
@@ -188,55 +191,23 @@
   pointer-events: none;
 }
 
-/* 버튼 상단: 아이콘 + 제목 */
-.btn-header {
-  display: flex;
+/* 비용 숫자 (버튼 인라인) */
+#rerollCostDisplay,
+#expandCostDisplay {
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.action-btn.reroll-btn,
+.action-btn.expand-btn {
+  flex-direction: row;
   align-items: center;
-  gap: 6px;
   justify-content: center;
+  min-height: auto;
+  white-space: nowrap;
+  font-size: 22px;
 }
 
-.btn-icon {
-  font-size: 18px;
-}
-
-.btn-title {
-  font-size: 13px;
-  font-weight: 900;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-}
-
-/* 버튼 하단: 비용 + 횟수 */
-.btn-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-/* 비용 배지 (status-bar의 speed-cost 스타일) */
-.btn-cost {
-  font-size: 10px;
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
-  color: white;
-  padding: 3px 6px;
-  border-radius: 8px;
-  border: 2px solid var(--splat-dark);
-  box-shadow: 0 1px 0 var(--splat-dark),
-              inset 0 0 8px rgba(255, 255, 255, 0.3);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  font-weight: 900;
-  min-width: 32px;
-  text-align: center;
-}
-
-/* 횟수 표시 */
-.btn-count {
-  font-size: 11px;
-  font-weight: 900;
-  color: rgba(255, 255, 255, 0.8);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-}
 
 
 .imprint-cards-container {
@@ -461,17 +432,20 @@
   font-size: 18px;
 }
 
-/* Stat Grade Badge (등급 배지) */
+/* Row 4: 티어 배지 */
 .stat-grade-badge {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
-  padding: 4px 10px;
+  padding: 5px 10px;
   border-radius: 12px;
   border: 3px solid #1a1a2e;
   font-weight: 900;
   box-shadow: 0 2px 0 #1a1a2e;
-  margin-left: 8px;
+  margin-left: 0;
+  width: 100%;
+  box-sizing: border-box;
   transition: transform 0.2s;
 }
 
@@ -480,12 +454,12 @@
 }
 
 .grade-emoji {
-  font-size: 14px;
+  font-size: 19px;
   line-height: 1;
 }
 
 .grade-text {
-  font-size: 12px;
+  font-size: 17px;
   color: #1a1a2e;
   line-height: 1;
   text-shadow: none;

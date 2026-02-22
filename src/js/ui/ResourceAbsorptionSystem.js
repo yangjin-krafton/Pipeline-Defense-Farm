@@ -26,6 +26,10 @@ const WAIT_STAGGER    = 0.09;   // 토큰별 흡수 시작 시차 (초)
 const ABSORB_DUR      = 0.52;   // 흡수 이동 지속 (초)
 const MAX_TOKENS      = 10;     // 한 그룹 최대 토큰 수
 
+const DROP_SPAWN_STAGGER = 0.07;  // 뚝뚝 시차 (초)
+const DROP_GRAVITY       = 550;   // 낙하 중력 가속도 (px/s²)
+const DROP_MAX_LIFE      = 0.65;  // 낙하 최대 수명 (초)
+
 export class ResourceAbsorptionSystem {
   constructor() {
     this.canvas        = null;
@@ -142,11 +146,12 @@ export class ResourceAbsorptionSystem {
    * @param {number}       vy           WebGL2 가상 Y
    * @param {'nc'|'sc'}    resourceType
    * @param {number}       amount       획득량 (토큰 수 계산에 사용)
+   * @param {number}       [forceCount] 0이 아니면 토큰 수 강제 지정
    */
-  emitFromGamePos(vx, vy, resourceType, amount) {
+  emitFromGamePos(vx, vy, resourceType, amount, forceCount = 0) {
     if (!this.canvas) return;
     const pos = this.virtualToDesign(vx, vy);
-    this._spawnGroup(pos.x, pos.y, resourceType, amount);
+    this._spawnGroup(pos.x, pos.y, resourceType, amount, forceCount);
   }
 
   /**
@@ -161,10 +166,23 @@ export class ResourceAbsorptionSystem {
     this._spawnGroup(pos.x, pos.y, resourceType, amount);
   }
 
+  /**
+   * 재화 소비 시 리소스 바에서 토큰이 아래로 뚝뚝 떨어지며 소멸
+   * @param {'nc'|'sc'}  resourceType
+   * @param {number}     amount  소비량 (토큰 수 계산에 사용)
+   */
+  emitDrop(resourceType, amount) {
+    if (!this.canvas) return;
+    const el = resourceType === 'nc' ? this._ncTarget : this._scTarget;
+    if (!el) return;
+    const pos = this.elementToDesign(el);
+    this._spawnDropGroup(pos.x, pos.y, resourceType, amount);
+  }
+
   // ─── 내부: 그룹 생성 ─────────────────────────────────────────────────────
 
-  _spawnGroup(srcX, srcY, resourceType, amount) {
-    const count  = this._calcTokenCount(amount);
+  _spawnGroup(srcX, srcY, resourceType, amount, forceCount = 0) {
+    const count  = forceCount > 0 ? forceCount : this._calcTokenCount(amount);
     const target = this._getTargetPos(resourceType);
     const tokens = [];
 
@@ -211,7 +229,7 @@ export class ResourceAbsorptionSystem {
         // 이 토큰의 waiting 지속: 첫 토큰은 짧게, 이후 순번마다 stagger
         waitDur: 0.10 + i * WAIT_STAGGER,
         // 시각
-        size:     13 + Math.random() * 4,
+        size:     26 + Math.random() * 8,
         alpha:    1,
         scaleVal: 1,
       });
@@ -220,7 +238,45 @@ export class ResourceAbsorptionSystem {
     this.groups.push({ tokens });
   }
 
-  /** 획득량 → 토큰 수 (로그 스케일, 1~MAX_TOKENS) */
+  // ─── 내부: 드롭 그룹 생성 ───────────────────────────────────────────────
+
+  _spawnDropGroup(srcX, srcY, resourceType, amount) {
+    const count  = this._calcDropTokenCount(amount);
+    const tokens = [];
+
+    for (let i = 0; i < count; i++) {
+      // 수평 scatter: 리소스 바 범위 안에서 약간 흩어져 발생
+      const offsetX = (Math.random() - 0.5) * 28;
+
+      tokens.push({
+        resourceType,
+        isDrop:   true,
+        x:        srcX + offsetX,
+        y:        srcY,
+        vx:       (Math.random() - 0.5) * 35,
+        vy:       -(15 + Math.random() * 25),  // 살짝 위로 튀어오른 뒤 낙하
+        gravity:  DROP_GRAVITY + Math.random() * 150,
+        phase:    'drop_pending',
+        timer:    0,
+        spawnDelay: i * DROP_SPAWN_STAGGER,
+        life:     0,
+        maxLife:  DROP_MAX_LIFE + Math.random() * 0.15,
+        size:     24 + Math.random() * 6,
+        alpha:    0,      // 스폰 전 투명
+        scaleVal: 1,
+      });
+    }
+
+    this.groups.push({ tokens });
+  }
+
+  /** 소비량 → 드롭 토큰 수 (2~6) */
+  _calcDropTokenCount(amount) {
+    if (amount <= 0) return 2;
+    return Math.min(Math.max(2, Math.ceil(Math.log2(amount / 8 + 1))), 6);
+  }
+
+  /** 획득량 → 흡수 토큰 수 (로그 스케일, 1~MAX_TOKENS) */
   _calcTokenCount(amount) {
     if (amount <= 0) return 1;
     return Math.min(Math.max(1, Math.ceil(Math.log2(amount + 1))), MAX_TOKENS);
@@ -247,9 +303,11 @@ export class ResourceAbsorptionSystem {
         allDone = false;
         token.timer += dt;
 
-        if      (token.phase === 'burst')   this._updateBurst(token);
-        else if (token.phase === 'waiting') this._updateWaiting(token);
-        else if (token.phase === 'absorb')  this._updateAbsorb(token);
+        if      (token.phase === 'burst')        this._updateBurst(token);
+        else if (token.phase === 'waiting')      this._updateWaiting(token);
+        else if (token.phase === 'absorb')       this._updateAbsorb(token);
+        else if (token.phase === 'drop_pending') this._updateDropPending(token);
+        else if (token.phase === 'dropping')     this._updateDropping(token, dt);
       }
 
       if (allDone) this.groups.splice(g, 1);
@@ -314,6 +372,26 @@ export class ResourceAbsorptionSystem {
       token.phase = 'done';
       if (this.onTokenAbsorbed) this.onTokenAbsorbed(token.resourceType);
     }
+  }
+
+  /** Drop Phase 1: 스폰 지연 대기 (투명) */
+  _updateDropPending(token) {
+    if (token.timer >= token.spawnDelay) {
+      token.phase  = 'dropping';
+      token.timer  = 0;
+      token.life   = token.maxLife;
+      token.alpha  = 1;
+    }
+  }
+
+  /** Drop Phase 2: 중력으로 낙하하며 페이드아웃 */
+  _updateDropping(token, dt) {
+    token.vy  += token.gravity * dt;
+    token.x   += token.vx * dt;
+    token.y   += token.vy * dt;
+    token.life -= dt;
+    token.alpha = Math.max(0, token.life / token.maxLife);
+    if (token.life <= 0) token.phase = 'done';
   }
 
   // ─── 내부: 렌더링 ────────────────────────────────────────────────────────

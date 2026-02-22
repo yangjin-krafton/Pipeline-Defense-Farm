@@ -539,6 +539,7 @@ async function init() {
   // Initialize Camera Controller
   const canvasContainer = document.querySelector('.canvas-container');
   const cameraController = new CameraController(canvasContainer);
+  uiController.setCameraController(cameraController);
 
   // Set up camera callbacks for UI sheet
   uiController.setOnSheetOpen((slot) => {

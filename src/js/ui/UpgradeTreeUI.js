@@ -185,6 +185,12 @@ export class UpgradeTreeUI {
           this.ui.updateNutritionDisplay(es.getState());
           this.ui.starUpgradeManager.showStarUpgradeUI(tower);
           this.ui._triggerSave();
+
+          // NC·SC 소비 낙하 연출
+          if (this.ui.resourceAbsorptionSystem) {
+            if (cost.nc > 0) this.ui.resourceAbsorptionSystem.emitDrop('nc', cost.nc);
+            if (cost.sc > 0) this.ui.resourceAbsorptionSystem.emitDrop('sc', cost.sc);
+          }
         });
 
         pointsDisplay.onmouseenter = () => {
@@ -286,6 +292,12 @@ export class UpgradeTreeUI {
           this.ui.updateNutritionDisplay(economySystem.getState());
           this.ui._triggerSave();
           this.show(tower);
+
+          // NC·SC 소비 낙하 연출
+          if (this.ui.resourceAbsorptionSystem) {
+            if (resetNCCost > 0) this.ui.resourceAbsorptionSystem.emitDrop('nc', resetNCCost);
+            if (resetSCCost > 0) this.ui.resourceAbsorptionSystem.emitDrop('sc', resetSCCost);
+          }
         }
       });
     });

@@ -12,6 +12,9 @@ export class CameraController {
     this.targetOffset = { x: 0, y: 0 };
     this.isAnimating = false;
     this.animationSpeed = 0.15; // Smoothing factor (0-1)
+
+    /** reset() 완료 후 한 번만 호출되는 콜백. 외부에서 직접 대입. */
+    this._onResetComplete = null;
   }
 
   /**
@@ -92,6 +95,13 @@ export class CameraController {
     if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) {
       this.currentOffset = { ...this.targetOffset };
       this.isAnimating = false;
+
+      // reset() 완료 콜백 호출 (한 번 실행 후 제거)
+      if (this._onResetComplete) {
+        const cb = this._onResetComplete;
+        this._onResetComplete = null;
+        cb();
+      }
     } else {
       this.currentOffset.x += dx * this.animationSpeed;
       this.currentOffset.y += dy * this.animationSpeed;

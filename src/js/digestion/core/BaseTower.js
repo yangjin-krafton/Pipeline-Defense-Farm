@@ -31,7 +31,8 @@ export class BaseTower {
       damageMultiplier: 1.0,
       attackSpeedMultiplier: 1.0,
       rangeMultiplier: 1.0,
-      critChance: 0.0
+      critChance: 0.0,
+      critMultBonus: 0.0
     };
 
     // 각인 (추후 ImprintSystem에서 관리)
@@ -147,7 +148,8 @@ export class BaseTower {
       damage: effectiveDamage,
       currentTime: currentTime,
       isCritical: false,
-      critChance: this.starBonuses.critChance || 0,  // star-level crit base
+      critChance: this.starBonuses.critChance || 0,
+      critMultiplierBonus: this.starBonuses.critMultBonus || 0,
       statusEffects: [],
       onKillEffects: [],
       projectile: null,

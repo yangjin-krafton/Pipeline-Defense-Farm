@@ -213,7 +213,7 @@ export class TowerGrowthSystem {
 
   /**
    * 랜덤 스탯 증가 롤
-   * @returns {{damageMultiplier, attackSpeedMultiplier, rangeMultiplier, critChance}}
+   * @returns {{damageMultiplier, attackSpeedMultiplier, rangeMultiplier, critChance, critMultBonus}}
    */
   _rollStatGains() {
     // 공격력: +5% ~ +11% (하한 +7%)
@@ -232,11 +232,16 @@ export class TowerGrowthSystem {
     let critChance = 0.01 + Math.random() * 0.03;
     if (critChance < 0.01) critChance = 0.01;
 
+    // 치명타 배율: +0.10 ~ +0.40 보너스 (하한 +0.10)
+    let critMultBonus = 0.10 + Math.random() * 0.30;
+    if (critMultBonus < 0.10) critMultBonus = 0.10;
+
     return {
       damageMultiplier: damage,
       attackSpeedMultiplier: attackSpeed,
       rangeMultiplier: range,
-      critChance: critChance
+      critChance: critChance,
+      critMultBonus: critMultBonus
     };
   }
 
@@ -269,7 +274,7 @@ export class TowerGrowthSystem {
 
   /**
    * 스탯 롤 (등급 정보 포함)
-   * @returns {{damageMultiplier, damageGrade, attackSpeedMultiplier, attackSpeedGrade, rangeMultiplier, rangeGrade, critChance, critGrade}}
+   * @returns {{damageMultiplier, damageGrade, attackSpeedMultiplier, attackSpeedGrade, rangeMultiplier, rangeGrade, critChance, critGrade, critMultBonus, critMultGrade}}
    */
   _rollStatGainsWithGrades() {
     const gains = this._rollStatGains();
@@ -285,7 +290,10 @@ export class TowerGrowthSystem {
       rangeGrade: this.calculateStatGrade(gains.rangeMultiplier, 0.01, 0.03),
 
       critChance: gains.critChance,
-      critGrade: this.calculateStatGrade(gains.critChance, 0.01, 0.04)
+      critGrade: this.calculateStatGrade(gains.critChance, 0.01, 0.04),
+
+      critMultBonus: gains.critMultBonus,
+      critMultGrade: this.calculateStatGrade(gains.critMultBonus, 0.10, 0.40)
     };
   }
 
@@ -297,6 +305,7 @@ export class TowerGrowthSystem {
     tower.starBonuses.attackSpeedMultiplier *= (1 + gains.attackSpeedMultiplier);
     tower.starBonuses.rangeMultiplier *= (1 + gains.rangeMultiplier);
     tower.starBonuses.critChance = (tower.starBonuses.critChance || 0) + gains.critChance;
+    tower.starBonuses.critMultBonus = (tower.starBonuses.critMultBonus || 0) + gains.critMultBonus;
   }
 
   /**
@@ -329,6 +338,7 @@ export class TowerGrowthSystem {
       tower.starBonuses.attackSpeedMultiplier /= (1 + lastGain.attackSpeedMultiplier);
       tower.starBonuses.rangeMultiplier /= (1 + lastGain.rangeMultiplier);
       tower.starBonuses.critChance = Math.max(0, (tower.starBonuses.critChance || 0) - (lastGain.critChance || 0));
+      tower.starBonuses.critMultBonus = Math.max(0, (tower.starBonuses.critMultBonus || 0) - (lastGain.critMultBonus || 0));
     }
 
     // 새 스탯 롤

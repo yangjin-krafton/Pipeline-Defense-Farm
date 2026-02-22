@@ -141,8 +141,8 @@ export class TowerDetailPanel {
     }
     const critChancePct = Math.round(critChance * 100);
 
-    // ── 5. 치명타 배율 ───────────────────────────────────────
-    let critMultBonus = 0;
+    // ── 5. 치명타 배율 (star 기반 + 모듈 합산) ──────────────
+    let critMultBonus = tower.starBonuses.critMultBonus || 0;
     for (const m of modules) {
       critMultBonus += m.critMultiplierBonus ?? 0;
       critMultBonus += m.critDamageBonus ?? 0;
@@ -363,6 +363,11 @@ export class TowerDetailPanel {
           this.ui._playUISfx('tower_place', { volume: 0.85 });
           this.ui.closeSheet();
           this.ui.updateNutritionDisplay(economySystem.getState());
+
+          // NC 소비 낙하 연출
+          if (this.ui.resourceAbsorptionSystem) {
+            this.ui.resourceAbsorptionSystem.emitDrop('nc', definition.cost);
+          }
         }
       };
     });
@@ -370,24 +375,66 @@ export class TowerDetailPanel {
 
   /**
    * 타워 판매 처리 (시트 닫기 포함)
+   *
+   * 순서:
+   *   1. 환급금 계산 (타워는 아직 게임에 존재)
+   *   2. 시트 닫기 → 카메라 리셋 애니메이션 시작
+   *   3. 카메라 정착 완료 후:
+   *      a. 타워 실제 제거 + NC 지급
+   *      b. 타워 위치에서 NC 토큰 폭발 → NC 바로 흡수
    */
   _handleSellTower() {
     if (!this.ui.gameLoop || !this.ui.selectedSlot) return;
 
-    const towerManager = this.ui.gameLoop.getTowerManager();
-    const tower = towerManager.getTowerAtSlot(this.ui.selectedSlot);
+    const towerManager  = this.ui.gameLoop.getTowerManager();
+    const tower         = towerManager.getTowerAtSlot(this.ui.selectedSlot);
 
     if (!tower) {
       console.warn('No tower to sell');
       return;
     }
 
-    const refund = towerManager.sellTower(tower);
-    const economySystem = this.ui.gameLoop.getEconomySystem();
-    economySystem.earn(refund);
+    // closeSheet()가 selectedSlot을 null로 초기화하기 전에 캡처
+    const sellSlot = this.ui.selectedSlot;
 
-    console.log(`Tower sold for ${refund} nutrition`);
-    this.ui.updateNutritionDisplay(economySystem.getState());
+    // 환급금 미리 계산 (타워는 아직 게임에 남아있음)
+    const refund = towerManager.calculateSellValue(tower);
+
+    // 시트 닫기 (카메라 리셋 시작)
     this.ui.closeSheet();
+
+    // ─── 판매 실행 함수 (중복 방지 플래그 포함) ────────────────────────────
+    let _executed = false;
+    const doSell = () => {
+      if (_executed) return;
+      _executed = true;
+
+      towerManager.sellTower(tower);
+
+      const economySystem = this.ui.gameLoop.getEconomySystem();
+      economySystem.earnNC(refund);
+      this.ui.updateNutritionDisplay(economySystem.getState());
+
+      if (this.ui.resourceAbsorptionSystem && sellSlot && refund > 0) {
+        this.ui.resourceAbsorptionSystem.emitFromGamePos(
+          sellSlot.x, sellSlot.y, 'nc', refund, 10
+        );
+      }
+    };
+
+    // ─── 트리거: 카메라 정착 AND 최소 420ms 경과 — 둘 다 충족 시 실행 ────
+    //   · 카메라가 이미 정지해 있어도 420ms가 gate 역할 → 즉시 사라짐 방지
+    //   · 카메라 이동이 420ms 초과 시 카메라 완료가 추가 gate 역할
+    let _cameraOk = false;
+    let _timerOk  = false;
+    const tryFire = () => { if (_cameraOk && _timerOk) doSell(); };
+
+    if (this.ui.cameraController) {
+      this.ui.cameraController._onResetComplete = () => { _cameraOk = true; tryFire(); };
+    } else {
+      _cameraOk = true;
+    }
+
+    setTimeout(() => { _timerOk = true; tryFire(); }, 420);
   }
 }
