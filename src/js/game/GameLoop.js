@@ -622,6 +622,14 @@ export class GameLoop {
         console.log('[GameLoop] Time tracking restored');
       }
 
+      // 5. 난이도 복원
+      if (saveData.difficulty?.difficultyValue != null) {
+        const dv = Math.max(0, Math.min(1, saveData.difficulty.difficultyValue));
+        this.difficultyEngine.difficultyValue = dv;
+        this.difficultyEngine._smoothed       = dv;
+        console.log('[GameLoop] Difficulty restored:', dv);
+      }
+
       console.log('[GameLoop] Game state loaded successfully');
       return true;
     } catch (error) {

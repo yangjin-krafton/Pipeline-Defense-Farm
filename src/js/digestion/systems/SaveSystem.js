@@ -66,6 +66,11 @@ export class SaveSystem {
         wave: {
           currentWave: gameState.wave.currentWave,
           waveCleared: gameState.wave.waveCleared
+        },
+
+        // 전장 난이도
+        difficulty: {
+          difficultyValue: gameState.difficulty.difficultyValue
         }
       };
 
@@ -271,6 +276,10 @@ export class SaveSystem {
       wave: {
         currentWave: 1,
         waveCleared: 0
+      },
+
+      difficulty: {
+        difficultyValue: gameLoop.difficultyEngine?.difficultyValue ?? 0.05
       }
     };
   }
