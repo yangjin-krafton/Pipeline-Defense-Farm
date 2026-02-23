@@ -15,7 +15,7 @@ export class SaveSystem {
     // MAJOR: 대규모 변경 (저장 데이터 호환 불가)
     // MINOR: 기능 추가 (저장 데이터 호환)
     // PATCH: 버그 수정 (저장 데이터 호환)
-    this.gameVersion = '1.1.0';
+    this.gameVersion = '2.0.0';
 
     console.log(`[SaveSystem] Initialized - Version ${this.gameVersion}`);
   }
