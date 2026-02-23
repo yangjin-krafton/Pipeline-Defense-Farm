@@ -10,7 +10,7 @@ export const ZONE_REWARD_MULTIPLIERS = {
 
 // NC (Nutrition Credit) - 누적형 재화
 export const NC_CONFIG = {
-  initialBalance: 500,
+  initialBalance: 1000,
   displayName: '영양 크레딧',
   emoji: '🍎',
   // 온라인 수급
