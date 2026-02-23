@@ -158,6 +158,53 @@ export const WAVE_PATTERNS = [
       { at: 21.0, mode: 'triple', levelMin: 95, levelMax: 100, path: null },
     ],
   },
+
+  // ══════════════════════════════════════════════════════════════════════
+  // 유인 + 기습  0.45 ~ 0.72  — 약한 놈 9마리로 어그로 분산, 그 틈에 elite 기습
+  // ══════════════════════════════════════════════════════════════════════
+  {
+    id: 'lure_and_strike',
+    minDiff: 0.45, maxDiff: 0.72,
+    script: [
+      { at:  0.0, mode: 'triple', levelMin: 25, levelMax: 45, path: null },
+      { at:  2.5, mode: 'triple', levelMin: 25, levelMax: 45, path: null },
+      { at:  5.0, mode: 'triple', levelMin: 25, levelMax: 45, path: null },
+      { at:  6.5, mode: 'single', levelMin: 72, levelMax: 90, path: 'random' },
+      { at:  8.0, mode: 'single', levelMin: 72, levelMax: 90, path: 'random' },
+    ],
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  // 계단  0.35 ~ 0.70  — 같은 경로, 3회에 걸쳐 레벨 점증
+  // ══════════════════════════════════════════════════════════════════════
+  {
+    id: 'escalation',
+    minDiff: 0.35, maxDiff: 0.70,
+    script: [
+      { at:  0.0, mode: 'line', levelMin: 30, levelMax: 45, path: 'round_robin', count: 3, gap: 20, speedScale: 0.92 },
+      { at:  6.0, mode: 'line', levelMin: 48, levelMax: 62, path: 'round_robin', count: 3, gap: 20, speedScale: 0.88 },
+      { at: 12.0, mode: 'line', levelMin: 65, levelMax: 80, path: 'round_robin', count: 3, gap: 20, speedScale: 0.84 },
+      { at: 17.0, mode: 'single', levelMin: 80, levelMax: 95, path: 'round_robin' },
+    ],
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  // 홍수  0.20 ~ 0.55  — 약한 적 대량, 타워 쿨다운 초과 유도
+  // ══════════════════════════════════════════════════════════════════════
+  {
+    id: 'swarm',
+    minDiff: 0.20, maxDiff: 0.55,
+    script: [
+      { at:  0.0, mode: 'triple', levelMin:  5, levelMax: 30, path: null },
+      { at:  1.5, mode: 'triple', levelMin:  5, levelMax: 30, path: null },
+      { at:  3.0, mode: 'triple', levelMin:  5, levelMax: 30, path: null },
+      { at:  4.5, mode: 'triple', levelMin:  5, levelMax: 30, path: null },
+      { at:  6.0, mode: 'triple', levelMin:  5, levelMax: 30, path: null },
+      { at:  7.5, mode: 'triple', levelMin:  5, levelMax: 30, path: null },
+      { at:  9.0, mode: 'triple', levelMin:  5, levelMax: 30, path: null },
+      { at: 10.5, mode: 'triple', levelMin:  5, levelMax: 30, path: null },
+    ],
+  },
 ];
 
 /**
