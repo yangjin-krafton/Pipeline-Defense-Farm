@@ -15,7 +15,7 @@ export class SaveSystem {
     // MAJOR: 대규모 변경 (저장 데이터 호환 불가)
     // MINOR: 기능 추가 (저장 데이터 호환)
     // PATCH: 버그 수정 (저장 데이터 호환)
-    this.gameVersion = '1.0.0';
+    this.gameVersion = '1.1.0';
 
     console.log(`[SaveSystem] Initialized - Version ${this.gameVersion}`);
   }
@@ -71,7 +71,10 @@ export class SaveSystem {
         // 전장 난이도
         difficulty: {
           difficultyValue: gameState.difficulty.difficultyValue
-        }
+        },
+
+        // 언락된 슬롯 키 목록
+        unlockedSlots: gameState.unlockedSlots || []
       };
 
       localStorage.setItem(this.saveKey, JSON.stringify(saveData));
@@ -280,7 +283,9 @@ export class SaveSystem {
 
       difficulty: {
         difficultyValue: gameLoop.difficultyEngine?.difficultyValue ?? 0.05
-      }
+      },
+
+      unlockedSlots: towerManager.getUnlockedSlotKeys()
     };
   }
 }

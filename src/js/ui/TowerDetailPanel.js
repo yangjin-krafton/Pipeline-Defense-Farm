@@ -63,6 +63,65 @@ export class TowerDetailPanel {
   }
 
   /**
+   * 잠긴 슬롯 언락 패널 표시
+   * @param {Object} slot - TOWER_SLOTS 슬롯 객체 (unlockCost 포함)
+   */
+  showUnlock(slot) {
+    if (this.ui.starUpgradeManager?.isCurrentlyUpgrading()) {
+      this.ui.starUpgradeManager.dismissUpgradeUI();
+    }
+
+    const starUpgradeUI = document.getElementById('tower-star-upgrade');
+    if (starUpgradeUI) starUpgradeUI.classList.add('hidden');
+    if (this.ui.towerDetailContent) this.ui.towerDetailContent.classList.add('hidden');
+    if (this.ui.towerBuildContent) this.ui.towerBuildContent.classList.add('hidden');
+    if (this.ui.towerUnlockContent) this.ui.towerUnlockContent.classList.remove('hidden');
+
+    // 비용 표시
+    const costEl = document.getElementById('unlockCostAmount');
+    if (costEl) costEl.textContent = `🍎 ${slot.unlockCost.toLocaleString()}`;
+
+    // 언락 확인 버튼
+    const confirmBtn = document.getElementById('confirmUnlockBtn');
+    if (confirmBtn) {
+      confirmBtn.onclick = (e) => {
+        e.stopPropagation();
+        const economySystem = this.ui.gameLoop?.getEconomySystem();
+        const towerManager = this.ui.gameLoop?.getTowerManager();
+        if (!economySystem || !towerManager) return;
+
+        if (!economySystem.canAffordNC(slot.unlockCost)) {
+          this.ui._playUISfx('ui_error', { volume: 0.78 });
+          this.ui._showToast(`NC 부족 (필요: 🍎 ${slot.unlockCost.toLocaleString()})`, 'error');
+          return;
+        }
+
+        economySystem.spendNC(slot.unlockCost);
+        towerManager.unlockSlot(slot);
+        this.ui.updateNutritionDisplay(economySystem.getState());
+
+        if (this.ui.resourceAbsorptionSystem) {
+          this.ui.resourceAbsorptionSystem.emitDrop('nc', slot.unlockCost);
+        }
+
+        this.ui._playUISfx('tower_place', { volume: 0.85 });
+        this.ui._showToast('슬롯 언락!', 'success');
+        this.ui._triggerSave();
+        this.ui.closeSheet();
+      };
+    }
+
+    // 닫기 버튼
+    const closeBtn = document.getElementById('closeUnlockBtn');
+    if (closeBtn) {
+      closeBtn.onclick = (e) => {
+        e.stopPropagation();
+        this.ui.closeSheet();
+      };
+    }
+  }
+
+  /**
    * 빈 슬롯 타워 설치 패널 표시 (_showTowerBuild)
    */
   showBuild() {

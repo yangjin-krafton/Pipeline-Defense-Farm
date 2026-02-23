@@ -38,6 +38,7 @@ export class UIController {
     // DOM 참조 (init에서 채워짐)
     this.towerDetailContent = null;
     this.towerBuildContent = null;
+    this.towerUnlockContent = null;
 
     // 서브 모듈 (init에서 생성)
     this.bottomSheetController = null;
@@ -55,6 +56,7 @@ export class UIController {
     this.sheetHandle = document.getElementById('sheetHandle');
     this.towerDetailContent = document.getElementById('tower-detail');
     this.towerBuildContent = document.getElementById('tower-build');
+    this.towerUnlockContent = document.getElementById('tower-unlock');
 
     console.log('UIController init:', {
       bottomSheet: !!this.bottomSheet,
@@ -144,6 +146,7 @@ export class UIController {
 
       if (this.towerDetailContent) this.towerDetailContent.classList.add('hidden');
       if (this.towerBuildContent) this.towerBuildContent.classList.add('hidden');
+      if (this.towerUnlockContent) this.towerUnlockContent.classList.add('hidden');
 
       if (this.onSheetCloseCallback) this.onSheetCloseCallback();
     }
@@ -160,6 +163,14 @@ export class UIController {
     }
 
     const towerManager = this.gameLoop.getTowerManager();
+
+    // 잠긴 슬롯 처리
+    if (!towerManager.isSlotUnlocked(slotData)) {
+      this.towerDetailPanel.showUnlock(slotData);
+      this.openSheet();
+      return;
+    }
+
     const existingTower = towerManager.getTowerAtSlot(slotData);
 
     if (existingTower) {

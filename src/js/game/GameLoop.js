@@ -1,7 +1,7 @@
 /**
  * Main game loop
  */
-import { BASE_SPEED, PATHS, PATH_RENDER_SETTINGS } from '../config.js';
+import { BASE_SPEED, PATHS, PATH_RENDER_SETTINGS, TOWER_SLOTS } from '../config.js';
 import { FoodSpawner } from './FoodSpawner.js';
 import { DifficultyEngine } from './DifficultyEngine.js';
 import { hexToRgba } from '../utils/geometry.js';
@@ -394,6 +394,19 @@ export class GameLoop {
       renderer.drawTower(tower, scale);
     }
 
+    // 잠긴 슬롯에 🔒 아이콘 표시
+    const ctx = renderer.ctx;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const slot of TOWER_SLOTS) {
+      if (!this.towerManager.isSlotUnlocked(slot)) {
+        const sx = slot.x * scale;
+        const sy = slot.y * scale;
+        ctx.font = `${Math.round(13 * scale)}px Arial`;
+        ctx.fillText('🔒', sx, sy);
+      }
+    }
+
     // Badge removed from UI, score tracking still active
     if (this.scoreDirty) {
       this.scoreDirty = false;
@@ -628,6 +641,12 @@ export class GameLoop {
         this.difficultyEngine.difficultyValue = dv;
         this.difficultyEngine._smoothed       = dv;
         console.log('[GameLoop] Difficulty restored:', dv);
+      }
+
+      // 6. 언락된 슬롯 복원
+      if (saveData.unlockedSlots?.length > 0) {
+        this.towerManager.setUnlockedSlotKeys(saveData.unlockedSlots);
+        console.log('[GameLoop] Unlocked slots restored:', saveData.unlockedSlots);
       }
 
       console.log('[GameLoop] Game state loaded successfully');

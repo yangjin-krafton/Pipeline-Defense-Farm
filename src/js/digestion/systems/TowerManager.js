@@ -14,10 +14,35 @@ export class TowerManager {
   constructor() {
     this.towers = [];
     this.towersBySlot = new Map(); // slotKey -> tower
+    this.unlockedSlots = new Set(); // NC 소비로 언락된 슬롯 키 집합 ('x_y' 형식)
 
     // Systems
     this.bulletSystem = null;
     this.particleSystem = null;
+  }
+
+  _slotKey(slot) {
+    return `${slot.x}_${slot.y}`;
+  }
+
+  /** unlockCost === 0 이면 처음부터 개방, 그 외엔 Set에 있어야 언락 */
+  isSlotUnlocked(slot) {
+    if (!slot.unlockCost || slot.unlockCost === 0) return true;
+    return this.unlockedSlots.has(this._slotKey(slot));
+  }
+
+  unlockSlot(slot) {
+    this.unlockedSlots.add(this._slotKey(slot));
+  }
+
+  /** 저장용 배열 반환 */
+  getUnlockedSlotKeys() {
+    return Array.from(this.unlockedSlots);
+  }
+
+  /** 로드용 — 저장된 배열로 Set 복원 */
+  setUnlockedSlotKeys(keys) {
+    this.unlockedSlots = new Set(keys);
   }
 
   /**
