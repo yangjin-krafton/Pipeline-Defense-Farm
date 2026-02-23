@@ -22,6 +22,11 @@ export class UpgradeTreeUI {
     const upgradeContent = document.querySelector('.upgrade-content');
     if (!upgradeContent) return;
 
+    // 리렌더 전 스크롤 위치 저장
+    const prevScroll = this.currentScrollContainer
+      ? { left: this.currentScrollContainer.scrollLeft, top: this.currentScrollContainer.scrollTop }
+      : null;
+
     upgradeContent.innerHTML = '';
 
     if (!tower.upgradeTree || !tower.upgradeTree.nodes || tower.upgradeTree.nodes.length === 0) {
@@ -113,6 +118,12 @@ export class UpgradeTreeUI {
     upgradeContent.appendChild(scrollContainer);
 
     this._setupDragScroll(scrollContainer);
+
+    // 이전 스크롤 위치 복원 (노드 활성화 후 리렌더 시 위치 유지)
+    if (prevScroll) {
+      scrollContainer.scrollLeft = prevScroll.left;
+      scrollContainer.scrollTop = prevScroll.top;
+    }
   }
 
   /**
