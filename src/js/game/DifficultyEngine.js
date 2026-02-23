@@ -129,14 +129,14 @@ export class DifficultyEngine {
 
     // leakScore : 누수율 높으면 → 플레이어가 못 막는 것 → pressure 下
     //   (누수 = 난이도를 낮춰야 한다는 신호)
-    //   leakRate 30% 이상이면 1.0
-    const leakScore = clamp01(leakRate / 0.30);
+    //   leakRate 20% 이상이면 1.0 (더 민감하게 반응)
+    const leakScore = clamp01(leakRate / 0.20);
 
     // ── 통합 rawTarget ────────────────────────────────────────────────
     // aliveScore, ttkScore 는 "올려야" 하는 신호
-    // leakScore 는 "내려야" 하는 신호
+    // leakScore 는 "내려야" 하는 신호 (가중치 0.70으로 증가 → 이탈 시 큰 페널티)
     const rawTarget = hasSamples
-      ? clamp01((aliveScore * 0.40) + (ttkScore * 0.40) - (leakScore * 0.30) + 0.15)
+      ? clamp01((aliveScore * 0.35) + (ttkScore * 0.35) - (leakScore * 0.70) + 0.15)
       : this._smoothed; // 샘플 부족 시 현상 유지
 
     // ── EMA 스무딩 ────────────────────────────────────────────────────

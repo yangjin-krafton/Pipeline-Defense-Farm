@@ -651,6 +651,12 @@ export class GameLoop {
         console.log('[GameLoop] Unlocked slots restored:', saveData.unlockedSlots);
       }
 
+      // 7. 스포너 상태 복원 (레벨 구간)
+      if (saveData.spawner) {
+        this.foodSpawner.loadFromSave(saveData.spawner);
+        console.log('[GameLoop] Spawner state restored:', saveData.spawner);
+      }
+
       console.log('[GameLoop] Game state loaded successfully');
       return true;
     } catch (error) {

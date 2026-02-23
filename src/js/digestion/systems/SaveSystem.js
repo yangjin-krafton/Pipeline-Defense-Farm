@@ -73,6 +73,13 @@ export class SaveSystem {
           difficultyValue: gameState.difficulty.difficultyValue
         },
 
+        // 스포너 상태 (레벨 구간)
+        spawner: {
+          escalationLevel: gameState.spawner?.escalationLevel ?? 0,
+          currentLevelMin: gameState.spawner?.currentLevelMin ?? 1,
+          currentLevelMax: gameState.spawner?.currentLevelMax ?? 5
+        },
+
         // 언락된 슬롯 키 목록
         unlockedSlots: gameState.unlockedSlots || []
       };
@@ -222,6 +229,7 @@ export class SaveSystem {
     const towerManager = gameLoop.getTowerManager();
     const economySystem = gameLoop.getEconomySystem();
     const timeTrackingSystem = gameLoop.getTimeTrackingSystem();
+    const foodSpawner = gameLoop.foodSpawner;
 
     const towers = towerManager.getAllTowers().map((tower, index) => {
       // activeNodes가 Set<UpgradeNode>일 수 있으므로 nodeNumber만 추출
@@ -283,6 +291,12 @@ export class SaveSystem {
 
       difficulty: {
         difficultyValue: gameLoop.difficultyEngine?.difficultyValue ?? 0.05
+      },
+
+      spawner: foodSpawner?.getState() || {
+        escalationLevel: 0,
+        currentLevelMin: 1,
+        currentLevelMax: 5
       },
 
       unlockedSlots: towerManager.getUnlockedSlotKeys()

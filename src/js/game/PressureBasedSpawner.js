@@ -21,7 +21,7 @@ import { BASE_SPEED } from '../config.js';
 
 // ── 압박도 설정 ─────────────────────────────────────────────────────────
 /** 목표 압박도 (0.0 ~ 1.0) - 높을수록 더 많은 적 스폰 */
-const TARGET_PRESSURE = 0.80;
+const TARGET_PRESSURE = 0.50;
 
 /** 압박도 계산 가중치 */
 const PRESSURE_WEIGHTS = {
@@ -32,41 +32,57 @@ const PRESSURE_WEIGHTS = {
 
 // ── 스폰 간격 설정 ────────────────────────────────────────────────────────
 /** 최소 스폰 간격 (초) - 이보다 빠르게는 스폰 안 함 */
-const MIN_SPAWN_INTERVAL = 0.12;
+const MIN_SPAWN_INTERVAL = 0.35;
 
 /** 최대 스폰 간격 (초) - 이보다 느리게는 스폰 안 함 */
 const MAX_SPAWN_INTERVAL = 2.5;
 
 /** 초기 스폰 간격 (초) */
-const INITIAL_SPAWN_INTERVAL = 0.3;
+const INITIAL_SPAWN_INTERVAL = 0.6;
 
 /** 스폰 간격 조정 속도 - 압박도 부족 시 (빠르게 증가) */
-const INTERVAL_ADJUST_RATE_FAST = 6.0;
+const INTERVAL_ADJUST_RATE_FAST = 1.5;
 
 /** 스폰 간격 조정 속도 - 압박도 초과 시 (천천히 감소) */
-const INTERVAL_ADJUST_RATE_SLOW = 0.2;
+const INTERVAL_ADJUST_RATE_SLOW = 0.8;
 
 // ── 레벨 에스컬레이션 설정 ──────────────────────────────────────────────────
 /** 초기 레벨 범위 */
 const INITIAL_LEVEL_MIN = 1;
-const INITIAL_LEVEL_MAX = 20;
+const INITIAL_LEVEL_MAX = 5;
 
-/** 레벨 에스컬레이션 단계 (각 단계마다 범위 상승) */
+/** 레벨 에스컬레이션 단계 (5레벨씩 묶음) */
 const LEVEL_ESCALATION_STEPS = [
-  { min:  1, max: 20 },   // 0단계 (초보)
-  { min: 15, max: 35 },   // 1단계
-  { min: 25, max: 50 },   // 2단계
-  { min: 40, max: 65 },   // 3단계
-  { min: 55, max: 80 },   // 4단계
-  { min: 70, max: 90 },   // 5단계
-  { min: 80, max: 100 },  // 6단계 (최종)
+  { min:  1, max:  5 },   // 0단계 (초급)
+  { min:  6, max: 10 },   // 1단계
+  { min: 11, max: 15 },   // 2단계
+  { min: 16, max: 20 },   // 3단계
+  { min: 21, max: 25 },   // 4단계
+  { min: 26, max: 30 },   // 5단계
+  { min: 31, max: 35 },   // 6단계
+  { min: 36, max: 40 },   // 7단계
+  { min: 41, max: 45 },   // 8단계
+  { min: 46, max: 50 },   // 9단계
+  { min: 51, max: 55 },   // 10단계
+  { min: 56, max: 60 },   // 11단계
+  { min: 61, max: 65 },   // 12단계
+  { min: 66, max: 70 },   // 13단계
+  { min: 71, max: 75 },   // 14단계
+  { min: 76, max: 80 },   // 15단계
+  { min: 81, max: 85 },   // 16단계
+  { min: 86, max: 90 },   // 17단계
+  { min: 91, max: 95 },   // 18단계
+  { min: 96, max: 100 },  // 19단계 (최종)
 ];
 
-/** 에스컬레이션 대기 시간 (초) - 레벨 상승 전 쿨다운 */
-const ESCALATION_COOLDOWN = 0.5;
+/** 에스컬레이션 대기 시간 (초) - 레벨 상승 후 쿨다운 */
+const ESCALATION_COOLDOWN = 3.0;
 
-/** 에스컬레이션 조건: 스폰 간격이 최소치에 머문 시간 (초) */
-const ESCALATION_THRESHOLD_TIME = 0.8;
+/** 에스컬레이션 조건: 낮은 압박이 유지되어야 하는 시간 (초) */
+const LOW_PRESSURE_THRESHOLD_TIME = 12.0;
+
+/** 낮은 압박 기준 (목표 압박도의 몇 %인지) */
+const LOW_PRESSURE_RATIO = 0.70;
 
 // ── 기타 설정 ──────────────────────────────────────────────────────────────
 /** 속도 지터 (±px) */
@@ -76,7 +92,7 @@ const SPEED_JITTER = 7;
 const MIN_SPEED = 45;
 
 /** 압박도 계산용 목표 적 수 */
-const TARGET_ALIVE_COUNT = 35;
+const TARGET_ALIVE_COUNT = 22;
 
 /** 안티리피트 큐 크기 */
 const RECENT_QUEUE_MAX = 5;
@@ -101,13 +117,14 @@ export class PressureBasedSpawner {
     this.recentEmojiQueue = [];
 
     // ── 압박도 추적 ──────────────────────────────────────────────────────
-    this.currentPressure = 0.0;
+    this.currentPressure = 0.3; // 초기값 (0.3 = 30%, 목표 50%보다 낮게 시작)
     this.targetPressure  = TARGET_PRESSURE;
+    this.smoothedPressure = 0.3; // EMA 스무딩된 압박도 (초기값 동일)
 
     // ── 스폰 간격 제어 ────────────────────────────────────────────────────
     this.currentInterval  = INITIAL_SPAWN_INTERVAL;
     this.spawnTimer       = 0;
-    this.minIntervalTime  = 0; // 최소 간격에 머문 시간 (에스컬레이션 조건)
+    this.lowPressureTime  = 0; // 낮은 압박 유지 시간 (에스컬레이션 조건)
 
     // ── 디버그 로깅 ────────────────────────────────────────────────────────
     this.debugLogTimer = 0;
@@ -160,21 +177,21 @@ export class PressureBasedSpawner {
     // 디버그 로그
     this.debugLogTimer += dt;
     if (this.debugLogTimer >= this.debugLogInterval) {
-      console.log(`[Spawn] Pressure: ${(this.currentPressure*100).toFixed(1)}% | Target: ${(this.targetPressure*100).toFixed(1)}% | Interval: ${this.currentInterval.toFixed(2)}s | Alive: ${this.multiPathSystem.getObjects().length}`);
+      console.log(`[Spawn] Pressure: ${(this.currentPressure*100).toFixed(1)}% | Target: ${(this.targetPressure*100).toFixed(1)}% | Interval: ${this.currentInterval.toFixed(2)}s | Alive: ${this.multiPathSystem.getObjects().length} | Lv: ${this.currentLevelMin}-${this.currentLevelMax} | LowP: ${this.lowPressureTime.toFixed(1)}s`);
       this.debugLogTimer = 0;
     }
   }
 
   /**
-   * 게임 시작 시 첫 스폰 트리거 (초기 8마리 동시 스폰).
+   * 게임 시작 시 첫 스폰 트리거 (초기 3마리 동시 스폰).
    */
   triggerInitialSpawn() {
-    // 초기에 8마리를 빠르게 스폰하여 즉시 전투 시작
-    for (let i = 0; i < 8; i++) {
+    // 초기에 3마리를 스폰하여 부드럽게 전투 시작
+    for (let i = 0; i < 3; i++) {
       this._spawnEnemy();
     }
     this.spawnTimer = 0;
-    console.log('[PressureBasedSpawner] Initial spawn: 8 enemies');
+    console.log('[PressureBasedSpawner] Initial spawn: 3 enemies');
   }
 
   /**
@@ -213,6 +230,7 @@ export class PressureBasedSpawner {
       spawnInterval:    +this.currentInterval.toFixed(2) + 's',
       escalationLevel:  this.escalationLevel,
       levelRange:       `${this.currentLevelMin}-${this.currentLevelMax}`,
+      lowPressureTime:  +this.lowPressureTime.toFixed(1) + 's',
       difficultyValue:  +(this.difficultyEngine?.difficultyValue ?? 0).toFixed(3),
       // 압박도 상세
       aliveCount:       details.aliveCount || 0,
@@ -221,6 +239,35 @@ export class PressureBasedSpawner {
       towerBusyPressure: details.towerBusyPressure + '%' || 'N/A',
       ttkPressure:      details.ttkPressure + '%' || 'N/A',
     };
+  }
+
+  /**
+   * 저장용 상태 추출.
+   * @returns {Object}
+   */
+  getState() {
+    return {
+      escalationLevel: this.escalationLevel,
+      currentLevelMin: this.currentLevelMin,
+      currentLevelMax: this.currentLevelMax,
+    };
+  }
+
+  /**
+   * 저장된 상태 복원.
+   * @param {Object} state - 저장된 spawner 상태
+   */
+  loadFromSave(state) {
+    if (state.escalationLevel !== undefined) {
+      this.escalationLevel = Math.max(0, Math.min(LEVEL_ESCALATION_STEPS.length - 1, state.escalationLevel));
+
+      // 레벨 범위 복원
+      const step = LEVEL_ESCALATION_STEPS[this.escalationLevel];
+      this.currentLevelMin = step.min;
+      this.currentLevelMax = step.max;
+
+      console.log(`[PressureBasedSpawner] Restored escalation level ${this.escalationLevel}: lv${this.currentLevelMin}-${this.currentLevelMax}`);
+    }
   }
 
   // ── 압박도 계산 ───────────────────────────────────────────────────────────
@@ -259,13 +306,19 @@ export class PressureBasedSpawner {
       ttkPressure = Math.max(0.2, Math.min(0.8, (avgTTK - 3) / 10));
     }
 
-    // 통합 압박도
-    this.currentPressure =
+    // 통합 압박도 (raw value)
+    const rawPressure =
       alivePressure      * PRESSURE_WEIGHTS.aliveCount +
       towerBusyPressure  * PRESSURE_WEIGHTS.towerBusy +
       ttkPressure        * PRESSURE_WEIGHTS.ttkFactor;
 
-    this.currentPressure = Math.max(0, Math.min(1, this.currentPressure));
+    // EMA 스무딩 적용 (alpha=0.15: 부드럽게 변화)
+    const alpha = 0.15;
+    this.smoothedPressure = this.smoothedPressure * (1 - alpha) + rawPressure * alpha;
+    this.smoothedPressure = Math.max(0, Math.min(1, this.smoothedPressure));
+
+    // 스무딩된 값을 사용
+    this.currentPressure = this.smoothedPressure;
 
     // 상세 디버그 (압박도 계산 시 저장)
     this._lastPressureDetails = {
@@ -274,6 +327,8 @@ export class PressureBasedSpawner {
       alivePressure: +(alivePressure * 100).toFixed(1),
       towerBusyPressure: +(towerBusyPressure * 100).toFixed(1),
       ttkPressure: +(ttkPressure * 100).toFixed(1),
+      rawPressure: +(rawPressure * 100).toFixed(1),
+      smoothedPressure: +(this.smoothedPressure * 100).toFixed(1),
     };
   }
 
@@ -308,21 +363,20 @@ export class PressureBasedSpawner {
   // ── 에스컬레이션 체크 ──────────────────────────────────────────────────────
 
   _checkEscalation(dt) {
-    // 스폰 간격이 최소치에 근접하고 압박도가 목표 미달이면 에스컬레이션 준비
-    const atMinInterval = this.currentInterval <= MIN_SPAWN_INTERVAL + 0.2;
-    // 압박도가 목표의 75% 미만이면 부족한 것으로 판단
-    const pressureDeficit = this.currentPressure < this.targetPressure * 0.75;
+    // 압박도가 목표보다 낮으면 (플레이어가 여유있음) 낮은 압박 시간 누적
+    const isLowPressure = this.currentPressure < this.targetPressure * LOW_PRESSURE_RATIO;
 
-    if (atMinInterval && pressureDeficit) {
-      this.minIntervalTime += dt;
+    if (isLowPressure) {
+      this.lowPressureTime += dt;
     } else {
-      this.minIntervalTime = 0;
+      // 압박도가 다시 올라가면 타이머 리셋
+      this.lowPressureTime = 0;
     }
 
-    // 일정 시간 이상 최소 간격에 머물렀으면 에스컬레이션
-    if (this.minIntervalTime >= ESCALATION_THRESHOLD_TIME) {
+    // 일정 시간 이상 낮은 압박 유지 → 레벨 구간 상승
+    if (this.lowPressureTime >= LOW_PRESSURE_THRESHOLD_TIME) {
       this._escalateLevel();
-      this.minIntervalTime = 0;
+      this.lowPressureTime = 0;
     }
   }
 
@@ -337,13 +391,13 @@ export class PressureBasedSpawner {
     this.currentLevelMin = step.min;
     this.currentLevelMax = step.max;
 
-    // 스폰 간격 리셋 (중간보다 약간 작은 값으로 - 빠르게 재개)
-    this.currentInterval = MIN_SPAWN_INTERVAL + (MAX_SPAWN_INTERVAL - MIN_SPAWN_INTERVAL) * 0.35;
+    // 스폰 간격은 유지 (압박도 시스템이 자동으로 조정)
+    // 더 강한 적을 스폰하면 자연스럽게 압박이 증가함
 
     // 에스컬레이션 쿨다운 시작
     this.escalationCooldown = ESCALATION_COOLDOWN;
 
-    console.log(`[PressureBasedSpawner] ⬆️ ESCALATION to level ${this.escalationLevel}: lv${this.currentLevelMin}-${this.currentLevelMax}`);
+    console.log(`[PressureBasedSpawner] ⬆️ ESCALATION to level ${this.escalationLevel}: lv${this.currentLevelMin}-${this.currentLevelMax} (Low pressure maintained for ${LOW_PRESSURE_THRESHOLD_TIME}s)`);
   }
 
   // ── 적 스폰 ───────────────────────────────────────────────────────────────
