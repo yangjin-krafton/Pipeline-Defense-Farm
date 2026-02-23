@@ -446,7 +446,7 @@ export class UpgradeTreeUI {
     let isDragging = false;
     let velocity = { x: 0, y: 0 };
     let lastDragTime = 0;
-    let animationFrame = null;
+    let inertiaRafId = null;
 
     this.dragManager.registerDraggable(container, {
       onDragStart: () => {
@@ -455,9 +455,9 @@ export class UpgradeTreeUI {
         scrollStartY = container.scrollTop;
         lastDragTime = Date.now();
         velocity = { x: 0, y: 0 };
-        if (animationFrame) {
-          cancelAnimationFrame(animationFrame);
-          animationFrame = null;
+        if (inertiaRafId !== null) {
+          cancelAnimationFrame(inertiaRafId);
+          inertiaRafId = null;
         }
         container.style.cursor = 'grabbing';
       },
@@ -469,19 +469,25 @@ export class UpgradeTreeUI {
 
         const now = Date.now();
         const dt = (now - lastDragTime) / 1000;
-        if (dt > 0) {
-          velocity.x = e.deltaX / dt;
-          velocity.y = e.deltaY / dt;
+        // 8ms 이상 경과 시에만 속도 갱신 (노이즈 방지)
+        if (dt >= 0.008) {
+          const instantVx = e.deltaX / dt;
+          const instantVy = e.deltaY / dt;
+          // 지수 이동 평균으로 속도를 부드럽게
+          velocity.x = velocity.x * 0.4 + instantVx * 0.6;
+          velocity.y = velocity.y * 0.4 + instantVy * 0.6;
+          lastDragTime = now;
         }
-        lastDragTime = now;
       },
 
       onDragEnd: () => {
         isDragging = false;
         container.style.cursor = 'grab';
         const speed = Math.sqrt(velocity.x ** 2 + velocity.y ** 2);
-        if (speed > 100) {
-          this._applyInertiaScroll(container, velocity);
+        if (speed > 30) {
+          inertiaRafId = this._applyInertiaScroll(container, { ...velocity }, () => {
+            inertiaRafId = null;
+          });
         }
       }
     });
@@ -491,10 +497,12 @@ export class UpgradeTreeUI {
 
   /**
    * 관성 스크롤 적용
+   * @returns {number} requestAnimationFrame ID (취소 가능)
    */
-  _applyInertiaScroll(container, velocity) {
-    const friction = 0.95;
-    const minVelocity = 10;
+  _applyInertiaScroll(container, velocity, onComplete) {
+    const friction = 0.93;
+    const minVelocity = 8;
+    let rafId;
 
     const animate = () => {
       velocity.x *= friction;
@@ -503,10 +511,13 @@ export class UpgradeTreeUI {
       container.scrollTop -= velocity.y * 0.016;
 
       if (Math.sqrt(velocity.x ** 2 + velocity.y ** 2) > minVelocity) {
-        requestAnimationFrame(animate);
+        rafId = requestAnimationFrame(animate);
+      } else {
+        if (onComplete) onComplete();
       }
     };
-    animate();
+    rafId = requestAnimationFrame(animate);
+    return rafId;
   }
 
   /**
