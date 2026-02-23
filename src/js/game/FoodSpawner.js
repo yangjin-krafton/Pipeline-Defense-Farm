@@ -1,321 +1,254 @@
 /**
- * Food spawner system for multiple paths
+ * FoodSpawner — Wave Executor
+ *
+ * Layer C (DifficultyEngine) 의 difficultyValue 로
+ * Layer B (wavePatterns) 에서 웨이브를 선택하고,
+ * Layer A (enemyStats) 에서 적을 뽑아 스폰하는 실행기.
+ *
+ * 상태 흐름:
+ *   cooldown → [선택] → waveRunning → (마지막 이벤트 후 cooldown) → 반복
  */
-import { FOOD_STATS_BY_PATH, FOOD_SPAWN_MS, BASE_SPEED } from '../config.js';
 
-const STAGE_SEQUENCE = ['S0', 'S1', 'S2', 'S3', 'S4', 'S5'];
+import { ENEMY_STATS, ENEMY_STATS_BY_ID } from '../data/enemyStats.js';
+import { WAVE_PATTERNS, getCandidatePatterns } from '../data/wavePatterns.js';
+import { BASE_SPEED } from '../config.js';
 
-const STAGE_TIER_RATIOS = {
-  S0: { normal: 88, strong: 12, elite: 0 },
-  S1: { normal: 72, strong: 25, elite: 3 },
-  S2: { normal: 55, strong: 35, elite: 10 },
-  S3: { normal: 40, strong: 42, elite: 18 },
-  S4: { normal: 28, strong: 45, elite: 27 },
-  S5: { normal: 20, strong: 42, elite: 38 },
-};
+// 웨이브 사이 최소 쿨다운 (초)
+const WAVE_COOLDOWN_SEC = 1.5;
 
-const STAGE_MULTIPLIERS = {
-  S0: { hp: 1.0, armor: 1.0, digestionNeed: 1.0 },
-  S1: { hp: 1.08, armor: 1.05, digestionNeed: 1.08 },
-  S2: { hp: 1.2, armor: 1.12, digestionNeed: 1.2 },
-  S3: { hp: 1.35, armor: 1.2, digestionNeed: 1.35 },
-  S4: { hp: 1.52, armor: 1.28, digestionNeed: 1.52 },
-  S5: { hp: 1.7, armor: 1.38, digestionNeed: 1.7 },
-};
+// 스폰 시 속도 지터 (±px)
+const SPEED_JITTER = 7;
 
-const STAGE_THREAT_BONUS = {
-  S0: 0,
-  S1: 2,
-  S2: 4,
-  S3: 6,
-  S4: 8,
-  S5: 10,
-};
+// 최소 속도 하한
+const MIN_SPEED = 45;
 
-// docs/food-enemy-spawn-design.md "3) 난이도 요구 테이블" 기반 상한/하한
-const STAGE_TARGET_BAND = {
-  S0: { threatMin: 8, threatMax: 10, digestionMin: 75, digestionMax: 90 },
-  S1: { threatMin: 10, threatMax: 12, digestionMin: 90, digestionMax: 105 },
-  S2: { threatMin: 12, threatMax: 14, digestionMin: 105, digestionMax: 122 },
-  S3: { threatMin: 14, threatMax: 16, digestionMin: 122, digestionMax: 140 },
-  S4: { threatMin: 16, threatMax: 18, digestionMin: 140, digestionMax: 160 },
-  S5: { threatMin: 18, threatMax: 21, digestionMin: 160, digestionMax: 190 },
-};
-
-const PATH_ELITE_FLOOR = {
-  rice_stomach: { S4: 30, S5: 30 },
-  dessert_stomach: { S4: 25, S5: 25 },
-  alcohol_stomach: { S4: 28, S5: 28 },
-};
-
-const PATH_TIER_IDS = {
-  rice_stomach: {
-    normal: ['rice_cracker', 'rice_ball', 'cooked_rice', 'fortune_cookie'],
-    strong: ['ramen', 'spaghetti', 'sandwich', 'fried_shrimp', 'dumpling'],
-    elite: ['burger', 'pizza', 'burrito', 'cut_of_meat', 'meat_on_bone', 'paella'],
-  },
-  dessert_stomach: {
-    normal: ['candy', 'lollipop', 'shaved_ice', 'pudding'],
-    strong: ['cake', 'donut', 'cupcake', 'chocolate_bar', 'boba_dessert'],
-    elite: ['birthday_cake', 'moon_cake', 'pie', 'waffle', 'pancakes', 'honey_pot'],
-  },
-  alcohol_stomach: {
-    normal: ['juice', 'lemon_tea', 'hot_coffee', 'cocktail'],
-    strong: ['beer', 'wine', 'tropical_cocktail', 'sake', 'mate'],
-    elite: ['whisky', 'champagne', 'clink_beers', 'clinking_glasses'],
-  },
-};
-
-const STAGE_TARGET_CONCURRENT = {
-  S0: 8,
-  S1: 10,
-  S2: 13,
-  S3: 16,
-  S4: 20,
-  S5: 24,
-};
-
-const AUTO_TRIPLE_CHANCE = {
-  S0: 0.0,
-  S1: 0.0,
-  S2: 0.2,
-  S3: 0.35,
-  S4: 0.5,
-  S5: 0.6,
-};
-
-const AUTO_LINE_CHANCE = {
-  S0: 0.1,
-  S1: 0.16,
-  S2: 0.22,
-  S3: 0.28,
-  S4: 0.32,
-  S5: 0.36,
-};
-
-const LINE_COUNT_BY_STAGE = {
-  S0: 2,
-  S1: 2,
-  S2: 3,
-  S3: 3,
-  S4: 4,
-  S5: 4,
-};
-
-const LINE_GAP_BY_STAGE = {
-  S0: 26,
-  S1: 24,
-  S2: 22,
-  S3: 20,
-  S4: 18,
-  S5: 18,
-};
-
-const LINE_SPEED_SCALE_BY_STAGE = {
-  S0: 0.9,
-  S1: 0.88,
-  S2: 0.86,
-  S3: 0.84,
-  S4: 0.82,
-  S5: 0.8,
-};
-
-// Ensure line-pattern appears in real gameplay even when random roll misses.
-const LINE_FORCE_EVERY_BATCHES = {
-  S0: 6,
-  S1: 5,
-  S2: 4,
-  S3: 4,
-  S4: 3,
-  S5: 3,
-};
-
+// 경로 흐름 기본값
 const DEFAULT_PATH_FLOW = {
-  rice_stomach: 'small_intestine',
+  rice_stomach:    'small_intestine',
   dessert_stomach: 'small_intestine',
   alcohol_stomach: 'small_intestine',
   small_intestine: 'large_intestine',
-  large_intestine: null
+  large_intestine: null,
 };
 
 export class FoodSpawner {
-  constructor(multiPathSystem) {
-    this.multiPathSystem = multiPathSystem;
-    this.spawnTimer = 0; // seconds accumulator
+  /**
+   * @param {import('../utils/MultiPathFollowerSystem.js').MultiPathFollowerSystem} multiPathSystem
+   * @param {import('./DifficultyEngine.js').DifficultyEngine} difficultyEngine
+   */
+  constructor(multiPathSystem, difficultyEngine) {
+    this.multiPathSystem  = multiPathSystem;
+    this.difficultyEngine = difficultyEngine;
 
-    // Paths that can spawn food (stomach paths only)
     this.spawnablePaths = ['rice_stomach', 'dessert_stomach', 'alcohol_stomach'];
-    this.pathCursor = 0;
-    this.spawnMode = 'auto'; // auto | single | triple | line
-    this.batchesSinceLine = 3;
+    this.pathCursor     = 0;
+    this.pathFlow       = this.multiPathSystem.pathFlow || DEFAULT_PATH_FLOW;
 
-    this.foodLookupByPath = this._buildFoodLookupByPath();
+    // Layer A 경로별 tier 인덱스 구축
+    this._poolByPathAndTier = this._buildPoolIndex();
+
+    // 안티리피트 큐
     this.recentEmojiQueue = [];
-    this.recentQueueMax = 5;
-    this.pathFlow = this.multiPathSystem.pathFlow || DEFAULT_PATH_FLOW;
-    this.journeyMetaBySpawnPath = this._buildJourneyMetaBySpawnPath();
+    this.recentQueueMax   = 5;
 
-    // Difficulty state (docs/food-enemy-spawn-design.md 기반)
-    this.baseStageIndex = 0;      // S0..S5
-    this.dynamicOffset = 0;       // D(-2..+2)
-    this.combatWindowSec = 10;
-    this.combatWindowTimer = 0;
-    this.windowKills = 0;
-    this.windowLeaks = 0;
-    this.windowTTKSum = 0;
-    this.windowTTKCount = 0;
-    this.sessionElapsedSec = 0;
+    // 경로 총 이동 거리 캐시 (스폰 밀도 계산용)
+    this.journeyMetaBySpawnPath = this._buildJourneyMeta();
+
+    // ── 웨이브 실행 상태 ──────────────────────────────────────────────
+    this._currentWave    = null;   // 현재 실행 중인 WavePattern
+    this._waveTimer      = 0;     // 웨이브 시작 후 경과 시간 (초)
+    this._nextEventIdx   = 0;     // 다음 실행할 script 이벤트 인덱스
+    this._cooldownTimer  = 0;     // 웨이브 간 쿨다운 잔여 시간
+
+    // 이전 웨이브 ID (중복 선택 방지)
+    this._lastWaveId     = null;
+  }
+
+  // ── 공개 API ─────────────────────────────────────────────────────────
+
+  /**
+   * GameLoop 에서 매 프레임 호출.
+   * @param {number} dt - 스케일된 delta time (초)
+   */
+  update(dt) {
+    // 쿨다운 처리
+    if (this._cooldownTimer > 0) {
+      this._cooldownTimer -= dt;
+      return;
+    }
+
+    // 웨이브 없으면 새로 선택
+    if (!this._currentWave) {
+      this._selectNewWave();
+    }
+
+    // 웨이브 타이머 진행 & 이벤트 실행
+    this._waveTimer += dt;
+    this._processScriptEvents();
+
+    // 웨이브 완료 체크
+    if (this._isWaveComplete()) {
+      this._cooldownTimer = WAVE_COOLDOWN_SEC;
+      this._currentWave   = null;
+    }
   }
 
   /**
-   * Build total journey distance meta from each stomach path to end.
-   * Includes extra exit threshold for each path transition to approximate
-   * "one enemy full journey time" used for spawn pacing.
-   * @returns {Object<string, {distance:number, paths:number}>}
+   * 전투 결과 보고 — DifficultyEngine 으로 delegate.
+   * GameLoop/MultiPathSystem 에서 기존 인터페이스 호환용.
+   * @param {{killed?:boolean, leaked?:boolean, timeToKill?:number}} result
    */
-  _buildJourneyMetaBySpawnPath() {
-    const meta = {};
-    const seenLimit = 12;
+  reportCombatResult(result = {}) {
+    if (!this.difficultyEngine) return;
+    if (result.killed) {
+      this.difficultyEngine.reportKill(result.timeToKill);
+    }
+    if (result.leaked) {
+      this.difficultyEngine.reportLeak();
+    }
+  }
 
-    for (const startPath of this.spawnablePaths) {
-      let distance = 0;
-      let pathCount = 0;
-      let current = startPath;
-      const visited = new Set();
+  /**
+   * 현재 웨이브 정보 (디버그/UI 용).
+   * @returns {{waveId:string|null, timer:number, difficultyValue:number}}
+   */
+  getDebugInfo() {
+    return {
+      waveId:          this._currentWave?.id ?? null,
+      waveTimer:       +this._waveTimer.toFixed(2),
+      nextEventIdx:    this._nextEventIdx,
+      difficultyValue: +(this.difficultyEngine?.difficultyValue ?? 0).toFixed(3),
+      cooldown:        +this._cooldownTimer.toFixed(2),
+    };
+  }
 
-      while (current && !visited.has(current) && pathCount < seenLimit) {
-        visited.add(current);
-        const pathSystem = this.multiPathSystem.getPathSystem(current);
-        if (pathSystem) {
-          distance += pathSystem.getPathLength();
-          pathCount += 1;
-        }
-        current = this.pathFlow[current];
+  // ── 웨이브 선택 ───────────────────────────────────────────────────────
+
+  _selectNewWave() {
+    const dv = this.difficultyEngine?.difficultyValue ?? 0.05;
+    const candidates = getCandidatePatterns(dv);
+
+    // 연속 동일 웨이브 방지 (후보가 2개 이상일 때)
+    let pool = candidates;
+    if (candidates.length > 1 && this._lastWaveId) {
+      const filtered = candidates.filter(p => p.id !== this._lastWaveId);
+      if (filtered.length > 0) pool = filtered;
+    }
+
+    this._currentWave  = pool[Math.floor(Math.random() * pool.length)];
+    this._waveTimer    = 0;
+    this._nextEventIdx = 0;
+    this._lastWaveId   = this._currentWave.id;
+  }
+
+  // ── 스크립트 실행 ────────────────────────────────────────────────────
+
+  _processScriptEvents() {
+    const script = this._currentWave?.script;
+    if (!script) return;
+
+    while (this._nextEventIdx < script.length) {
+      const event = script[this._nextEventIdx];
+      if (this._waveTimer < event.at) break;
+      this._executeEvent(event);
+      this._nextEventIdx++;
+    }
+  }
+
+  _isWaveComplete() {
+    const script = this._currentWave?.script;
+    if (!script || script.length === 0) return true;
+    return this._nextEventIdx >= script.length;
+  }
+
+  /**
+   * 개별 스크립트 이벤트 실행.
+   * @param {Object} event
+   */
+  _executeEvent(event) {
+    const { mode, tier, path, count = 2, gap = 22, speedScale = 1.0 } = event;
+
+    if (mode === 'triple') {
+      // 3개 경로 동시 스폰
+      for (const pathKey of this.spawnablePaths) {
+        this._spawnOne(pathKey, tier, speedScale, 0);
       }
-
-      // PathFollowerSystem removal uses exitThreshold (~25) on each path.
-      const exitDistance = pathCount * 25;
-      meta[startPath] = {
-        distance: distance + exitDistance,
-        paths: pathCount
-      };
-    }
-
-    return meta;
-  }
-
-  /**
-   * Build fast lookup table by id for each path.
-   * @returns {Object<string, Object<string, Object>>}
-   */
-  _buildFoodLookupByPath() {
-    const lookup = {};
-    for (const [pathKey, foods] of Object.entries(FOOD_STATS_BY_PATH)) {
-      lookup[pathKey] = {};
-      for (const food of foods) {
-        lookup[pathKey][food.id] = food;
+    } else if (mode === 'line') {
+      const pathKey = this._resolvePath(path);
+      for (let i = 0; i < count; i++) {
+        this._spawnOne(pathKey, tier, speedScale, i * gap);
       }
+    } else {
+      // single
+      const pathKey = this._resolvePath(path);
+      this._spawnOne(pathKey, tier, speedScale, 0);
     }
-    return lookup;
   }
 
-  /**
-   * Pick weighted random key from object like {key: weight}
-   * @param {Object<string, number>} weights
-   * @returns {string}
-   */
-  _weightedPick(weights) {
-    const entries = Object.entries(weights).filter(([, w]) => w > 0);
-    if (entries.length === 0) return 'normal';
-
-    const total = entries.reduce((acc, [, w]) => acc + w, 0);
-    let roll = Math.random() * total;
-
-    for (const [key, weight] of entries) {
-      roll -= weight;
-      if (roll <= 0) return key;
-    }
-    return entries[entries.length - 1][0];
-  }
+  // ── 단일 스폰 ────────────────────────────────────────────────────────
 
   /**
-   * Apply path-specific elite floor for S4/S5.
-   * @param {string} stageKey
+   * 경로에 적 1마리 스폰.
    * @param {string} pathKey
-   * @returns {{normal:number,strong:number,elite:number}}
+   * @param {string} tier      - 'normal'|'strong'|'elite'
+   * @param {number} speedScale
+   * @param {number} initialOffset - 경로 상 초기 오프셋 (px)
    */
-  _getTierRatioForPath(stageKey, pathKey) {
-    const base = STAGE_TIER_RATIOS[stageKey] || STAGE_TIER_RATIOS.S0;
-    const ratio = { ...base };
-    const floor = PATH_ELITE_FLOOR[pathKey]?.[stageKey];
+  _spawnOne(pathKey, tier, speedScale, initialOffset) {
+    const baseFood = this._pickEnemy(pathKey, tier);
+    if (!baseFood) return;
 
-    if (typeof floor === 'number' && ratio.elite < floor) {
-      const remain = 100 - floor;
-      const ns = base.normal + base.strong;
-      if (ns <= 0) {
-        ratio.normal = remain;
-        ratio.strong = 0;
-      } else {
-        ratio.normal = Math.round(remain * (base.normal / ns));
-        ratio.strong = remain - ratio.normal;
-      }
-      ratio.elite = floor;
-    }
+    // DifficultyEngine 스케일 적용
+    const hpScale    = this.difficultyEngine?.getHpScale()    ?? 1.0;
+    const armorScale = this.difficultyEngine?.getArmorScale() ?? 1.0;
 
-    return ratio;
+    const scaledHp    = Math.max(1, Math.round(baseFood.hp    * hpScale));
+    const scaledArmor = Math.max(0, Math.round(baseFood.armor * armorScale));
+
+    // 속도 = 기본속도 × speedScale + 지터
+    const baseSpeed  = Math.max(MIN_SPEED, baseFood.speed * Math.max(0.6, Math.min(1.2, speedScale)));
+    const jitter     = (Math.random() - 0.5) * SPEED_JITTER;
+    const finalSpeed = Math.max(MIN_SPEED, baseSpeed + jitter);
+
+    this.multiPathSystem.spawn(pathKey, {
+      ...baseFood,
+      // 스케일된 전투 스탯
+      hp:          scaledHp,
+      maxHp:       scaledHp,
+      armor:       scaledArmor,
+      // 이동/렌더
+      speed:       finalSpeed,
+      baseSpeed,
+      speedScale:  Number((finalSpeed / BASE_SPEED).toFixed(3)),
+      size:        Math.max(20, baseFood.size + (Math.random() - 0.5) * 2),
+      spin:        (Math.random() - 0.5) * 1.8,
+      exitThreshold: 25,
+      // 타워 태그보너스 호환 (BaseTower 는 food.tags 참조)
+      tags:        baseFood.types,
+    }, initialOffset);
   }
+
+  // ── 적 선택 ──────────────────────────────────────────────────────────
 
   /**
-   * Resolve stage with performance correction D(-2..+2)
-   * @returns {string}
-   */
-  _getCurrentStageKey() {
-    const index = Math.max(0, Math.min(STAGE_SEQUENCE.length - 1, this.baseStageIndex + this.dynamicOffset));
-    return STAGE_SEQUENCE[index];
-  }
-
-  _getStageIndex(stageKey) {
-    const idx = STAGE_SEQUENCE.indexOf(stageKey);
-    return idx >= 0 ? idx : 0;
-  }
-
-  /**
-   * Fetch tier pool from design id list with fallback.
-   * @param {string} pathKey - Path key
-   * @param {string} tier - normal|strong|elite
-   * @returns {Object[]} Food candidates
-   */
-  _getTierPool(pathKey, tier) {
-    const fromPath = PATH_TIER_IDS[pathKey]?.[tier] || [];
-    const byId = this.foodLookupByPath[pathKey] || {};
-    const mapped = fromPath
-      .map((id) => byId[id])
-      .filter(Boolean);
-
-    if (mapped.length > 0) return mapped;
-
-    const foods = FOOD_STATS_BY_PATH[pathKey] || [];
-    const byTier = foods.filter((food) => food.strengthTier === tier);
-    if (byTier.length > 0) return byTier;
-
-    return foods;
-  }
-
-  /**
-   * Pick one food with anti-repeat queue.
+   * 경로+티어 풀에서 적 1개 선택 (안티리피트 적용).
    * @param {string} pathKey
    * @param {string} tier
    * @returns {Object|null}
    */
-  _pickFoodForPath(pathKey, tier, stageKey) {
-    const pool = this._getTierPool(pathKey, tier);
-    if (!pool || pool.length === 0) return null;
+  _pickEnemy(pathKey, tier) {
+    const pool = this._poolByPathAndTier[pathKey]?.[tier];
+    if (!pool || pool.length === 0) {
+      // fallback: 같은 경로에서 티어 무관 랜덤
+      const allInPath = ENEMY_STATS[pathKey];
+      if (!allInPath || allInPath.length === 0) return null;
+      return allInPath[Math.floor(Math.random() * allInPath.length)];
+    }
 
-    const stageFiltered = this._filterByStageBand(pool, stageKey);
-    const antiRepeatPool = stageFiltered.length > 0 ? stageFiltered : pool;
-    const filtered = antiRepeatPool.filter((food) => !this.recentEmojiQueue.includes(food.emoji));
-    const source = filtered.length > 0 ? filtered : antiRepeatPool;
-    const picked = source[Math.floor(Math.random() * source.length)];
+    // 안티리피트 필터
+    const filtered = pool.filter(e => !this.recentEmojiQueue.includes(e.emoji));
+    const source   = filtered.length > 0 ? filtered : pool;
+    const picked   = source[Math.floor(Math.random() * source.length)];
 
     this.recentEmojiQueue.push(picked.emoji);
     while (this.recentEmojiQueue.length > this.recentQueueMax) {
@@ -325,329 +258,67 @@ export class FoodSpawner {
     return picked;
   }
 
-  /**
-   * Keep spawn candidates within stage target difficulty band.
-   * If strict filter yields nothing, returns top easiest subset as fallback.
-   * @param {Object[]} pool
-   * @param {string} stageKey
-   * @returns {Object[]}
-   */
-  _filterByStageBand(pool, stageKey) {
-    const band = STAGE_TARGET_BAND[stageKey];
-    if (!band) return pool;
-
-    const strict = pool.filter((food) => {
-      const scaled = this._previewScaledFoodForStage(food, stageKey);
-      const threat = scaled.threat || 0;
-      const need = scaled.digestionNeed || 0;
-      return (
-        threat >= band.threatMin &&
-        threat <= band.threatMax &&
-        need >= band.digestionMin &&
-        need <= band.digestionMax
-      );
-    });
-    if (strict.length > 0) return strict;
-
-    const upperBoundOnly = pool.filter((food) => {
-      const scaled = this._previewScaledFoodForStage(food, stageKey);
-      const threat = scaled.threat || 0;
-      const need = scaled.digestionNeed || 0;
-      return threat <= band.threatMax && need <= band.digestionMax;
-    });
-    if (upperBoundOnly.length > 0) return upperBoundOnly;
-
-    // Fallback: choose easier side of pool by threat + digestionNeed score.
-    const scored = [...pool].sort((a, b) => {
-      const saScaled = this._previewScaledFoodForStage(a, stageKey);
-      const sbScaled = this._previewScaledFoodForStage(b, stageKey);
-      const sa = (saScaled.threat || 0) * 10 + (saScaled.digestionNeed || 0);
-      const sb = (sbScaled.threat || 0) * 10 + (sbScaled.digestionNeed || 0);
-      return sa - sb;
-    });
-    return scored.slice(0, Math.max(1, Math.ceil(scored.length * 0.4)));
-  }
-
-  _previewScaledFoodForStage(food, stageKey) {
-    const m = STAGE_MULTIPLIERS[stageKey] || STAGE_MULTIPLIERS.S0;
-    const threatBonus = STAGE_THREAT_BONUS[stageKey] ?? 0;
-    return {
-      threat: Math.max(0, Math.round((food.threat || 0) + threatBonus)),
-      digestionNeed: Math.max(1, Math.round((food.digestionNeed || 1) * m.digestionNeed)),
-    };
-  }
+  // ── 경로 결정 ────────────────────────────────────────────────────────
 
   /**
-   * Apply stage multipliers to baseline food data.
-   * @param {Object} food
-   * @param {string} stageKey
-   * @returns {Object}
-   */
-  _applyStageMultiplier(food, stageKey) {
-    const m = STAGE_MULTIPLIERS[stageKey] || STAGE_MULTIPLIERS.S0;
-    const threatBonus = STAGE_THREAT_BONUS[stageKey] ?? 0;
-    const maxHp = Math.max(1, Math.round(food.hp * m.hp));
-
-    return {
-      ...food,
-      hp: maxHp,
-      maxHp,
-      armor: Math.max(0, Math.round((food.armor || 0) * m.armor)),
-      threat: Math.max(0, Math.round((food.threat || 0) + threatBonus)),
-      digestionNeed: Math.max(1, Math.round((food.digestionNeed || 1) * m.digestionNeed)),
-      reward: Math.max(1, Math.round(food.reward || 1)),
-      spawnStage: stageKey,
-    };
-  }
-
-  /**
-   * Pick a random spawnable path
-   * @returns {string} Random path key
-   */
-  _pickRandomPath() {
-    return this.spawnablePaths[Math.floor(Math.random() * this.spawnablePaths.length)];
-  }
-
-  /**
-   * Pick next path in round-robin order for stable single-path spawn pacing.
+   * 이벤트의 path 지시자를 실제 pathKey 로 변환.
+   * @param {string|null} pathDirective
    * @returns {string}
    */
-  _pickRoundRobinPath() {
+  _resolvePath(pathDirective) {
+    if (pathDirective === 'random') {
+      return this.spawnablePaths[Math.floor(Math.random() * this.spawnablePaths.length)];
+    }
+    // round_robin (default)
     const path = this.spawnablePaths[this.pathCursor % this.spawnablePaths.length];
     this.pathCursor = (this.pathCursor + 1) % this.spawnablePaths.length;
     return path;
   }
 
-  /**
-   * Estimate average full-journey time (seconds) for one spawned enemy.
-   * @param {string} stageKey
-   * @returns {number}
-   */
-  _estimateTraversalTimeSec(stageKey) {
-    let total = 0;
-    let count = 0;
-
-    for (const pathKey of this.spawnablePaths) {
-      const foods = FOOD_STATS_BY_PATH[pathKey] || [];
-      if (foods.length === 0) continue;
-
-      const candidates = this._filterByStageBand(foods, stageKey);
-      const source = candidates.length > 0 ? candidates : foods;
-      const avgSpeed = source.reduce((sum, food) => sum + Math.max(1, food.speed || BASE_SPEED), 0) / source.length;
-
-      const journeyDistance = this.journeyMetaBySpawnPath[pathKey]?.distance || 1000;
-      total += journeyDistance / avgSpeed;
-      count += 1;
-    }
-
-    if (count === 0) return 18;
-    return total / count;
-  }
+  // ── 인덱스 구축 ──────────────────────────────────────────────────────
 
   /**
-   * Decide current spawn batch mode.
-   * @param {string} stageKey
-   * @returns {'single'|'triple'|'line'}
+   * 경로별 tier 별 풀 인덱스 구축.
+   * @returns {Object<string, Object<string, Object[]>>}
    */
-  _resolveBatchMode(stageKey) {
-    if (this.spawnMode === 'single') return 'single';
-    if (this.spawnMode === 'triple') return 'triple';
-    if (this.spawnMode === 'line') return 'line';
-
-    // auto: mix single/triple/line by stage and recent performance.
-    const forceEvery = LINE_FORCE_EVERY_BATCHES[stageKey] || 5;
-    if (this.batchesSinceLine >= forceEvery) return 'line';
-
-    const baseTripleChance = AUTO_TRIPLE_CHANCE[stageKey] || 0;
-    const baseLineChance = AUTO_LINE_CHANCE[stageKey] || 0;
-    const perfBonus = this.dynamicOffset > 0 ? this.dynamicOffset * 0.08 : 0;
-    const perfPenalty = this.dynamicOffset < 0 ? Math.abs(this.dynamicOffset) * 0.1 : 0;
-    const tripleChance = Math.max(0, Math.min(0.8, baseTripleChance + perfBonus - perfPenalty));
-    const lineChance = Math.max(0, Math.min(0.55, baseLineChance + (perfBonus * 0.45) - (perfPenalty * 0.4)));
-
-    const roll = Math.random();
-    if (roll < tripleChance) return 'triple';
-    if (roll < Math.min(0.95, tripleChance + lineChance)) return 'line';
-    return 'single';
-  }
-
-  _getLineSpec(stageKey) {
-    const count = LINE_COUNT_BY_STAGE[stageKey] || 2;
-    const gap = LINE_GAP_BY_STAGE[stageKey] || 24;
-    const baseSpeedScale = LINE_SPEED_SCALE_BY_STAGE[stageKey] || 0.88;
-    const perfSlowdown = this.dynamicOffset < 0 ? Math.abs(this.dynamicOffset) * 0.04 : 0;
-    const speedScale = Math.max(0.72, Math.min(0.95, baseSpeedScale - perfSlowdown));
-
-    return { count, gap, speedScale };
-  }
-
-  /**
-   * Compute spawn interval from "one enemy full journey time".
-   * interval ~= traversalTime * batchSize / targetConcurrent
-   * @param {string} stageKey
-   * @param {number} batchSize
-   * @returns {number} seconds
-   */
-  _computeSpawnIntervalSec(stageKey, batchSize) {
-    const traversalSec = this._estimateTraversalTimeSec(stageKey);
-    const baseConcurrent = STAGE_TARGET_CONCURRENT[stageKey] || STAGE_TARGET_CONCURRENT.S0;
-    const performanceScale = Math.max(0.7, Math.min(1.25, 1 + this.dynamicOffset * 0.1));
-    const targetConcurrent = Math.max(4, baseConcurrent * performanceScale);
-    const byJourney = (traversalSec * batchSize) / targetConcurrent;
-    const fallbackSec = Math.max(0.3, FOOD_SPAWN_MS / 1000);
-    return Math.max(0.25, Math.min(5.0, byJourney || fallbackSec));
-  }
-
-  /**
-   * Spawn a food item on a specific path
-   * @param {string} pathKey - Path key (rice_stomach, dessert_stomach, alcohol_stomach)
-   * @param {number} initialOffset - Initial offset on path
-   * @param {{speedMultiplier?:number}} options
-   */
-  spawnFood(pathKey = null, initialOffset = 0, options = {}) {
-    // If no path specified, pick random stomach path
-    if (!pathKey) {
-      pathKey = this._pickRandomPath();
-    }
-
-    const stageKey = this._getCurrentStageKey();
-    const ratio = this._getTierRatioForPath(stageKey, pathKey);
-    const tier = this._weightedPick(ratio);
-    const food = this._pickFoodForPath(pathKey, tier, stageKey);
-    if (!food) {
-      return;
-    }
-    const scaledFood = this._applyStageMultiplier(food, stageKey);
-    const speedMultiplier = Math.max(0.6, Math.min(1.2, options.speedMultiplier ?? 1));
-    const baseSpawnSpeed = scaledFood.speed * speedMultiplier;
-    const speedJitter = speedMultiplier < 1 ? 6 : 8;
-    const minSpeed = speedMultiplier < 1 ? 38 : 52;
-
-    // Removed: console.log - too verbose
-
-    this.multiPathSystem.spawn(pathKey, {
-      ...scaledFood,
-      speed: Math.max(minSpeed, baseSpawnSpeed + (Math.random() - 0.5) * speedJitter),
-      size: Math.max(20, scaledFood.size + (Math.random() - 0.5) * 2),
-      spin: (Math.random() - 0.5) * 1.8,
-      exitThreshold: 25,
-      baseSpeed: baseSpawnSpeed,
-      speedScale: Number((baseSpawnSpeed / BASE_SPEED).toFixed(3))
-    }, initialOffset);
-  }
-
-  /**
-   * Spawn one batch by mode.
-   * @param {'single'|'triple'|'line'} batchMode
-   */
-  _spawnBatch(batchMode, stageKey) {
-    if (batchMode === 'triple') {
-      for (const pathKey of this.spawnablePaths) {
-        this.spawnFood(pathKey);
-      }
-      return;
-    }
-
-    if (batchMode === 'line') {
-      const pathKey = this._pickRoundRobinPath();
-      const line = this._getLineSpec(stageKey);
-      for (let i = 0; i < line.count; i += 1) {
-        this.spawnFood(pathKey, i * line.gap, { speedMultiplier: line.speedScale });
-      }
-      return;
-    }
-
-    const pathKey = this._pickRoundRobinPath();
-    this.spawnFood(pathKey);
-  }
-
-  /**
-   * Optional: update baseline stage from external power index (0..5).
-   * @param {number} stageIndex
-   */
-  setBaseStageIndex(stageIndex) {
-    this.baseStageIndex = Math.max(0, Math.min(5, Math.round(stageIndex)));
-  }
-
-  /**
-   * Set spawn mode.
-   * @param {'auto'|'single'|'triple'|'line'} mode
-   */
-  setSpawnMode(mode) {
-    if (mode === 'auto' || mode === 'single' || mode === 'triple' || mode === 'line') {
-      this.spawnMode = mode;
-    }
-  }
-
-  /**
-   * Optional: report combat performance for dynamic difficulty.
-   * @param {{killed?:boolean, leaked?:boolean, timeToKill?:number}} result
-   */
-  reportCombatResult(result = {}) {
-    if (result.killed) {
-      this.windowKills += 1;
-      if (typeof result.timeToKill === 'number' && Number.isFinite(result.timeToKill)) {
-        this.windowTTKSum += Math.max(0, result.timeToKill);
-        this.windowTTKCount += 1;
+  _buildPoolIndex() {
+    const index = {};
+    for (const [pathKey, enemies] of Object.entries(ENEMY_STATS)) {
+      index[pathKey] = { normal: [], strong: [], elite: [] };
+      for (const e of enemies) {
+        const t = e.tier;
+        if (index[pathKey][t]) index[pathKey][t].push(e);
       }
     }
-    if (result.leaked) {
-      this.windowLeaks += 1;
-    }
-  }
-
-  _updateDynamicDifficulty(dt) {
-    this.sessionElapsedSec += dt;
-    this.combatWindowTimer += dt;
-    if (this.combatWindowTimer < this.combatWindowSec) return;
-
-    const kills = this.windowKills;
-    const leaks = this.windowLeaks;
-    const total = Math.max(1, kills + leaks);
-    const leakRate = leaks / total;
-    const avgTTK = this.windowTTKCount > 0 ? this.windowTTKSum / this.windowTTKCount : Infinity;
-    const hasEnoughSamples = (kills + leaks) >= 6;
-
-    let nextOffset = this.dynamicOffset;
-    const isStrong = hasEnoughSamples && kills >= 9 && leakRate <= 0.1 && avgTTK <= 8.0;
-    const isWeak = hasEnoughSamples && (leakRate >= 0.25 || kills <= 3 || avgTTK >= 13);
-
-    if (isStrong) nextOffset += 1;
-    else if (isWeak) nextOffset -= 1;
-
-    const earlyClamp = this.sessionElapsedSec < 60 ? 1 : 2;
-    this.dynamicOffset = Math.max(-earlyClamp, Math.min(earlyClamp, nextOffset));
-
-    // Reset window counters
-    this.combatWindowTimer = 0;
-    this.windowKills = 0;
-    this.windowLeaks = 0;
-    this.windowTTKSum = 0;
-    this.windowTTKCount = 0;
+    return index;
   }
 
   /**
-   * Update spawner (called each frame)
-   * @param {number} dt - Delta time in seconds
+   * 각 스폰 경로의 총 이동 거리 계산 (내부 참고용, 현재는 미사용).
    */
-  update(dt) {
-    this._updateDynamicDifficulty(dt);
-    this.spawnTimer += dt;
+  _buildJourneyMeta() {
+    const meta = {};
+    const seenLimit = 12;
 
-    let guard = 0;
-    while (guard < 8) {
-      const stageKey = this._getCurrentStageKey();
-      const batchMode = this._resolveBatchMode(stageKey);
-      const lineSize = this._getLineSpec(stageKey).count;
-      const batchSize = batchMode === 'triple' ? 3 : (batchMode === 'line' ? lineSize : 1);
-      const intervalSec = this._computeSpawnIntervalSec(stageKey, batchSize);
+    for (const startPath of this.spawnablePaths) {
+      let distance  = 0;
+      let pathCount = 0;
+      let current   = startPath;
+      const visited = new Set();
 
-      if (this.spawnTimer < intervalSec) break;
-      this._spawnBatch(batchMode, stageKey);
-      if (batchMode === 'line') this.batchesSinceLine = 0;
-      else this.batchesSinceLine += 1;
-      this.spawnTimer -= intervalSec;
-      guard += 1;
+      while (current && !visited.has(current) && pathCount < seenLimit) {
+        visited.add(current);
+        const ps = this.multiPathSystem.getPathSystem(current);
+        if (ps) {
+          distance  += ps.getPathLength();
+          pathCount += 1;
+        }
+        current = this.pathFlow[current];
+      }
+
+      meta[startPath] = { distance: distance + pathCount * 25, paths: pathCount };
     }
+
+    return meta;
   }
 }

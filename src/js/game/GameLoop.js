@@ -1,8 +1,9 @@
 /**
  * Main game loop
  */
-import { FOOD_SPAWN_MS, BASE_SPEED, PATHS, PATH_RENDER_SETTINGS } from '../config.js';
+import { BASE_SPEED, PATHS, PATH_RENDER_SETTINGS } from '../config.js';
 import { FoodSpawner } from './FoodSpawner.js';
+import { DifficultyEngine } from './DifficultyEngine.js';
 import { hexToRgba } from '../utils/geometry.js';
 import { TowerManager } from '../digestion/systems/TowerManager.js';
 import { EconomySystem } from '../digestion/systems/EconomySystem.js';
@@ -25,7 +26,8 @@ export class GameLoop {
     this.flowSystem = flowSystem;
     this.audioSystem = audioSystem;
     this.uiSfxSystem = uiSfxSystem;
-    this.foodSpawner = new FoodSpawner(multiPathSystem);
+    this.difficultyEngine = new DifficultyEngine();
+    this.foodSpawner = new FoodSpawner(multiPathSystem, this.difficultyEngine);
 
     this.time = 0;
     this.score = 0;
@@ -78,17 +80,6 @@ export class GameLoop {
     this.statusEffectRenderer = new StatusEffectRenderer(emojiRenderer.ctx);
 
     this.currentTime = 0; // Track game time
-
-    // Enemy-metrics difficulty sync (10s window)
-    this.enemyMetricWindowSec = 10.0;
-    this.enemyMetricWindowTimer = 0;
-    this.enemyAliveIntegral = 0; // sum(aliveCount * dt) over current window
-    this.enemyKilledInWindow = 0;
-    this.enemyLeakedInWindow = 0;
-    this.enemyMetricStageIndex = 0;
-    this.enemyAliveEMA = null;
-    this.difficultyRampValue = 0;      // slow monotonic ramp [0..5]
-    this.difficultyRampPer10Sec = 1.0; // 1 stage per 10s
 
     // Combat SFX state
     this.combatWasActive = false;
@@ -163,53 +154,16 @@ export class GameLoop {
       const timeToKill = typeof completed.spawnedAt === 'number'
         ? Math.max(0, this.currentTime - completed.spawnedAt)
         : undefined;
-      this.enemyLeakedInWindow += 1;
-      this.foodSpawner.reportCombatResult({
-        leaked: true,
-        timeToKill
-      });
+      this.foodSpawner.reportCombatResult({ leaked: true, timeToKill });
       this._triggerScreenShake();
     });
 
     // Handle food deaths (HP <= 0)
     this._processFoodDeaths();
 
-    // Collect enemy metrics and update base difficulty every 10s.
+    // DifficultyEngine 업데이트 (Layer C)
     const aliveCount = this.multiPathSystem.getObjects().length;
-    this.enemyAliveIntegral += aliveCount * scaledDt;
-    this.enemyMetricWindowTimer += scaledDt;
-    if (this.enemyMetricWindowTimer >= this.enemyMetricWindowSec) {
-      const elapsed = Math.max(0.001, this.enemyMetricWindowTimer);
-      const avgAlive = this.enemyAliveIntegral / elapsed;
-      this.difficultyRampValue = Math.min(
-        5,
-        this.difficultyRampValue + (this.difficultyRampPer10Sec * (elapsed / 10))
-      );
-      const rampStage = Math.floor(this.difficultyRampValue);
-
-      if (this.enemyAliveEMA == null) {
-        this.enemyAliveEMA = avgAlive;
-      } else if (avgAlive < this.enemyAliveEMA) {
-        // When board pressure is decreasing, react faster so difficulty can ramp up sooner.
-        this.enemyAliveEMA = (this.enemyAliveEMA * 0.45) + (avgAlive * 0.55);
-      } else {
-        // When pressure is increasing, react slightly slower to avoid oscillation.
-        this.enemyAliveEMA = (this.enemyAliveEMA * 0.75) + (avgAlive * 0.25);
-      }
-      const { targetStageIndex, stepCap } = this._calculateEnemyMetricStageDecision(
-        this.enemyAliveEMA,
-        this.enemyKilledInWindow,
-        this.enemyLeakedInWindow
-      );
-      const combinedTarget = Math.max(rampStage, targetStageIndex);
-      const prevStage = this.enemyMetricStageIndex;
-      this.enemyMetricStageIndex = this._stepStageIndex(this.enemyMetricStageIndex, combinedTarget, stepCap);
-      this.foodSpawner.setBaseStageIndex(this.enemyMetricStageIndex);
-      if (this.enemyMetricStageIndex > prevStage) {
-        this._playBattleSfx('wave_start', 0.58, 2.8, 'lastWaveStartSfxTime');
-      }
-      this._resetEnemyMetricWindow();
-    }
+    this.difficultyEngine.update(scaledDt, aliveCount);
 
     this._updateCombatWaveSfx();
 
@@ -223,58 +177,6 @@ export class GameLoop {
     }
   }
 
-  _calculateEnemyMetricStageDecision(avgAlive, killed, leaked) {
-    const stage = this.enemyMetricStageIndex;
-    const targetAliveByStage = [8, 10, 13, 16, 20, 24];
-    const targetKillsByStage = [4, 5, 7, 9, 11, 13]; // expected kills per 10s
-    const leakToleranceByStage = [0, 0, 1, 1, 2, 2];
-
-    const targetAlive = targetAliveByStage[stage] ?? 10;
-    const targetKills = targetKillsByStage[stage] ?? 6;
-    const leakTolerance = leakToleranceByStage[stage] ?? 1;
-
-    const aliveControl = (targetAlive - avgAlive) / Math.max(1, targetAlive); // + good, - bad
-    const killControl = (killed - targetKills) / Math.max(1, targetKills);    // + good, - bad
-    const leakOver = Math.max(0, leaked - leakTolerance);
-    const leakPenalty = leakOver / Math.max(1, leakTolerance + 1);
-
-    const performance = (aliveControl * 0.9) + (killControl * 0.75) - (leakPenalty * 1.3);
-
-    let delta = 0;
-    let stepCap = 1;
-
-    // Emergency brake when leaks spike in a single 10s window.
-    if (leaked >= 6) {
-      delta = -3;
-      stepCap = 2;
-    } else if (leaked >= 3 && killed <= leaked) {
-      delta = -2;
-      stepCap = 2;
-    } else if (performance >= 0.45) delta = 1;
-    else if (performance <= -0.55) delta = -1;
-
-    return {
-      targetStageIndex: Math.max(0, Math.min(5, stage + delta)),
-      stepCap
-    };
-  }
-
-  _resetEnemyMetricWindow() {
-    this.enemyMetricWindowTimer = 0;
-    this.enemyAliveIntegral = 0;
-    this.enemyKilledInWindow = 0;
-    this.enemyLeakedInWindow = 0;
-  }
-
-  _stepStageIndex(current, target, maxStep = 1) {
-    const safeCurrent = Math.max(0, Math.min(5, Math.round(current)));
-    const safeTarget = Math.max(0, Math.min(5, Math.round(target)));
-    const step = Math.max(1, Math.min(2, Math.round(maxStep)));
-
-    if (safeTarget > safeCurrent) return Math.min(5, safeCurrent + step);
-    if (safeTarget < safeCurrent) return Math.max(0, safeCurrent - step);
-    return safeCurrent;
-  }
 
   _triggerScreenShake() {
     const container = document.getElementById('scale-container');
@@ -424,14 +326,13 @@ export class GameLoop {
         killed: true,
         timeToKill
       });
-      this.enemyKilledInWindow += 1;
 
       const reward = this.economySystem.earnFromFood(food, food.currentPath);
       this.score += reward;
       this.scoreDirty = true;
       console.log(`Food ${food.emoji} digested in ${food.currentPath}`);
 
-      const isEliteKill = (food.strengthTier === 'elite') || (food.threat >= 17);
+      const isEliteKill = food.tier === 'elite';
       if (isEliteKill) {
         this._playBattleSfx('explosion_big', 0.62, 0.12, 'lastBigKillSfxTime');
       } else {
