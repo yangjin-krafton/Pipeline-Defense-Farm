@@ -67,48 +67,14 @@ export class EconomySystem {
   }
 
   /**
-   * SC 획득 + 오버플로 NC 변환
-   * 상한 초과분의 50%를 NC로 변환
-   */
-  earnSCWithOverflow(amount) {
-    const before = this.sc;
-    const after = this.sc + amount;
-
-    if (after > this.scMax) {
-      // 오버플로 발생
-      const overflow = after - this.scMax;
-      const ncConversion = Math.floor(overflow * SC_CONFIG.overflowToNCRatio);
-
-      this.sc = this.scMax;
-      this.earnNC(ncConversion);
-
-      return {
-        sc: this.scMax - before,
-        ncFromOverflow: ncConversion,
-        overflow: overflow
-      };
-    } else {
-      this.sc = after;
-      return {
-        sc: amount,
-        ncFromOverflow: 0,
-        overflow: 0
-      };
-    }
-  }
-
-  /**
-   * SC 보상 획득 — 상한(scMax) 초과 허용, NC 변환 없음
-   * 자동충전은 scMax에서 멈추지만 보상은 scMax를 넘어 쌓일 수 있음
+   * SC 보상 획득 — 상한(scMax) 초과 허용
+   * 패시브 자동충전은 scMax(80)에서 멈추지만, 보상/접속 보너스는 초과 누적 가능
    * (예: 80/80 상태에서 +10 SC 보상 → 90/80)
+   * 유저가 초과분을 소비해 SC < scMax 가 되면 자동충전 재개
    */
   earnSCBonus(amount) {
     this.sc += amount;
-    return {
-      sc: amount,
-      ncFromOverflow: 0,
-      overflow: 0
-    };
+    return this.sc;
   }
 
   getSCBalance() {

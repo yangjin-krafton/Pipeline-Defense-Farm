@@ -699,6 +699,10 @@ export class GameLoop {
         if (offlineRewards.ncGained > 0) {
           this.economySystem.earnNC(offlineRewards.ncGained);
         }
+        // SC 회복 — earnSC() 사용으로 상한(80) 자동 적용 (오버캡 없음)
+        if (offlineRewards.scGained > 0) {
+          this.economySystem.earnSC(offlineRewards.scGained);
+        }
         console.log('[GameLoop] Offline rewards applied:', offlineRewards);
       }
 

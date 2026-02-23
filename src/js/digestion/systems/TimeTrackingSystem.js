@@ -320,8 +320,12 @@ export class TimeTrackingSystem {
       this.totalPlaytime = saveData.totalPlayTime;
     }
 
-    if (saveData.lastHourlyClaimTime !== undefined) {
-      this.lastHourlyClaimTime = saveData.lastHourlyClaimTime;
+    if (saveData.hourlyBonusAccumulator !== undefined) {
+      this.hourlyBonusAccumulator = saveData.hourlyBonusAccumulator;
+      // 저장 시점에 이미 수령 대기 상태였으면 복원
+      if (this.hourlyBonusAccumulator >= 3600) {
+        this.hourlyBonusReady = true;
+      }
     }
 
     if (saveData.lastSixHourClaimTimes !== undefined) {

@@ -829,7 +829,7 @@ function setupDevCommands(gameLoop, uiController) {
     const economySystem = gameLoop.getEconomySystem();
     const beforeSC = economySystem.getState().sc;
 
-    economySystem.earnSC(amount);
+    economySystem.earnSCBonus(amount);
 
     const afterSC = economySystem.getState().sc;
 
@@ -861,11 +861,11 @@ function setupDevCommands(gameLoop, uiController) {
     const economySystem = gameLoop.getEconomySystem();
 
     economySystem.earnNC(100000);
-    economySystem.earnSC(1000);
+    economySystem.earnSCBonus(1000);
 
     console.log('[devCommand] Currency maxed out!');
     console.log('  🍎 NC: 100,000+');
-    console.log('  ⚡ SC: 80 (max)');
+    console.log('  ⚡ SC: 1,000+ (over cap)');
 
     // Update UI
     uiController.updateNutritionDisplay(economySystem.getState());
@@ -1416,7 +1416,8 @@ function showOfflineRewardsModal(rewards) {
       </div>
       <div class="offline-rewards-list">
         ${rewards.xpGained > 0 ? `<div class="reward-item">💎 XP: +${rewards.xpGained}</div>` : ''}
-        ${rewards.ncGained > 0 ? `<div class="reward-item">💰 NC: +${rewards.ncGained}</div>` : ''}
+        ${rewards.ncGained > 0 ? `<div class="reward-item">🍎 NC: +${rewards.ncGained}</div>` : ''}
+        ${rewards.scGained > 0 ? `<div class="reward-item">⚡ SC: +${rewards.scGained} (최대 80)</div>` : ''}
       </div>
       <p class="offline-efficiency">오프라인 효율: ${(rewards.efficiency * 100).toFixed(0)}%</p>
       <button class="claim-offline-btn">확인</button>

@@ -1,3 +1,5 @@
+import { SC_CONFIG } from '../data/economyDefinitions.js';
+
 /**
  * SaveSystem - 게임 상태 저장/로드 시스템
  * localStorage 기반 방치형 게임 저장 시스템
@@ -56,7 +58,7 @@ export class SaveSystem {
         timeTracking: {
           lastPlayTime: gameState.timeTracking.lastPlayTime,
           totalPlayTime: gameState.timeTracking.totalPlayTime,
-          lastHourlyClaimTime: gameState.timeTracking.lastHourlyClaimTime,
+          hourlyBonusAccumulator: gameState.timeTracking.hourlyBonusAccumulator,
           lastSixHourClaimTimes: gameState.timeTracking.lastSixHourClaimTimes
         },
 
@@ -166,26 +168,30 @@ export class SaveSystem {
     // 오프라인 효율: 온라인의 35%
     const offlineEfficiency = 0.35;
 
-    // XP 계산 (2초 틱 기반)
-    const ticksPerHour = 1800; // 3600초 / 2초
-    const xpPerTick = 1.0;
-    const totalTicks = Math.floor(offlineHours * ticksPerHour);
-    const offlineXP = totalTicks * xpPerTick * towerCount * offlineEfficiency;
-
-    // NC 계산 (시간당 50 NC)
-    const ncPerHour = 50;
-    const offlineNC = Math.floor(offlineHours * ncPerHour * offlineEfficiency);
-
     // 최대 오프라인 시간 제한 (24시간)
     const maxOfflineHours = 24;
     const cappedHours = Math.min(offlineHours, maxOfflineHours);
+
+    // XP 계산 (2초 틱 기반) — cappedHours 기준
+    const ticksPerHour = 1800; // 3600초 / 2초
+    const xpPerTick = 1.0;
+    const totalTicks = Math.floor(cappedHours * ticksPerHour);
+    const offlineXP = totalTicks * xpPerTick * towerCount * offlineEfficiency;
+
+    // NC 계산 (시간당 50 NC) — cappedHours 기준
+    const ncPerHour = 50;
+    const offlineNC = Math.floor(cappedHours * ncPerHour * offlineEfficiency);
+
+    // SC 회복 계산 — 온라인과 동일한 속도, 상한(80)까지만 회복
+    // earnSC() 가 상한 적용하므로 여기서는 raw 회복량만 계산
+    const offlineSC = Math.floor(cappedHours * SC_CONFIG.passiveRegenPerHour);
 
     return {
       offlineTime: offlineTime,
       offlineHours: cappedHours,
       xpGained: Math.floor(offlineXP),
       ncGained: offlineNC,
-      scGained: 0, // 오프라인에서는 SC 획득 없음
+      scGained: offlineSC,
       efficiency: offlineEfficiency
     };
   }
@@ -259,7 +265,7 @@ export class SaveSystem {
       timeTracking: {
         lastPlayTime: Date.now(),
         totalPlayTime: timeTrackingSystem.getTotalPlayTime(),
-        lastHourlyClaimTime: timeTrackingSystem.lastHourlyClaimTime,
+        hourlyBonusAccumulator: timeTrackingSystem.hourlyBonusAccumulator,
         lastSixHourClaimTimes: timeTrackingSystem.sixHourRewards?.claimed || {}
       },
       wave: {
