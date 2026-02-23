@@ -44,9 +44,6 @@ export class FoodSpawner {
     this.pathCursor     = 0;
     this.pathFlow       = this.multiPathSystem.pathFlow || DEFAULT_PATH_FLOW;
 
-    // Layer A 경로별 tier 인덱스 구축
-    this._poolByPathAndTier = this._buildPoolIndex();
-
     // 안티리피트 큐
     this.recentEmojiQueue = [];
     this.recentQueueMax   = 5;
@@ -166,22 +163,20 @@ export class FoodSpawner {
    * @param {Object} event
    */
   _executeEvent(event) {
-    const { mode, tier, path, count = 2, gap = 22, speedScale = 1.0 } = event;
+    const { mode, levelMin = 1, levelMax = 100, path, count = 2, gap = 22, speedScale = 1.0 } = event;
 
     if (mode === 'triple') {
-      // 3개 경로 동시 스폰
       for (const pathKey of this.spawnablePaths) {
-        this._spawnOne(pathKey, tier, speedScale, 0);
+        this._spawnOne(pathKey, levelMin, levelMax, speedScale, 0);
       }
     } else if (mode === 'line') {
       const pathKey = this._resolvePath(path);
       for (let i = 0; i < count; i++) {
-        this._spawnOne(pathKey, tier, speedScale, i * gap);
+        this._spawnOne(pathKey, levelMin, levelMax, speedScale, i * gap);
       }
     } else {
-      // single
       const pathKey = this._resolvePath(path);
-      this._spawnOne(pathKey, tier, speedScale, 0);
+      this._spawnOne(pathKey, levelMin, levelMax, speedScale, 0);
     }
   }
 
@@ -190,12 +185,13 @@ export class FoodSpawner {
   /**
    * 경로에 적 1마리 스폰.
    * @param {string} pathKey
-   * @param {string} tier      - 'normal'|'strong'|'elite'
+   * @param {number} levelMin
+   * @param {number} levelMax
    * @param {number} speedScale
-   * @param {number} initialOffset - 경로 상 초기 오프셋 (px)
+   * @param {number} initialOffset
    */
-  _spawnOne(pathKey, tier, speedScale, initialOffset) {
-    const baseFood = this._pickEnemy(pathKey, tier);
+  _spawnOne(pathKey, levelMin, levelMax, speedScale, initialOffset) {
+    const baseFood = this._pickEnemy(pathKey, levelMin, levelMax);
     if (!baseFood) return;
 
     // DifficultyEngine 스케일 적용
@@ -231,18 +227,24 @@ export class FoodSpawner {
   // ── 적 선택 ──────────────────────────────────────────────────────────
 
   /**
-   * 경로+티어 풀에서 적 1개 선택 (안티리피트 적용).
+   * 경로 + 레벨 범위에서 적 1개 선택 (안티리피트 적용).
    * @param {string} pathKey
-   * @param {string} tier
+   * @param {number} levelMin
+   * @param {number} levelMax
    * @returns {Object|null}
    */
-  _pickEnemy(pathKey, tier) {
-    const pool = this._poolByPathAndTier[pathKey]?.[tier];
-    if (!pool || pool.length === 0) {
-      // fallback: 같은 경로에서 티어 무관 랜덤
-      const allInPath = ENEMY_STATS[pathKey];
-      if (!allInPath || allInPath.length === 0) return null;
-      return allInPath[Math.floor(Math.random() * allInPath.length)];
+  _pickEnemy(pathKey, levelMin, levelMax) {
+    const allInPath = ENEMY_STATS[pathKey];
+    if (!allInPath || allInPath.length === 0) return null;
+
+    // 레벨 범위 필터
+    let pool = allInPath.filter(e => e.level >= levelMin && e.level <= levelMax);
+
+    // fallback: 범위 내 없으면 가장 가까운 레벨 적
+    if (pool.length === 0) {
+      const mid = (levelMin + levelMax) / 2;
+      const sorted = [...allInPath].sort((a, b) => Math.abs(a.level - mid) - Math.abs(b.level - mid));
+      pool = sorted.slice(0, Math.max(1, Math.ceil(sorted.length * 0.3)));
     }
 
     // 안티리피트 필터
@@ -275,23 +277,6 @@ export class FoodSpawner {
     return path;
   }
 
-  // ── 인덱스 구축 ──────────────────────────────────────────────────────
-
-  /**
-   * 경로별 tier 별 풀 인덱스 구축.
-   * @returns {Object<string, Object<string, Object[]>>}
-   */
-  _buildPoolIndex() {
-    const index = {};
-    for (const [pathKey, enemies] of Object.entries(ENEMY_STATS)) {
-      index[pathKey] = { normal: [], strong: [], elite: [] };
-      for (const e of enemies) {
-        const t = e.tier;
-        if (index[pathKey][t]) index[pathKey][t].push(e);
-      }
-    }
-    return index;
-  }
 
   /**
    * 각 스폰 경로의 총 이동 거리 계산 (내부 참고용, 현재는 미사용).

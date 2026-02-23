@@ -44,9 +44,11 @@ export class DifficultyEngine {
     this._sessionSec  = 0;
 
     // 스탯 스케일 상한
-    // difficultyValue=1.0 에서 각 배율 최대값
-    this.HP_SCALE_MAX    = 2.5;  // hp 최대 2.5배
-    this.ARMOR_SCALE_MAX = 3.0;  // armor 최대 3배 (armor=14 → 42 → 42% 감소)
+    // level 기반 base HP 가 이미 lv1=80 ~ lv100=8,000 으로 설계됨.
+    // DifficultyEngine 스케일은 미세 조정 역할만 함.
+    // armor 는 lv100 = 60 최대이므로 ×1.2 해도 72 → 72% 감소, 공식 안전.
+    this.HP_SCALE_MAX    = 1.8;
+    this.ARMOR_SCALE_MAX = 1.2;
 
     // 최근 평가 결과 (디버그/UI 노출용)
     this.lastEvalStats = null;
