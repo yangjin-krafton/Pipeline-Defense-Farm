@@ -438,12 +438,8 @@ export class GameLoop {
   start() {
     this.isRunning = true;
 
-    // Spawn initial foods on different paths
-    const spawnablePaths = ['rice_stomach', 'dessert_stomach', 'alcohol_stomach'];
-    for (let i = 0; i < 5; i += 1) {
-      const pathKey = spawnablePaths[i % spawnablePaths.length];
-      this.foodSpawner.spawnFood(pathKey, i * 56);
-    }
+    // 초기 적 스폰 — 웨이브 시스템이 첫 웨이브를 선택하도록 즉시 트리거
+    this.foodSpawner.triggerInitialSpawn();
     this._playBattleSfx('wave_start', 0.68, 0.4, 'lastWaveStartSfxTime');
 
     requestAnimationFrame((t) => this.frame(t));

@@ -91,6 +91,16 @@ export class FoodSpawner {
   }
 
   /**
+   * 게임 시작 시 첫 웨이브를 즉시 시작 (쿨다운 없이).
+   * GameLoop.start() 에서 호출.
+   */
+  triggerInitialSpawn() {
+    this._cooldownTimer = 0;
+    this._selectNewWave();
+    this._processScriptEvents();
+  }
+
+  /**
    * 전투 결과 보고 — DifficultyEngine 으로 delegate.
    * GameLoop/MultiPathSystem 에서 기존 인터페이스 호환용.
    * @param {{killed?:boolean, leaked?:boolean, timeToKill?:number}} result
