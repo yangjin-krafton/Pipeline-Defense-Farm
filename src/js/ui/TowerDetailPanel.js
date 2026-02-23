@@ -81,9 +81,10 @@ export class TowerDetailPanel {
     const costEl = document.getElementById('unlockCostAmount');
     if (costEl) costEl.textContent = `🍎 ${slot.unlockCost.toLocaleString()}`;
 
-    // 언락 확인 버튼
+    // 언락 확인 버튼 (비용 표시)
     const confirmBtn = document.getElementById('confirmUnlockBtn');
     if (confirmBtn) {
+      confirmBtn.textContent = `🔓 언락  🍎 ${slot.unlockCost.toLocaleString()}`;
       confirmBtn.onclick = (e) => {
         e.stopPropagation();
         const economySystem = this.ui.gameLoop?.getEconomySystem();
