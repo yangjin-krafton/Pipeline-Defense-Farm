@@ -2,7 +2,7 @@
  * Main game loop
  */
 import { BASE_SPEED, PATHS, PATH_RENDER_SETTINGS, TOWER_SLOTS } from '../config.js';
-import { FoodSpawner } from './FoodSpawner.js';
+import { PressureBasedSpawner } from './PressureBasedSpawner.js';
 import { DifficultyEngine } from './DifficultyEngine.js';
 import { hexToRgba } from '../utils/geometry.js';
 import { TowerManager } from '../digestion/systems/TowerManager.js';
@@ -27,7 +27,6 @@ export class GameLoop {
     this.audioSystem = audioSystem;
     this.uiSfxSystem = uiSfxSystem;
     this.difficultyEngine = new DifficultyEngine();
-    this.foodSpawner = new FoodSpawner(multiPathSystem, this.difficultyEngine);
 
     this.time = 0;
     this.score = 0;
@@ -46,8 +45,11 @@ export class GameLoop {
     this.targetTimeScale = 1.0; // Target time scale for smooth transitions
     this.timeScaleTransitionSpeed = 5.0; // How fast to transition between speeds
 
-    // Initialize digestion systems
+    // Initialize digestion systems (must create towerManager first for pressure-based spawner)
     this.towerManager = new TowerManager();
+
+    // Initialize pressure-based spawner with tower manager reference
+    this.foodSpawner = new PressureBasedSpawner(multiPathSystem, this.difficultyEngine, this.towerManager);
     this.economySystem = new EconomySystem();
 
     // Initialize new growth systems
