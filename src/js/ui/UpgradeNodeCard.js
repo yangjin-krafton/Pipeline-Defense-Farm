@@ -131,9 +131,15 @@ export class UpgradeNodeCard {
       card.style.cursor = 'pointer';
 
       let touchStartTime = 0;
+      let touchStartX = 0;
+      let touchStartY = 0;
       let touchMoved = false;
+      const CLICK_THRESHOLD = 8; // px — 이 이상 움직이면 드래그로 판정
 
-      const handlePointerDown = () => {
+      const handlePointerDown = (e) => {
+        const pt = e.touches ? e.touches[0] : e;
+        touchStartX = pt.clientX;
+        touchStartY = pt.clientY;
         touchStartTime = Date.now();
         touchMoved = false;
         card.style.transform = 'translateY(3px) rotate(0deg) scale(0.98)';
@@ -144,13 +150,28 @@ export class UpgradeNodeCard {
         `;
       };
 
-      const handlePointerMove = () => { touchMoved = true; };
+      const handlePointerMove = (e) => {
+        if (touchMoved) return;
+        const pt = e.touches ? e.touches[0] : e;
+        const dx = pt.clientX - touchStartX;
+        const dy = pt.clientY - touchStartY;
+        if (Math.sqrt(dx * dx + dy * dy) > CLICK_THRESHOLD) {
+          touchMoved = true;
+          // 드래그로 전환 시 눌림 스타일 즉시 복원
+          card.style.transform = 'translateY(0) rotate(0deg) scale(1)';
+          card.style.boxShadow = `
+            0 0 0 3px ${borderColor},
+            0 6px 0 #1a1a2e,
+            0 8px 20px rgba(0, 0, 0, 0.3)
+          `;
+        }
+      };
 
       const handlePointerUp = (e) => {
         const touchDuration = Date.now() - touchStartTime;
 
         if (!touchMoved && touchDuration < 300) {
-          e.stopPropagation();
+          // stopPropagation 제거 — DragManager가 pending 상태를 조용히 정리
           e.preventDefault();
 
           if (!canAffordNC) {
