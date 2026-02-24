@@ -15,6 +15,7 @@ import { UpgradeTreeUI } from './UpgradeTreeUI.js';
 import { UpgradeNodeCard } from './UpgradeNodeCard.js';
 import { SpeedControlUI } from './SpeedControlUI.js';
 import { ResourceDisplayUI } from './ResourceDisplayUI.js';
+import { TooltipManager } from './TooltipManager.js';
 
 export class UIController {
   constructor() {
@@ -47,6 +48,7 @@ export class UIController {
     this.upgradeNodeCard = null;
     this.speedControlUI = null;
     this.resourceDisplayUI = null;
+    this.tooltipManager = null;
 
     this.init();
   }
@@ -75,6 +77,7 @@ export class UIController {
     }
 
     // 서브 모듈 초기화 (의존성 순서 준수)
+    this.tooltipManager = new TooltipManager();
     this.upgradeNodeCard = new UpgradeNodeCard(this);
     this.upgradeTreeUI = new UpgradeTreeUI(this, this.upgradeNodeCard);
     this.towerDetailPanel = new TowerDetailPanel(this);
@@ -87,6 +90,7 @@ export class UIController {
     this.speedControlUI.setup();
     this.resourceDisplayUI.setupHourlyClaimButton();
     this.resourceDisplayUI.setupSixHourClaimButton();
+    this.resourceDisplayUI.setupResourceClickHandlers();
   }
 
   // ─── 시트 열기/닫기 (Core 상태 관리) ──────────────────────────────────

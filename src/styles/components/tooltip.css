@@ -1,0 +1,48 @@
+/**
+ * Tooltip Component — Splatoon Style
+ * position: fixed, scale-container 외부에서 렌더
+ */
+
+#ui-tooltip {
+  position: fixed;
+  z-index: 9999;
+  width: 220px;
+  background: #1a1a2e;
+  border: 3px solid var(--splat-cyan);
+  border-radius: 14px;
+  padding: 10px 14px;
+  box-shadow: 0 0 0 2px var(--splat-dark),
+              0 6px 0 var(--splat-dark),
+              0 0 20px rgba(0, 217, 255, 0.4);
+  pointer-events: none;
+
+  opacity: 0;
+  transform: translateY(-6px) scale(0.95);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+#ui-tooltip.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.tooltip-title {
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--splat-cyan);
+  text-shadow: 0 0 8px rgba(0, 217, 255, 0.6);
+  margin-bottom: 6px;
+  padding-bottom: 5px;
+  border-bottom: 2px solid rgba(0, 217, 255, 0.3);
+}
+
+.tooltip-line {
+  font-size: 12px;
+  font-weight: 700;
+  color: #e0e0e0;
+  line-height: 1.6;
+}
+
+.tooltip-line:not(.tooltip-title) {
+  padding-left: 2px;
+}

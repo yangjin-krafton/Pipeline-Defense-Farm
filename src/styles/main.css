@@ -22,7 +22,7 @@
 @import './components/dev-menu.css';
 @import './components/dialog.css';
 @import './components/offline-rewards.css';
-@import './components/offline-rewards.css';
+@import './components/tooltip.css';
 
 /* Global Reset & Base Layout */
 * {

@@ -232,6 +232,44 @@ export class ResourceDisplayUI {
   }
 
   /**
+   * NC/SC 재화 UI 클릭 시 툴팁 표시
+   */
+  setupResourceClickHandlers() {
+    const tooltip = this.ui.tooltipManager;
+    if (!tooltip) return;
+
+    const ncEl = document.querySelector('.nc-resource');
+    if (ncEl) {
+      ncEl.style.cursor = 'pointer';
+      ncEl.addEventListener('click', () => {
+        tooltip.show(ncEl, [
+          '🍎 영양 크레딧 (NC)',
+          '타워 설치·강화에 사용',
+          '획득 방법:',
+          '• 적 처치 시 자동 획득',
+          '• 웨이브 클리어 보상',
+          '• 6시간 주기 보상 수령',
+        ]);
+      });
+    }
+
+    const scEl = document.querySelector('.sc-resource');
+    if (scEl) {
+      scEl.style.cursor = 'pointer';
+      scEl.addEventListener('click', () => {
+        tooltip.show(scEl, [
+          '⚡ 보급 차지 (SC)',
+          '리롤·부스트에 사용',
+          '획득 방법:',
+          '• 시간이 지나면 자동 충전',
+          '• 1시간 보상 버튼 수령',
+          '• 6시간 주기 보상 수령',
+        ]);
+      });
+    }
+  }
+
+  /**
    * 6시간 보상 버튼 표시 상태 및 레이블 갱신
    * main.js updateUIDisplays 루프에서 호출
    */

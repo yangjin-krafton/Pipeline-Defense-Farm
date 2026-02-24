@@ -424,7 +424,14 @@ export class TowerDetailPanel {
 
         if (!economySystem.canAfford(definition.cost)) {
           this.ui._playUISfx('ui_error', { volume: 0.78 });
-          console.warn('Not enough nutrition to build tower');
+          this.ui.tooltipManager?.show(card, [
+            '🍎 NC 부족!',
+            `필요: 🍎 ${definition.cost}`,
+            '획득 방법:',
+            '• 적 처치 시 자동 획득',
+            '• 웨이브 클리어 보상',
+            '• 6시간 주기 보상 수령',
+          ], 3000);
           return;
         }
 
