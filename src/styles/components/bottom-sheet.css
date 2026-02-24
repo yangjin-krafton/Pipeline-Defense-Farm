@@ -423,18 +423,18 @@
 }
 
 .tower-icon-medium {
-  font-size: 44px;
+  font-size: 88px;
   filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, 0.2));
 }
 
 .tower-card-name {
-  font-size: 14px;
+  font-size: 28px;
   font-weight: 900;
   color: var(--splat-dark);
 }
 
 .tower-card-desc {
-  font-size: 10px;
+  font-size: 20px;
   font-weight: 700;
   color: #666;
   text-align: center;
@@ -450,33 +450,34 @@
   margin: 2px 0;
 }
 
-.tower-card-tags {
+.tower-card-stats {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   width: 100%;
 }
 
-.tower-card-tag {
-  font-size: 10px;
+.tower-card-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--splat-dark);
+  background: rgba(0, 217, 255, 0.08);
+  border: 2px solid rgba(0, 217, 255, 0.3);
+  border-radius: 8px;
+  padding: 4px 10px;
+}
+
+.tower-card-stat-label {
+  color: #888;
+  font-weight: 700;
+}
+
+.tower-card-stat-value {
+  color: var(--splat-dark);
   font-weight: 900;
-  padding: 3px 6px;
-  border-radius: 7px;
-  border: 2px solid var(--splat-dark);
-  text-align: center;
-  line-height: 1.2;
-}
-
-.tower-card-tag.pro {
-  background: linear-gradient(90deg, #43a047, #66bb6a);
-  color: white;
-  box-shadow: 0 2px 0 var(--splat-dark);
-}
-
-.tower-card-tag.con {
-  background: linear-gradient(90deg, #e53935, #ef5350);
-  color: white;
-  box-shadow: 0 2px 0 var(--splat-dark);
 }
 
 .tower-card-cost {
