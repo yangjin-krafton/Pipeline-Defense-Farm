@@ -388,11 +388,11 @@
               white;
   border: 5px solid var(--splat-dark);
   border-radius: 18px;
-  padding: 20px 15px;
+  padding: 16px 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   cursor: pointer;
   transition: all 0.2s;
   box-shadow: 0 0 0 2px var(--splat-cyan),
@@ -423,14 +423,60 @@
 }
 
 .tower-icon-medium {
-  font-size: 50px;
+  font-size: 44px;
   filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, 0.2));
 }
 
 .tower-card-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 900;
   color: var(--splat-dark);
+}
+
+.tower-card-desc {
+  font-size: 10px;
+  font-weight: 700;
+  color: #666;
+  text-align: center;
+  line-height: 1.3;
+  padding: 0 2px;
+}
+
+.tower-card-divider {
+  width: 80%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--splat-cyan), transparent);
+  border-radius: 2px;
+  margin: 2px 0;
+}
+
+.tower-card-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.tower-card-tag {
+  font-size: 10px;
+  font-weight: 900;
+  padding: 3px 6px;
+  border-radius: 7px;
+  border: 2px solid var(--splat-dark);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.tower-card-tag.pro {
+  background: linear-gradient(90deg, #43a047, #66bb6a);
+  color: white;
+  box-shadow: 0 2px 0 var(--splat-dark);
+}
+
+.tower-card-tag.con {
+  background: linear-gradient(90deg, #e53935, #ef5350);
+  color: white;
+  box-shadow: 0 2px 0 var(--splat-dark);
 }
 
 .tower-card-cost {
@@ -438,10 +484,11 @@
   font-weight: 900;
   color: white;
   background: linear-gradient(90deg, var(--splat-pink), var(--splat-pink-light));
-  padding: 6px 16px;
+  padding: 5px 14px;
   border-radius: 15px;
   border: 3px solid var(--splat-dark);
   box-shadow: 0 3px 0 var(--splat-dark);
+  margin-top: 2px;
 }
 
 .lock-badge {
